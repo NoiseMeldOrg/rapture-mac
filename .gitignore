@@ -1,0 +1,70 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Icon
+
+# Xcode — User-specific
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+DerivedData/
+*.moved-aside
+*.xcscmblueprint
+*.xccheckout
+
+# Xcode — Build output
+build/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.app
+*.xcarchive
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.pins
+Package.resolved
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+
+# CocoaPods (not used, but defensive)
+Pods/
+*.xcworkspace
+
+# Carthage (not used, but defensive)
+Carthage/Build/
+
+# fastlane (not used yet)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Code signing artifacts
+*.p12
+*.p8
+*.cer
+*.mobileprovision
+ExportOptions.plist
+
+# Local env / secrets
+.env
+.env.local
+*.local.json
+
+# Editor cruft
+.vscode/
+.idea/
+*.swp
+*~
+
+# Notarization staging
+notarize/
+*.dmg.signed
+
+# Logs
+*.log

@@ -76,14 +76,15 @@ Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local
 27. [ ] Code signing build phase — Developer ID, hardened runtime, entitlements. `S`
 28. [ ] Notarization script — `notarytool` + `stapler`. `S`
 29. [ ] DMG packaging — `create-dmg` or `hdiutil`. `XS`
-30. [ ] First signed + notarized release — distribution channel TBD. `XS`
+30. [ ] Flip repo to public on GitHub + add `LICENSE` (Apache-2.0), `SECURITY.md`, `CONTRIBUTING.md`. `XS`
+31. [ ] First signed + notarized release — GitHub Releases, DMG attached. `XS`
 
 ## v1.1 (deferred)
 
-31. [ ] Cloud mode via VPS relay — Sendblue → user's hetzner VPS → push to Mac. Transport TBD (APNs silent push vs Mac long-poll vs WebSocket). Replaces the on-Mac webhook design from the original plan. `L`
-32. [ ] Group chat support — `chat_style == 43` with optional `requireMention` regex. `S`
-33. [ ] Contacts framework integration — resolve names in allowlist UI. `XS`
-34. [ ] Auto-update — Sparkle. `S`
+32. [ ] Cloud mode via VPS relay — Sendblue → user's hetzner VPS → push to Mac. Transport TBD (APNs silent push vs Mac long-poll vs WebSocket). Replaces the on-Mac webhook design from the original plan. `L`
+33. [ ] Group chat support — `chat_style == 43` with optional `requireMention` regex. `S`
+34. [ ] Contacts framework integration — resolve names in allowlist UI. `XS`
+35. [ ] Auto-update — Sparkle. `S`
 
 ---
 

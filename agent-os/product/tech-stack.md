@@ -59,11 +59,17 @@ All easier outside the sandbox. Distribution is signed + notarized DMG, not Mac 
 
 ## Distribution
 
+- **License:** Apache-2.0. Matches `claude-channel-rapture`; mirrors the FOSS posture across the Rapture product line.
+- **Source:** [`NoiseMeldOrg/rapture-mac`](https://github.com/NoiseMeldOrg/rapture-mac) (public).
+- **Binaries:** Developer ID-signed + notarized DMG attached to GitHub Releases. End users drag the `.app` into Applications.
 - **Code signing:** Developer ID Application, team `P8PLTH44DF` (shared with rapture-ios)
 - **Hardened runtime:** ON (required for notarization)
 - **Notarization:** `notarytool` via App Store Connect API key `GX6DYX9S2M` (shared with rapture-ios; see `~/.appstoreconnect/private_keys/`)
 - **Stapling:** `xcrun stapler staple` the notarized DMG
-- **Channel:** TBD — likely direct download from a NoiseMeld page
+
+### Mac App Store
+
+Not in v1, not in v1.1, and not by choice. The MAS sandbox blocks `chat.db` reads regardless of TCC grants and blocks the `osascript` subprocess used for in-thread `✓ Saved` replies. A future "cloud-only" SKU built from a subset of the codebase could plausibly ship in MAS (no chat.db, no AppleScript), but that's a v2 product question, not a v1 design constraint.
 
 ## Versioning
 

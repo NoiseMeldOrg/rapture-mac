@@ -1,6 +1,8 @@
 # Rapture for Mac
 
-A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Turns Siri-dictated iMessages into timestamped `.txt` files on disk, so voice-captured thoughts land in a folder you (and a personal AI assistant) can read later.
+A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Turns Siri-dictated iMessages into timestamped `.txt` files on disk, so voice-captured thoughts land in a folder you (and any LLM agentic system) can read later.
+
+**Apache-2.0 licensed. Built to be consumed by any AI assistant — Claude, ChatGPT, Gemini, a local Llama, anything that can read a file.**
 
 ## Motivating flow
 
@@ -40,7 +42,8 @@ rapture-mac/
 - [`rapture-ios`](https://github.com/NoiseMeldOrg/rapture-ios) — iOS app (the voice-capture-and-cloud-sync product)
 - [`rapture-android`](https://github.com/NoiseMeldOrg/rapture-android) — Android app
 - [`rapture-api-gateway`](https://github.com/NoiseMeldOrg/rapture-api-gateway) — Backend (Render.com)
+- [`claude-channel-rapture`](https://github.com/NoiseMeldOrg/claude-channel-rapture) — Claude Code plugin that pairs with Rapture iOS over a real-time channel
 
 ## License
 
-Private — internal NoiseMeld project.
+Apache-2.0. See [LICENSE](./LICENSE).

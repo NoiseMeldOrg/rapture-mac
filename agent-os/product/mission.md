@@ -38,6 +38,18 @@ If you dictated a note from across the room, you have no way to know it was capt
 - **Catch-up is first-class.** Every missed message replays on launch with an audit summary so the user always knows the state.
 - **In-thread confirmation.** `✓ Saved: <filename>` replies in the iMessage thread so the iPhone's standard message-received sound is the "it landed" signal.
 
+## Integration model — folder as the universal interface
+
+The output is intentionally trivial: one `.txt` file per captured message in a folder the user chose. No SDK, no protocol, no API, no Claude lock-in.
+
+This means **any** LLM agentic system can consume the captures: Claude (Code or API), ChatGPT, Gemini, a local Llama, a Python script, a shell pipeline, an iOS Shortcut watching the iCloud sync of that folder. If it can read a file, it works. The folder is the cross-LLM compatibility layer.
+
+This is a hard product commitment, not an aspiration. Any future feature that would couple captures to a specific AI vendor or transport protocol is out of scope.
+
+## Distribution
+
+**Apache-2.0 open source on GitHub at [`NoiseMeldOrg/rapture-mac`](https://github.com/NoiseMeldOrg/rapture-mac).** Anyone can read, build, fork, or contribute. End users install a pre-built Developer ID-signed + notarized DMG from GitHub Releases — drag-and-drop, no terminal, no Homebrew, no developer tooling required.
+
 ## Out of scope for v1
 
 - Cloud mode (Sendblue) — deferred to v1.1 with a VPS-relay architecture, never an on-Mac webhook

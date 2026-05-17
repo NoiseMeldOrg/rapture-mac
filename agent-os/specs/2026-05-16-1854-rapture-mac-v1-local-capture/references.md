@@ -17,6 +17,45 @@
   - **AppleScript send** (lines 418–424, 459–467): script `on run argv \n tell application "Messages" to send (item 1 of argv) to chat id (item 2 of argv) \n end run`. Invoke `/usr/bin/osascript -`, pipe script via stdin, pass `[text, chatGuid]` as argv.
   - **Echo guard** (lines 431–457): 15-second window. Key = `chatGuid + 0x00 + normalize(text)`. Normalize = strip `' Sent by Claude'` suffix, strip ZWJ + variation selectors, smart quotes → ASCII, trim, collapse whitespace, cap at 120 chars.
 
+### imsg (production-grade CLI reference)
+
+- **Location:** https://github.com/openclaw/imsg (MIT-licensed; brew install `steipete/tap/imsg`)
+- **Relevance:** The closest existing tool to what we're building. CLI rather than a Mac app, but the data-plane behavior is exactly what we want to match.
+  - `imsg watch --json` is the closest functional equivalent to our planned `ChatDBWatcher.events` stream.
+  - Already solved every macOS-26 / Tahoe chat.db edge case we'd otherwise rediscover.
+  - Implements file-system events on chat.db with polling fallback (matches our Phase 5 design).
+  - Independently implements an `attributedBody` decoder — useful for cross-checking ours.
+  - Uses Messages.app AppleScript automation for sending (same shape as Anthropic's `server.ts`).
+- **What we copy:** behavior contracts (decoder edge cases, polling cadence, AppleScript invocation shape).
+- **What we don't copy:** CLI distribution shape, general-purpose framing, no per-message file output, no auto-ACK reply — those gaps are our value-add.
+- **Verification idea for Phase 5:** install imsg via brew, run `imsg watch --json` in parallel against the same chat.db. Diff our `MessageEvent` stream against imsg's JSON output line-by-line. Any divergence is either a bug in our port or a documented intentional difference.
+
+## Data plane decision (2026-05-16)
+
+**Decision:** rapture-mac is a **Swift port** of the data-plane logic, with `imsg` and Anthropic's `server.ts` as **reference implementations** — NOT a runtime dependency.
+
+### Rejected: shell out to `imsg watch --json` from the menu-bar app
+
+- Pro: ~80% of the data plane is already battle-tested.
+- Con: Requires `brew install steipete/tap/imsg` before our app works, which violates the "easily installable for any user" mission requirement. Most target users (non-technical) do not have Homebrew.
+- Con (with mitigation): Bundling imsg inside `RaptureMac.app/Contents/Resources/` is technically possible but (a) we'd ship a frozen copy that drifts from upstream, (b) the embedded binary itself must be re-signed and re-notarized as part of our build, (c) we'd inherit imsg's release cadence for any security fix we'd want to ship urgently.
+- Con: Subprocess JSON-parse boundary on every message — minor per-message latency, but more importantly, subprocess lifecycle, log capture, and crash-restart all become problems we own.
+
+### Accepted: Swift port
+
+- Pro: Single signed + notarized `.app` bundle. Drag-and-drop install for any user. Mission-aligned.
+- Pro: Async/await native; pipeline composes cleanly with `@Observable` state.
+- Pro: We own the release cadence — a security fix or a Tahoe-day-1 schema change can ship without waiting on upstream.
+- Pro: The data plane is small (projected ~400 lines for watcher + decoder + filter combined). Shelling out wouldn't materially shrink the codebase.
+- Con: We re-encounter chat.db schema changes Apple ships. *Mitigation:* cross-check against imsg in CI when imsg cuts a release; if imsg drifts, we know to update.
+
+### Implementation guidance for Phases 4–7
+
+- Read **imsg's source** as a second spec alongside Anthropic's `server.ts` when porting.
+- Where the two references disagree on edge-case behavior, **prefer imsg's** — it's been tested on macOS 26 (Tahoe), whereas Anthropic's plugin updates less frequently and the version checked into `external_plugins/` is a point-in-time snapshot.
+- Phase 5 verification step: install imsg, run `imsg watch --json` against the same chat.db, diff the streams.
+- Anything imsg handles that we don't (e.g., a future macOS change to `attributedBody` format) is a known TODO, not a surprise. Track imsg's CHANGELOG.
+
 ## Deferred references (v1.1 cloud mode only — DO NOT USE in v1)
 
 ### boop-agent Sendblue webhook handler

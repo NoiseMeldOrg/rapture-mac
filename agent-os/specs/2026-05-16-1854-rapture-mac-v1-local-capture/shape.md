@@ -17,6 +17,7 @@ v1 implements **local mode only**: polls `~/Library/Messages/chat.db`, decodes m
 | v1 modes | **Local only**. Cloud mode (Sendblue + cloudflared) entirely deferred. | See "Why local-only" below. |
 | Sandboxing | No | FDA + arbitrary folder writes + AppleScript control of Messages.app are all easier outside the sandbox. |
 | Distribution | Developer ID signed + notarized DMG | Mac App Store would require sandboxing + tunnel rework. Out of v1 scope. |
+| Data plane | Swift port; NOT a runtime dependency on `imsg` or any other CLI | See ADR in `references.md`. The "easily installable for any user" mission requirement precludes a `brew install` prerequisite. |
 
 ## Why local-only (the most important shaping decision)
 
@@ -32,6 +33,19 @@ The user pushed back on running Sendblue on their Mac during shaping, and the re
 6. **What's left is a coherent product.** chat.db → filter → file → AppleScript reply. The Siri-to-self flow is the hero use case and works without any of the cloud surface.
 
 **v1.1 direction (deferred, not committed):** Sendblue → VPS relay (queues + dedups on `message_handle`) → push to Mac. Mac never holds a public webhook. Transport TBD (APNs silent push vs Mac long-poll vs WebSocket).
+
+## Why this can't be a Shortcut
+
+Validated empirically 2026-05-16: the Apple Shortcuts path that looks closest ("Hey Siri, *[shortcut name]*" → dictate → append to a file) does **not** work from a locked iPhone in practice. iMessage-to-self via stock Siri *does*. This was first-hand testing, not theoretical.
+
+This isn't a temporary gap or a Shortcuts bug. It's a structural lock-screen policy split that Apple maintains deliberately:
+
+- **iMessage-to-self from a locked phone is a stock Siri primitive.** Messaging is core communication; Apple has always allowed it from the lock screen and has tuned the dictation flow accordingly.
+- **Arbitrary Shortcut activation from a locked phone is gated behind unlock.** Permitting it would mean anyone holding the phone could invoke any automation the owner has installed. That's a security policy Apple is not going to loosen, because doing so would either (a) weaken Shortcuts security broadly, or (b) collapse the distinction between "stock Siri behaviors" and "user-authored automations." Neither is acceptable.
+
+**The implication for this product:** rapture-mac's moat is **not** "we built it better than the Shortcuts alternative." It's that the only Apple-permitted path for hands-free voice capture from a locked iPhone is the one we hijack — the message-to-self flow. This holds until Apple fundamentally rearchitects lock-screen policy, which they won't, for the reasons above.
+
+This is the **load-bearing assumption** of the product. If Shortcuts ever did work cleanly from a locked phone, the right answer would be a Shortcut, not a Mac app.
 
 ## Reference-code corrections caught during shaping
 

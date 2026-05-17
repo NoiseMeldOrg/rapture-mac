@@ -1,66 +1,42 @@
-# Technical Stack
+# Tech Stack
 
 > Last Updated: 2026-05-16
 > Version: 1.0.0
 
 ## Platform & Language
 
-- **Platform:** macOS (menu-bar app)
-- **Minimum macOS:** macOS 14.0 (Sonoma)
-- **App framework:** Native macOS (SwiftUI)
-- **Language:** Swift 5.9+
-- **Development environment:** Xcode 26+
-- **UI framework:** SwiftUI + `MenuBarExtra(.window)` style
-- **Architecture:** MVVM with async/await + `@Observable`
+- macOS 14+ (Sonoma) menu-bar app — `LSUIElement=YES`, no Dock icon
+- Swift 5.9+, Xcode 26+
+- SwiftUI + `MenuBarExtra(.window)` style
+- MVVM with async/await + `@Observable`
 
-## Reason for macOS 14 deployment target
+## Why macOS 14 deployment target
 
-- `MenuBarExtra(.window)` (macOS 13+ but with .window style improvements in 14)
+- `MenuBarExtra(.window)` polish (macOS 13+, refined in 14)
 - `SMAppService.mainApp` for launch-at-login (macOS 13+, polished in 14)
 - Observation framework `@Observable` (macOS 14+)
-- Mirrors iOS app's preference for using modern APIs over wide compatibility
+- Mirrors the iOS app's preference for modern APIs over wide compatibility
 
-## Apple Frameworks
+## Apple frameworks
 
-- **AppKit (bridged):** `NSOpenPanel` for folder picker, `NSStatusItem` indirectly via `MenuBarExtra`
-- **Foundation:** `URLSession` (not used in v1; reserved for v1.1 cloud mode), `FileManager`, `Process` (for `osascript`), `FileCoordinator` (for atomic writes)
+- **AppKit (bridged):** `NSOpenPanel` for folder picker
+- **Foundation:** `FileManager`, `Process` (for `osascript`), `FileCoordinator` (atomic writes)
 - **ServiceManagement:** `SMAppService.mainApp` for launch-at-login
-- **UserNotifications:** `UNUserNotificationCenter` for catch-up summary fallback when reply mode is off
-- **OSLog:** Structured logging via `Logger`
+- **UserNotifications:** `UNUserNotificationCenter` for catch-up fallback when reply mode is off
+- **OSLog:** structured logging via `Logger`
 
-## Third-party dependencies (SPM)
+## Third-party (SPM)
 
-- **GRDB.swift** — Swift SQLite wrapper, read-only against `~/Library/Messages/chat.db`. Chosen over raw `sqlite3` for safer async API and prepared statement handling. https://github.com/groue/GRDB.swift
+- **GRDB.swift** — Swift SQLite wrapper, read-only against `~/Library/Messages/chat.db`. Chosen over raw `sqlite3` for safer async API and prepared-statement handling. https://github.com/groue/GRDB.swift
 
 That's it. No Sendblue SDK (no cloud mode in v1), no networking stack beyond Foundation.
 
-## Data flow
-
-```
-~/Library/Messages/chat.db  ←  iCloud syncs this when Mac is awake
-        │
-        │ GRDB read-only poll, WHERE ROWID > watermark
-        ▼
-ChatDBWatcher  →  MessageEvent (AsyncStream)
-        │
-        ▼
-MessageFilter  ←  SelfHandleResolver, EchoGuard
-        │
-        ▼  (if .capture)
-FileWriter  →  <output-folder>/<ISO-UTC>.txt
-        │
-        ▼  (write result)
-Replier  →  AppleScriptSender  →  osascript  →  Messages.app  →  iMessage reply
-        │
-        └→  EchoGuard.track()  (so the reply doesn't re-capture itself)
-```
-
 ## Persistence
 
-- **`~/Library/Application Support/Rapture for Mac/settings.json`** — user preferences (output folder URL, allowlist, reply mode, etc.)
-- **`~/Library/Application Support/Rapture for Mac/state.json`** — runtime state (chat.db watermark, self-handle cache timestamp, recent echo entries)
-- **Atomic writes:** `.tmp` → `rename(2)` for both files.
-- **Output folder:** user-chosen via `NSOpenPanel`. Stored as bookmark data so the path survives across launches even if the folder moves.
+- `~/Library/Application Support/Rapture for Mac/settings.json` — user preferences
+- `~/Library/Application Support/Rapture for Mac/state.json` — runtime state (chat.db watermark, self-handle cache timestamp, recent echo entries)
+- **Atomic writes:** `.tmp` → `rename(2)` for both files
+- **Output folder:** user-chosen via `NSOpenPanel`, stored as security-scoped bookmark data
 
 ## Permissions
 
@@ -73,6 +49,7 @@ Replier  →  AppleScriptSender  →  osascript  →  Messages.app  →  iMessag
 ## Sandboxing
 
 **Off.** Sandboxing would block:
+
 - Reading `chat.db` (system-protected path)
 - Writing to arbitrary user folders (Dropbox, Drive, etc.)
 - AppleScript control of Messages.app
@@ -82,11 +59,11 @@ All easier outside the sandbox. Distribution is signed + notarized DMG, not Mac 
 
 ## Distribution
 
-- **Code signing:** Developer ID Application certificate, team `P8PLTH44DF` (shared with rapture-ios)
+- **Code signing:** Developer ID Application, team `P8PLTH44DF` (shared with rapture-ios)
 - **Hardened runtime:** ON (required for notarization)
 - **Notarization:** `notarytool` via App Store Connect API key `GX6DYX9S2M` (shared with rapture-ios; see `~/.appstoreconnect/private_keys/`)
 - **Stapling:** `xcrun stapler staple` the notarized DMG
-- **Distribution channel:** TBD — likely direct download from a NoiseMeld page
+- **Channel:** TBD — likely direct download from a NoiseMeld page
 
 ## Versioning
 
@@ -96,13 +73,12 @@ Plan: mirror rapture-ios's git-commit-count auto-versioning via a Run Script bui
 
 - **Xcode 26+**
 - **GitHub:** `NoiseMeldOrg/rapture-mac` (private)
-- **Testing:** XCTest (no UI tests in v1 — pipeline is testable via unit tests against fixture chat.db rows)
-- **CI/CD:** None in v1
-- **MCP servers:** XcodeBuildMCP, axiom plugin — already configured globally; no per-repo MCP config needed
+- **Testing:** XCTest. No UI tests in v1 — the pipeline is testable via unit tests against fixture chat.db rows.
+- **CI/CD:** none in v1
 
-## Out of scope (v1)
+## Out of scope for v1
 
-- **Cloud / networking:** No Hummingbird, no cloudflared, no Sendblue, no webhook listener, no MMS download. Entirely deferred to v1.1.
-- **Keychain:** No secrets in v1 (no API keys to store).
-- **Analytics:** No PostHog / TelemetryDeck. Add only if there's a real reason.
-- **Auto-update:** No Sparkle. Add when distribution is mature.
+- **Networking:** no Hummingbird, cloudflared, Sendblue, webhook listener, MMS download. Entirely deferred to v1.1 with VPS-relay architecture.
+- **Keychain:** no secrets in v1.
+- **Analytics:** no PostHog / TelemetryDeck.
+- **Auto-update:** no Sparkle.

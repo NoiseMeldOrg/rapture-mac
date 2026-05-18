@@ -47,6 +47,17 @@ This isn't a temporary gap or a Shortcuts bug. It's a structural lock-screen pol
 
 This is the **load-bearing assumption** of the product. If Shortcuts ever did work cleanly from a locked phone, the right answer would be a Shortcut, not a Mac app.
 
+## Why this can't be in the Mac App Store
+
+Distribution is signed + notarized DMG, not Mac App Store. This is structural, not stylistic — the MAS sandbox is incompatible with the product's core capabilities in ways no entitlement can fix:
+
+- **Reading `~/Library/Messages/chat.db`.** No sandboxed app can read this path. Full Disk Access is a user privacy toggle (TCC), not an entitlement — there is no opt-in that gets a sandboxed app into `chat.db`. This alone kills local-mode capture entirely.
+- **`osascript` subprocess + AppleScript control of Messages.app.** The sandbox restricts both spawning subprocesses and controlling other apps. There is no entitlement that re-enables either for arbitrary apps. This kills the in-thread `✓ Saved` reply.
+
+The only plausible MAS path is a future "cloud-only" SKU that drops the `chat.db` dependency entirely (receiving messages via the v1.1 VPS-relay push channel) and replaces the in-thread AppleScript reply with `UNUserNotification` or a relay-sent push. That's a meaningfully different product — call it v2 if it ever ships — sharing models and UI with this app but with neither input source nor confirmation mechanism in common. **Not designed for now; flagged so this analysis isn't relitigated in six months.**
+
+(Aside: the reference iMessage tools `imsg` and Anthropic's `external_plugins/imessage/server.ts` sidestep this question entirely — they aren't Mac apps, they're scripts that inherit FDA + Automation from the user's terminal. Different distribution model, different constraints.)
+
 ## Reference-code corrections caught during shaping
 
 Exploration of the boop-agent code (which we'd need for v1.1 cloud mode) caught three bugs in the original plan's Sendblue assumptions. Documented here so v1.1 doesn't repeat them:

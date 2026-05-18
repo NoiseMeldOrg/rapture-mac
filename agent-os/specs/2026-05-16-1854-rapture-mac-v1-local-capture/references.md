@@ -56,6 +56,12 @@
 - Phase 5 verification step: install imsg, run `imsg watch --json` against the same chat.db, diff the streams.
 - Anything imsg handles that we don't (e.g., a future macOS change to `attributedBody` format) is a known TODO, not a surprise. Track imsg's CHANGELOG.
 
+### When to revisit this decision
+
+- If `imsg` ships native per-message file writes (e.g., `imsg watch --write-dir <path>`), reconsider — a major chunk of our value-add disappears and shelling out becomes more appealing.
+- If Apple ships a `chat.db` schema change that `imsg` handles before we do, backport it (or briefly vendor `imsg` as a fallback) rather than re-derive from scratch.
+- If a v1.x deliverable adds an `imessage-to-folder` Bun/CLI sibling distribution, the data plane may converge across both deliverables — at which point a shared TypeScript core + thin platform wrappers becomes worth costing out.
+
 ## Deferred references (v1.1 cloud mode only — DO NOT USE in v1)
 
 ### boop-agent Sendblue webhook handler

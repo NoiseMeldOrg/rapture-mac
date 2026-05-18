@@ -56,6 +56,7 @@ This is a hard product commitment, not an aspiration. Any future feature that wo
 - Group chats
 - Contacts framework name resolution
 - Edit / unsend tracking
-- Mac App Store distribution
+- Mac App Store distribution (structurally impossible — see `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md`)
 - Auto-update
 - Analytics
+- **Routing Rapture iOS dictations into the same folder.** A sibling-repo concern, not rapture-mac scope. The cleaner architecture is to extend [`claude-channel-rapture`](https://github.com/NoiseMeldOrg/claude-channel-rapture) with a file-output mode (running as `launchd` for always-on delivery) or to add server-side iCloud/Dropbox push in `rapture-api-gateway`. Either keeps gateway-connected logic out of the Mac app, which respects the spec's "no networking" boundary.

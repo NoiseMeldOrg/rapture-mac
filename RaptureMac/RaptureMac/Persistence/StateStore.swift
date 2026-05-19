@@ -1,10 +1,12 @@
 import Foundation
+import Observation
 import OSLog
 
+@Observable
 @MainActor
 final class StateStore {
-    private static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "StateStore")
-    private static let fileName = "state.json"
+    @ObservationIgnored private static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "StateStore")
+    @ObservationIgnored private static let fileName = "state.json"
 
     private(set) var state: PersistedState
 
@@ -15,6 +17,22 @@ final class StateStore {
     func update(_ mutate: (inout PersistedState) -> Void) {
         mutate(&state)
         save()
+    }
+
+    /// Day-rollover-aware success counter. Updates `todayCount` / `todayDate` / `lastCaptureAt`
+    /// atomically and persists. UI reads via `state.displayedTodayCount(at:)`.
+    func recordSuccess(at time: Date = Date(), calendar: Calendar = .current) {
+        update {
+            let (date, count) = PersistedState.incrementing(
+                currentDate: $0.todayDate,
+                currentCount: $0.todayCount,
+                at: time,
+                calendar: calendar
+            )
+            $0.todayDate = date
+            $0.todayCount = count
+            $0.lastCaptureAt = time
+        }
     }
 
     private static func fileURL() throws -> URL {

@@ -29,6 +29,44 @@ final class BatchProcessor {
         !isFirstNonemptyBatchSeen && batchSize > catchupThreshold
     }
 
+    /// Per-batch policy resolution: defer vs process, plus the next-batch state.
+    /// Pure so the pause/resume flow is unit-testable without an AppState.
+    struct Policy: Equatable {
+        /// `true` means: hold the batch, do not advance the watermark, do not write or reply.
+        var deferred: Bool
+        /// When not deferred, whether this batch is the catch-up trigger.
+        var isCatchup: Bool
+        /// Next value of `isFirstNonemptyBatchSeen` after this batch returns.
+        var nextIsFirstNonemptyBatchSeen: Bool
+        /// Next value of `wasPausedLastBatch` after this batch returns.
+        var nextWasPausedLastBatch: Bool
+    }
+
+    nonisolated static func policy(
+        paused: Bool,
+        wasPausedLastBatch: Bool,
+        isFirstNonemptyBatchSeen: Bool,
+        batchSize: Int
+    ) -> Policy {
+        if paused {
+            return Policy(
+                deferred: true,
+                isCatchup: false,
+                nextIsFirstNonemptyBatchSeen: isFirstNonemptyBatchSeen,
+                nextWasPausedLastBatch: true
+            )
+        }
+        // Just unpaused: re-evaluate this batch as a potential catch-up trigger.
+        let firstSeenForDecision = wasPausedLastBatch ? false : isFirstNonemptyBatchSeen
+        let catchup = !firstSeenForDecision && batchSize > catchupThreshold
+        return Policy(
+            deferred: false,
+            isCatchup: catchup,
+            nextIsFirstNonemptyBatchSeen: true,
+            nextWasPausedLastBatch: false
+        )
+    }
+
     private let appState: AppState
     private let writer: FileWriting
     private let replier: Replier
@@ -38,6 +76,7 @@ final class BatchProcessor {
     private let advanceWatermark: @MainActor (Int64) -> Void
 
     private var isFirstNonemptyBatchSeen = false
+    private var wasPausedLastBatch = false
 
     init(
         appState: AppState,
@@ -63,11 +102,25 @@ final class BatchProcessor {
             return BatchOutcome(successCount: 0, failureCount: 0, droppedCount: 0, isCatchup: false)
         }
 
-        let isCatchup = !isFirstNonemptyBatchSeen && batch.count > Self.catchupThreshold
-        isFirstNonemptyBatchSeen = true
+        let settings = appState.settings.settings
+        let decision = Self.policy(
+            paused: settings.paused,
+            wasPausedLastBatch: wasPausedLastBatch,
+            isFirstNonemptyBatchSeen: isFirstNonemptyBatchSeen,
+            batchSize: batch.count
+        )
+
+        if decision.deferred {
+            wasPausedLastBatch = decision.nextWasPausedLastBatch
+            Self.log.debug("paused: deferring batch of \(batch.count)")
+            return BatchOutcome(successCount: 0, failureCount: 0, droppedCount: 0, isCatchup: false)
+        }
+
+        isFirstNonemptyBatchSeen = decision.nextIsFirstNonemptyBatchSeen
+        wasPausedLastBatch = decision.nextWasPausedLastBatch
+        let isCatchup = decision.isCatchup
 
         var outcome = BatchOutcome(successCount: 0, failureCount: 0, droppedCount: 0, isCatchup: isCatchup)
-        let settings = appState.settings.settings
         let handles = selfHandlesProvider()
 
         for event in batch {
@@ -108,6 +161,7 @@ final class BatchProcessor {
                     } else if appState.lastError != nil {
                         appState.clearError()
                     }
+                    appState.state.recordSuccess(at: Date())
                     advanceWatermark(event.rowid)
                     outcome.successCount += 1
                     await replier.replyForWrite(captured: captured, result: result, settings: settings)

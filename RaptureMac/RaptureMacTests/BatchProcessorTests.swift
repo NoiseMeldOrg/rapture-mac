@@ -29,4 +29,92 @@ final class BatchProcessorTests: XCTestCase {
         // Sentinel to catch accidental threshold changes — PRD specifies > 3.
         XCTAssertEqual(BatchProcessor.catchupThreshold, 3)
     }
+
+    // MARK: - pause/resume policy
+
+    func testPausedBatchIsDeferredAndHoldsState() {
+        let p = BatchProcessor.policy(
+            paused: true,
+            wasPausedLastBatch: false,
+            isFirstNonemptyBatchSeen: true,
+            batchSize: 5
+        )
+        XCTAssertTrue(p.deferred)
+        XCTAssertFalse(p.isCatchup)
+        // wasPausedLastBatch must flip true so the next active batch knows to re-evaluate catchup.
+        XCTAssertTrue(p.nextWasPausedLastBatch)
+        // isFirstNonemptyBatchSeen is held (we didn't actually process anything).
+        XCTAssertTrue(p.nextIsFirstNonemptyBatchSeen)
+    }
+
+    func testResumeBatchAfterPauseClearsFirstSeenAndCanCatchup() {
+        // App ran for a while (isFirstNonemptyBatchSeen=true), user paused, now resuming.
+        let p = BatchProcessor.policy(
+            paused: false,
+            wasPausedLastBatch: true,
+            isFirstNonemptyBatchSeen: true,
+            batchSize: 5
+        )
+        XCTAssertFalse(p.deferred)
+        XCTAssertTrue(p.isCatchup, "5-message resume batch should be a catch-up trigger")
+        XCTAssertTrue(p.nextIsFirstNonemptyBatchSeen)
+        XCTAssertFalse(p.nextWasPausedLastBatch)
+    }
+
+    func testResumeBatchOfTwoIsNotCatchup() {
+        // Resume with only 2 missed messages stays under the threshold.
+        let p = BatchProcessor.policy(
+            paused: false,
+            wasPausedLastBatch: true,
+            isFirstNonemptyBatchSeen: true,
+            batchSize: 2
+        )
+        XCTAssertFalse(p.deferred)
+        XCTAssertFalse(p.isCatchup)
+        XCTAssertFalse(p.nextWasPausedLastBatch)
+    }
+
+    func testNormalLiveBatchHonorsFirstSeen() {
+        // Never paused; not the first batch; should never be catchup regardless of size.
+        let p = BatchProcessor.policy(
+            paused: false,
+            wasPausedLastBatch: false,
+            isFirstNonemptyBatchSeen: true,
+            batchSize: 10
+        )
+        XCTAssertFalse(p.deferred)
+        XCTAssertFalse(p.isCatchup)
+    }
+
+    func testFirstEverBatchOfFiveIsCatchup() {
+        // Startup case: no prior history, no prior pause.
+        let p = BatchProcessor.policy(
+            paused: false,
+            wasPausedLastBatch: false,
+            isFirstNonemptyBatchSeen: false,
+            batchSize: 5
+        )
+        XCTAssertFalse(p.deferred)
+        XCTAssertTrue(p.isCatchup)
+        XCTAssertTrue(p.nextIsFirstNonemptyBatchSeen)
+    }
+
+    func testPausedPersistsAcrossMultipleBatchesWithoutTouchingFirstSeen() {
+        // Two consecutive paused batches: state stays paused, firstSeen unchanged.
+        let p1 = BatchProcessor.policy(
+            paused: true,
+            wasPausedLastBatch: false,
+            isFirstNonemptyBatchSeen: false,
+            batchSize: 3
+        )
+        let p2 = BatchProcessor.policy(
+            paused: true,
+            wasPausedLastBatch: p1.nextWasPausedLastBatch,
+            isFirstNonemptyBatchSeen: p1.nextIsFirstNonemptyBatchSeen,
+            batchSize: 7
+        )
+        XCTAssertTrue(p1.deferred)
+        XCTAssertTrue(p2.deferred)
+        XCTAssertFalse(p2.nextIsFirstNonemptyBatchSeen)
+    }
 }

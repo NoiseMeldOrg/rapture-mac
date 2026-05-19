@@ -1,10 +1,13 @@
 import Foundation
+import Observation
 import OSLog
+import SwiftUI
 
+@Observable
 @MainActor
 final class SettingsStore {
-    private static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "SettingsStore")
-    private static let fileName = "settings.json"
+    @ObservationIgnored private static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "SettingsStore")
+    @ObservationIgnored private static let fileName = "settings.json"
 
     private(set) var settings: Settings
 
@@ -26,6 +29,15 @@ final class SettingsStore {
             Self.log.error("Failed to create default output folder: \(error.localizedDescription, privacy: .public)")
         }
         update { $0.outputFolder = defaultFolder }
+    }
+
+    /// Two-way binding for any property of `Settings`. Reads from the live struct,
+    /// writes through `update { ... }` so persistence and observation both fire.
+    func binding<V>(for keyPath: WritableKeyPath<Settings, V>) -> Binding<V> {
+        Binding(
+            get: { self.settings[keyPath: keyPath] },
+            set: { newValue in self.update { $0[keyPath: keyPath] = newValue } }
+        )
     }
 
     private static func fileURL() throws -> URL {

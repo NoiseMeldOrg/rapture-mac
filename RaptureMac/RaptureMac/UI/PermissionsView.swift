@@ -25,6 +25,11 @@ struct PermissionsView: View {
             }
             .font(.callout)
 
+            Text("Not in the list? Click the **+** button in System Settings and add Rapture for Mac manually.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
             Spacer()
 
             HStack {

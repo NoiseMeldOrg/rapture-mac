@@ -1,0 +1,123 @@
+# Contributing to Rapture for Mac
+
+Rapture for Mac is small enough that the contribution loop is straightforward: open an issue if you want to discuss something, send a PR if you've got a fix in hand. This doc covers the build environment, the conventions the codebase already follows, and the release process (for maintainers).
+
+## Build and test
+
+```sh
+xcodebuild \
+  -derivedDataPath /tmp/RaptureMacDerived \
+  -project RaptureMac/RaptureMac.xcodeproj \
+  -scheme RaptureMac \
+  -configuration Debug \
+  clean build test
+```
+
+You should see 73 tests pass (M1: 8 · M2: 36 · M3: 29).
+
+**Why `/tmp/RaptureMacDerived`**: this repo is often checked out on an exFAT-formatted SSD. Building in-place causes macOS to write AppleDouble (`._*`) metadata files into the derived-data tree, which then get copied into the `.app` bundle and break `codesign`. Routing derived data to the internal APFS volume sidesteps that. The same path is used everywhere derived data appears in our scripts and docs.
+
+You'll also need:
+
+- **Xcode 26+** (the project file uses `objectVersion = 77`).
+- **macOS 14+** as the build host (matches the deployment target).
+- The login keychain only needs an `Apple Development` cert for local debug builds. Distribution signing is a maintainer-only concern (see below).
+
+## Architecture and code style
+
+Most of these are visible from a single read of the codebase, but worth stating for new contributors:
+
+- **`@MainActor` is the project's default actor isolation** (`SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor` build setting). Cross only when you actually need to — typically in GRDB closures (`pool.read { ... }`) or `Task.detached` for the `osascript` subprocess. Use `nonisolated` explicitly when crossing.
+- **Pure-helper test pattern**. Where there's stateful orchestration (`BatchProcessor`, `EchoGuard`, `Replier`), the decision logic is extracted into pure `nonisolated static` helpers that take all inputs as arguments. Tests hit the helpers directly, no fixture infrastructure. See `BatchProcessor.isCatchup` (M2) and `BatchProcessor.policy` (M3) for examples to follow.
+- **OSLog subsystem is `noisemeld.RaptureMac`** with one category per file/role. Use `Logger(subsystem: "noisemeld.RaptureMac", category: "...")`.
+- **Atomic file writes**: `AtomicFile.write(_:to:)` wraps `Data.write(to:options: .atomic)`, which does `.tmp` → `rename(2)`. Don't roll your own.
+- **`_build_plan/` is historical**. No code, configuration, or runtime logic depends on it. The durable architectural docs live in `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/`.
+
+## Issue and PR conventions
+
+- One commit per logical change; if a fix has cleanup along the way, split it.
+- Commit subjects in the same shape as the existing log: `feat(M3): user control — menu bar, settings tabs, allowlist editor`, `fix: LSUIElement apps need explicit NSApp.activate to claim front`. Past tense, present-imperative — match what's already there.
+- PRs should describe **why** before **what**. The code shows the what.
+
+## First-time release setup (maintainers)
+
+You'll need three things once, before you can run `Scripts/release.sh`:
+
+### 1. Developer ID Application certificate
+
+Required for signing a DMG distributed outside the Mac App Store. This is a **different cert type** from the `Apple Distribution` cert iOS uses for App Store / TestFlight — even with the same team ID. Apple's notarization service rejects anything signed with the wrong cert type.
+
+To create one:
+
+1. Open **Keychain Access → Certificate Assistant → Request a Certificate From a Certificate Authority…**. Enter the org Apple ID. Choose **Saved to disk** → produces a `.certSigningRequest` file.
+2. Sign in to <https://developer.apple.com/account/resources/certificates/list> as the org account. Confirm the team selector reads **Bensolutions LLC d/b/a Noise Meld** (team `P8PLTH44DF`).
+3. Click `+` → choose **Developer ID Application** → upload the CSR. Download the resulting `.cer` file.
+4. Double-click the `.cer` to install it into the login keychain.
+
+Verify:
+
+```sh
+security find-identity -v -p codesigning | grep "Developer ID Application"
+```
+
+Should print something like `Developer ID Application: Bensolutions LLC d/b/a Noise Meld (P8PLTH44DF)`.
+
+### 2. Notarization keychain profile
+
+`notarytool` stores credentials in the login keychain under a named profile so the release script doesn't have to pass them each time:
+
+```sh
+xcrun notarytool store-credentials "rapture-mac-notary" \
+  --key ~/.appstoreconnect/private_keys/AuthKey_GX6DYX9S2M.p8 \
+  --key-id GX6DYX9S2M \
+  --issuer <your-issuer-uuid>
+```
+
+The issuer UUID is the team-specific App Store Connect issuer ID — find it at <https://appstoreconnect.apple.com> → **Users and Access → Integrations → Team Keys**, top of the page.
+
+Verify:
+
+```sh
+xcrun notarytool history --keychain-profile rapture-mac-notary
+```
+
+Should list past submissions (empty list on first run is fine — it confirms the profile is configured).
+
+### 3. `create-dmg`
+
+```sh
+brew install create-dmg
+```
+
+## Cutting a release
+
+```sh
+git checkout main
+git pull
+./Scripts/release.sh
+```
+
+The script will:
+
+1. Sanity-check (on `main`, clean tree, cert + notary profile + `create-dmg` present).
+2. `xcodebuild` a Release configuration into `/tmp/RaptureMacDerived/`.
+3. Read the auto-generated `CFBundleShortVersionString` from the built Info.plist (the `Scripts/set_git_version.sh` Run Script phase writes it from the `main` commit count).
+4. Verify the signature (`codesign --verify --deep --strict`).
+5. Build the DMG via `create-dmg`.
+6. Submit to Apple's notarization service (`xcrun notarytool submit --wait` — blocks for ~30s–10min).
+7. Staple the notarization ticket onto the DMG.
+8. Run `spctl --assess` and `xcrun stapler validate` for final sanity.
+9. Print the DMG path, size, and SHA-256.
+
+**First run**: when `codesign` first uses the new Developer ID Application cert, macOS will prompt to allow access to the private key in the keychain. Click **Always Allow** so subsequent runs are unattended.
+
+**Flags**:
+
+- `--dry-run`: print every shell command without executing. Use this to verify env before doing a real build.
+- `--skip-notarize`: build and DMG-package locally without submitting. Useful for verifying signing changes without burning a notarytool round-trip.
+
+After a successful run, attach the DMG to a GitHub Release tagged with `v<VERSION>` matching what the script printed.
+
+## When in doubt
+
+The PRD and milestone build logs (`_build_plan/prd.md` + `_build_plan/milestones/*/milestone-log.md`) describe what was built and **why** for each milestone. The technical truth lives in `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/`. Both are good starting points for context.

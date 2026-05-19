@@ -1,8 +1,11 @@
 # Rapture for Mac
 
-A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Turns Siri-dictated iMessages into timestamped `.txt` files on disk, so voice-captured thoughts land in a folder you (and any LLM agentic system) can read later.
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
+[![Release](https://img.shields.io/github/v/release/NoiseMeldOrg/rapture-mac?display_name=tag&sort=semver)](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest)
 
-**Apache-2.0 licensed. Built to be consumed by any AI assistant — Claude, ChatGPT, Gemini, a local Llama, anything that can read a file.**
+A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Turns Siri-dictated iMessages into timestamped `.txt` files in a folder of your choice — so voice-captured thoughts land where any AI assistant (Claude, ChatGPT, Gemini, a local Llama) can read them.
+
+**Apache-2.0. Vendor-neutral. The folder is the only integration surface.**
 
 ## Motivating flow
 
@@ -14,28 +17,66 @@ Siri transcribes and sends — no unlock, no app open, no taps. Rapture for Mac 
 
 > *✓ Saved: 2026-05-16T14-32-08Z.txt*
 
-That's the whole transaction. The defining property: **the iPhone side is fully hands-free from a locked device.**
+That's the whole transaction. The defining property: **the iPhone side is fully hands-free from a locked device.** It's the one Apple-permitted voice path that works without unlock — Shortcuts can't, the Action Button needs the phone in hand, the Notes app requires unlock.
+
+## Install
+
+1. Download the latest DMG from the [Releases page](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest).
+2. Open the DMG, drag **Rapture for Mac.app** into `/Applications`.
+3. Launch the app. There's no Dock icon — look for the `text.bubble` glyph in the menu bar at the top of the screen.
+
+### First-run walkthrough
+
+The app will guide you through two macOS permissions. Both are required; neither is optional.
+
+1. **Full Disk Access** — needed to read `~/Library/Messages/chat.db`. The app opens a sheet with an **Open System Settings** button that deep-links to the right pane. Toggle Rapture for Mac on. (If you don't see it in the list, click `+` and add it manually.) The sheet closes automatically once access is granted.
+2. **Automation → Messages** — needed for the `✓ Saved` reply. The first time the app tries to reply, you'll see a one-time pre-prompt explaining what's about to happen, then macOS shows its own permission dialog. Click **OK**.
+3. Send yourself an iMessage from another device on the same iCloud account: *"Hey Siri, text me — this is a test."*
+4. Within about a second, a `.txt` file appears in `~/Documents/Rapture Notes/` (the default folder; you can change it under **Settings → General**).
+5. Within another second, you see `✓ Saved: <filename>.txt` in your iMessages thread on your phone. That's the audible-on-iPhone confirmation that the capture landed.
+
+That's the whole product. Everything else (allowlist, reply modes, pause/resume) is in the menu-bar popover and the Settings window.
 
 ## v1 scope
 
-- **Local mode only.** Polls `~/Library/Messages/chat.db` once per second, decodes message text (including the binary `attributedBody` blob), filters to your self-chat plus a user-managed allowlist, writes one `.txt` per message (with attachments in a sibling folder), and replies via AppleScript through Messages.app.
-- **No cloud mode in v1.** A future v1.1 adds a Sendblue path via VPS relay — not via an on-Mac webhook listener, which would die whenever the Mac sleeps.
+- **Local mode only.** Polls `~/Library/Messages/chat.db` once per second, decodes message text (including the binary `attributedBody` blob that iOS 16+ uses for Siri-dictated messages), filters to your self-chat plus a user-managed allowlist, writes one `.txt` per message (with attachments in a sibling folder), and replies via AppleScript through Messages.app.
+- **No cloud mode in v1.** A future v1.1 adds a Sendblue path via VPS relay — never an on-Mac webhook listener, which would die whenever the Mac sleeps.
 
-## Status
+### Out of scope
 
-In active development. See [`agent-os/specs/`](./agent-os/specs/) for the current spec and roadmap.
+A short list of things you might expect but don't get; for the full rationale see [`agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md`](./agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md):
 
-## Project layout
+- Group chat capture
+- In-app browsing / search / preview (the folder *is* the UI — use Finder, Spotlight, ripgrep, or your AI assistant)
+- Built-in AI integration (vendor-neutral by design)
+- Audio capture of the original dictation (text only — the audio stays on your iPhone)
+- Mac App Store distribution (structurally impossible — see [shape.md](./agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md))
+- Auto-update
+- Analytics or telemetry — zero outbound network calls in v1
 
+## Verify the download
+
+Before opening the DMG:
+
+```sh
+xcrun stapler validate ~/Downloads/Rapture-for-Mac-*.dmg
+spctl --assess --type install ~/Downloads/Rapture-for-Mac-*.dmg
 ```
-rapture-mac/
-├── RaptureMac/              # Xcode project (Phase 2+)
-├── agent-os/                # Product docs + specs
-│   ├── product/             # mission, tech-stack, roadmap
-│   └── specs/               # Per-feature specs
-├── CLAUDE.md                # Claude Code project instructions
-└── README.md                # This file
+
+Both should succeed. The DMG is Developer ID signed (team `P8PLTH44DF`) and Apple-notarized — see [SECURITY.md](./SECURITY.md) for full details and how to report issues.
+
+## Build from source
+
+```sh
+xcodebuild \
+  -derivedDataPath /tmp/RaptureMacDerived \
+  -project RaptureMac/RaptureMac.xcodeproj \
+  -scheme RaptureMac \
+  -configuration Debug \
+  build test
 ```
+
+73 tests should pass. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the longer walkthrough, the `_build_plan/` directory for the milestone-by-milestone build log, and `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` for the canonical technical spec.
 
 ## Sibling repos
 

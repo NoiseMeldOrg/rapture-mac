@@ -5,9 +5,23 @@
 
 ## Pitch
 
-Rapture for Mac is a menu-bar companion to the Rapture iOS app that turns Siri-dictated iMessages into timestamped `.txt` files on disk. The motivating flow: phone across the room, locked, untouched — you say *"Hey Siri, send a text to me saying rent is due on the 5th"* — and the note lands in a folder a personal AI assistant can read.
+Three lengths. Pick the one that fits the context.
 
-The whole point is voice-captured thoughts available **without ever touching the phone**.
+### 30-second pitch
+
+Your iPhone is across the room, locked. You say *"Hey Siri, text me — rent is due on the 5th."* Two seconds later, that note is a `.txt` file in a folder on your Mac, waiting for whatever AI assistant you use to pick it up.
+
+The trick: iMessage-to-self is the one Siri flow Apple permits from a locked iPhone. Shortcuts don't work locked. The Action Button needs the phone in hand. Notes needs unlock. We hijack the one path that works.
+
+And the folder is the interface — Claude, ChatGPT, Gemini, anything that reads files can consume your captures. No SDK, no vendor lock-in. Speak from across the room, hand the note to whatever AI you want.
+
+### One-line tagline
+
+> Speak from a locked iPhone, get a file on your Mac, hand it to any AI.
+
+### Two-sentence shop-window version
+
+> Rapture for Mac turns Siri-dictated iMessages into timestamped `.txt` files in a folder your AI assistant can watch. It's the only voice-capture flow Apple permits from a locked iPhone, packaged as a polished menu-bar app.
 
 ## Target user
 

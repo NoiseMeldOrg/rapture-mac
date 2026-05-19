@@ -79,12 +79,28 @@ final class FileWriter {
         case failure(sourcePath: String)
     }
 
+    /// Strips path-traversal segments and separators from an attachment filename so
+    /// adversarial `transfer_name` values can't write outside the output folder.
+    nonisolated static func sanitizeAttachmentFilename(_ raw: String) -> String {
+        let stripped = raw.replacingOccurrences(of: "\0", with: "")
+        let lastComponent = (stripped as NSString).lastPathComponent
+        let noSeparators = lastComponent
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: ":", with: "_")
+        let trimmed = noSeparators.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed == "." || trimmed == ".." {
+            return "attachment"
+        }
+        return trimmed
+    }
+
     private nonisolated static func copyAttachment(
         _ attachment: AttachmentRef,
         to destinationFolder: URL
     ) async -> AttachmentCopyResult {
         let sourceURL = URL(fileURLWithPath: attachment.sourcePath)
-        let filename = attachment.transferName ?? sourceURL.lastPathComponent
+        let rawName = attachment.transferName ?? sourceURL.lastPathComponent
+        let filename = sanitizeAttachmentFilename(rawName)
         let destURL = destinationFolder.appendingPathComponent(filename)
 
         if FileManager.default.copyItem(at: sourceURL, to: destURL, ifSourceExists: true) {

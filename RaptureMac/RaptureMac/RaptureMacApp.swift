@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 @main
@@ -17,6 +18,9 @@ struct RaptureMacApp: App {
                 .environment(appState)
                 .frame(minWidth: 480, minHeight: 320)
                 .task {
+                    // LSUIElement apps don't auto-activate; without this, the
+                    // FDA / Automation windows show but stay behind other apps.
+                    NSApp.activate(ignoringOtherApps: true)
                     await pipeline.start()
                 }
         }

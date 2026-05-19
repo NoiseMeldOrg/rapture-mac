@@ -12,6 +12,7 @@ enum AutomationPrompt {
 
     @discardableResult
     static func showPrePrompt() -> PrePromptResult {
+        NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = "Rapture is about to reply in your Messages thread"
         alert.informativeText = """
@@ -32,6 +33,7 @@ enum AutomationPrompt {
     }
 
     static func showDenied() {
+        NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = "Rapture needs Automation access for Messages"
         alert.informativeText = """

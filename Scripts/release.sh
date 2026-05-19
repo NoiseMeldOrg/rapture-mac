@@ -160,7 +160,31 @@ if [ "$SKIP_NOTARIZE" -eq 1 ]; then
   say "Stage 6/9: notarize — SKIPPED (--skip-notarize)"
 else
   say "Stage 6/9: notarize (may take 30s–10min)"
-  run xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+  NOTARY_LOG="$DERIVED/notarytool-output.log"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf "  [dry-run] xcrun notarytool submit %q --keychain-profile %q --wait | tee %q\n" \
+      "$DMG" "$NOTARY_PROFILE" "$NOTARY_LOG"
+  else
+    # notarytool exits 0 even when status: Invalid, so we must parse the output ourselves.
+    set +e
+    xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1 | tee "$NOTARY_LOG"
+    NOTARY_EXIT=${PIPESTATUS[0]}
+    set -e
+    if [ "$NOTARY_EXIT" -ne 0 ]; then
+      echo "ERROR: notarytool submit exited $NOTARY_EXIT (transport / auth error, not a rejection)."
+      exit 1
+    fi
+    if ! grep -q "status: Accepted" "$NOTARY_LOG"; then
+      SUBMISSION_ID="$(grep -m1 '^[[:space:]]*id:' "$NOTARY_LOG" | awk '{print $2}')"
+      echo
+      echo "ERROR: notarization did not reach status: Accepted."
+      if [ -n "$SUBMISSION_ID" ]; then
+        echo "Fetch the rejection details with:"
+        echo "  xcrun notarytool log $SUBMISSION_ID --keychain-profile $NOTARY_PROFILE"
+      fi
+      exit 1
+    fi
+  fi
 fi
 
 # --- Stage 7: Staple ---

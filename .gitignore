@@ -28,12 +28,11 @@ build/
 .swiftpm/
 Packages/
 Package.pins
-Package.resolved
-*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+# Package.resolved IS committed (app projects) — pins dependency versions for reproducible builds
 
 # CocoaPods (not used, but defensive)
 Pods/
-*.xcworkspace
+playground.xcworkspace
 
 # Carthage (not used, but defensive)
 Carthage/Build/

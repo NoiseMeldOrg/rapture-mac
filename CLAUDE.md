@@ -26,6 +26,7 @@ This project is part of the Rapture product line. When making decisions about br
 - **Signing team:** `P8PLTH44DF` (shared with rapture-ios).
 - **Notarization API key:** `GX6DYX9S2M` (shared; see `~/.appstoreconnect/private_keys/`).
 - **Bundle ID convention:** `noisemeld.RaptureMac` (mirrors iOS's `noisemeld.Rapture`).
+- **App icon:** Reuse the iOS app icon at `../rapture-ios/Rapture/Rapture/Assets.xcassets/AppIcon.appiconset`. M1 (Xcode scaffold) copies it into `RaptureMac/Resources/Assets.xcassets/AppIcon.appiconset` rather than designing a new one — keeps the product family visually consistent and removes a real M1 task. The macOS `.icns` is built from the same source set automatically by Xcode's asset compiler.
 
 ## Tech stack summary
 
@@ -91,6 +92,6 @@ Searched against the v1 phase plan. Some are installed globally (workflow tools 
 
 ## `_build_plan/`
 
-The `_build_plan/` folder contains the initial PRD and per-milestone prompts used to scaffold this codebase during its initial build-out phase. These files are **temporary** — they exist for documentation and guidance only. They are **not** functional: no code, configuration, or runtime logic in this codebase should import, reference, or depend on anything inside `_build_plan/`.
+The `_build_plan/` folder contains the initial PRD (HTML + Markdown) and per-milestone prompts used to scaffold this codebase during its initial build-out phase. These files are **not functional** — no code, configuration, or runtime logic in this codebase should import, reference, or depend on anything inside `_build_plan/`.
 
-Do not treat `_build_plan/` as long-living documentation for the codebase. The codebase will evolve past the assumptions and decisions captured here. Once the initial milestones are complete, this folder is expected to be deleted.
+The folder is **preserved as a historical record** of how v1 was shaped (not deleted after build-out). For durable architectural decisions that evolve with the codebase, refer to `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` (plan, shape, references) — those are the source of truth; `_build_plan/` is the frozen build-out snapshot.

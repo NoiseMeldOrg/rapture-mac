@@ -1,6 +1,6 @@
 # Rapture for Mac
 
-> **About these build-plan files:** Everything in `_build_plan/` (this PRD and the per-milestone folders) is a **temporary documentation and guidance artifact** for the initial build-out of this codebase. These files are not functional — no code, configuration, runtime logic, tests, or deployment process should import, read, reference, or depend on anything in `_build_plan/`. Once the initial milestones are built and shipped, the entire `_build_plan/` folder is expected to be deleted from the codebase. Do not treat it as long-living documentation.
+> **About these build-plan files:** Everything in `_build_plan/` (this PRD and the per-milestone folders) is **build-out documentation** for the initial scaffold of this codebase. These files are not functional — no code, configuration, runtime logic, tests, or deployment process should import, read, reference, or depend on anything in `_build_plan/`. The folder is **preserved as a historical record** of how v1 was shaped (not deleted after milestones ship). For durable architectural decisions that evolve with the codebase, refer to `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` (plan, shape, references) — those are the source of truth; this folder is the frozen build-out snapshot.
 
 ## What we're building
 

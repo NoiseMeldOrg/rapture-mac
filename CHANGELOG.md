@@ -2,7 +2,11 @@
 
 All notable changes to Rapture for Mac are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow the auto-generated git-commit-count scheme defined in `Scripts/set_git_version.sh` (`MAJOR.MINOR.COMMITS`); see [CONTRIBUTING.md](./CONTRIBUTING.md) for the full versioning logic.
 
-## [Unreleased] — first public release
+## [Unreleased]
+
+## [1.0.18] - 2026-05-19 — first public release
+
+Built from commit `9a5972d`. SHA-256: `704a968d5054cfbb9707a710baa44e35ee3fcdffc991e213223440ccf5b1cfa3`.
 
 ### Added
 
@@ -31,4 +35,5 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 For the build-by-build context behind these features, see `_build_plan/milestones/{1,2,3,4}/milestone-log.md`. For the architectural rationale (why local-mode-only, why not the Mac App Store), see `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md`.
 
-[Unreleased]: https://github.com/NoiseMeldOrg/rapture-mac/commits/main
+[Unreleased]: https://github.com/NoiseMeldOrg/rapture-mac/compare/v1.0.18...HEAD
+[1.0.18]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.18

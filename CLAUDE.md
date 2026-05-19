@@ -52,7 +52,15 @@ See `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/references.md` 
 
 ## Claude Code skills for this work
 
-Searched against the v1 phase plan. Install on demand with `npx skills add <owner/repo@skill> -g -y` — none of the third-party ones are installed yet.
+Searched against the v1 phase plan. Some are installed globally (workflow tools + project-domain helpers); the rest are install-on-demand for specific phases. Install with `npx skills add <owner/repo@skill> -g -y`.
+
+**Planning + workflow (installed globally 2026-05-18):**
+
+- `mattpocock/skills@setup-matt-pocock-skills` — required prerequisite for the other mattpocock skills (per-repo configuration: tracker, labels, doc layout).
+- `mattpocock/skills@grill-with-docs` — interview-style challenge of plans against the domain model, with `CONTEXT.md` + ADR outputs. The highest-leverage skill for the planning phase we're in; reach for it before the next big decision (e.g., the sibling-deliverables question).
+- `mattpocock/skills@tdd` — red-green-refactor loop. Reach for it from Phase 4 onward — the AttributedBody decoder is a textbook TDD target (pure byte-scan with known fixtures).
+- `mattpocock/skills@diagnose` — structured debugging loop (reproduce → minimize → hypothesize → instrument → fix → test). Earns its keep the first time `chat.db` surprises us.
+- `mattpocock/skills@zoom-out` — broader architectural context for unfamiliar code. Useful while reading `external_plugins/imessage/server.ts` and `imsg`'s source during Phases 4–9 porting.
 
 **On the critical path:**
 

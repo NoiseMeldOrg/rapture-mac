@@ -1,0 +1,70 @@
+# Agent OS Standards Index
+
+backend:
+  ._api:
+    description: Needs description - run /index-standards
+  ._migrations:
+    description: Needs description - run /index-standards
+  ._models:
+    description: Needs description - run /index-standards
+  ._queries:
+    description: Needs description - run /index-standards
+  api:
+    description: Needs description - run /index-standards
+  migrations:
+    description: Needs description - run /index-standards
+  models:
+    description: Needs description - run /index-standards
+  queries:
+    description: Needs description - run /index-standards
+
+frontend:
+  ._accessibility:
+    description: Needs description - run /index-standards
+  ._components:
+    description: Needs description - run /index-standards
+  ._css:
+    description: Needs description - run /index-standards
+  ._responsive:
+    description: Needs description - run /index-standards
+  accessibility:
+    description: Needs description - run /index-standards
+  components:
+    description: Needs description - run /index-standards
+  css:
+    description: Needs description - run /index-standards
+  responsive:
+    description: Needs description - run /index-standards
+
+global:
+  ._coding-style:
+    description: Needs description - run /index-standards
+  ._commenting:
+    description: Needs description - run /index-standards
+  ._conventions:
+    description: Needs description - run /index-standards
+  ._error-handling:
+    description: Needs description - run /index-standards
+  ._tech-stack:
+    description: Needs description - run /index-standards
+  ._validation:
+    description: Needs description - run /index-standards
+  coding-style:
+    description: Needs description - run /index-standards
+  commenting:
+    description: Needs description - run /index-standards
+  conventions:
+    description: Needs description - run /index-standards
+  error-handling:
+    description: Needs description - run /index-standards
+  tech-stack:
+    description: Needs description - run /index-standards
+  validation:
+    description: Needs description - run /index-standards
+
+testing:
+  ._test-writing:
+    description: Needs description - run /index-standards
+  test-writing:
+    description: Needs description - run /index-standards
+

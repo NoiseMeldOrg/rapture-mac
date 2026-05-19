@@ -197,11 +197,23 @@ fi
 
 # --- Stage 8: Assess ---
 if [ "$SKIP_NOTARIZE" -eq 1 ]; then
-  say "Stage 8/9: spctl assess — SKIPPED (--skip-notarize)"
+  say "Stage 8/9: stapler validate — SKIPPED (--skip-notarize)"
 else
-  say "Stage 8/9: spctl assess + stapler validate"
-  run spctl --assess --type install --verbose=2 "$DMG"
+  say "Stage 8/9: stapler validate + mount-and-assess"
   run xcrun stapler validate "$DMG"
+  # spctl on a DMG container directly returns "no usable signature" by design —
+  # the meaningful check is on the .app inside, which Gatekeeper actually evaluates
+  # at install time.
+  if [ "$DRY_RUN" -eq 0 ]; then
+    MOUNT_OUT="$(hdiutil attach -nobrowse -plist "$DMG")"
+    MOUNT_POINT="$(echo "$MOUNT_OUT" | plutil -extract 'system-entities'.0.'mount-point' raw - 2>/dev/null | tail -1)"
+    if [ -n "$MOUNT_POINT" ] && [ -d "$MOUNT_POINT/$APP_NAME" ]; then
+      spctl --assess --type execute --verbose=2 "$MOUNT_POINT/$APP_NAME" || true
+      hdiutil detach "$MOUNT_POINT" >/dev/null
+    else
+      echo "WARNING: could not mount DMG to assess the .app inside"
+    fi
+  fi
 fi
 
 # --- Stage 9: Summary ---

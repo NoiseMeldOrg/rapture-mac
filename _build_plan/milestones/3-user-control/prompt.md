@@ -4,8 +4,11 @@ You are entering plan mode to plan and then build milestone 3 of this project.
 
 ## Context
 
-- Read `@_build_plan/prd.md` for the full project context, scope, data model, and tech stack.
-- Read previous milestone folders (`@_build_plan/milestones/1-*/milestone-log.md`, etc.) to understand what has already been built.
+- Read `@_build_plan/prd.md` for the milestone scope, data model, and "Done when" criteria.
+- Read `@agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/plan.md` for line-level implementation detail (this milestone covers phases 11–12 and wires up the previously hardcoded settings).
+- Read `@agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md` for architectural decisions and constraints (UI-related ones especially).
+- Read `@_build_plan/milestones/1-first-capture/milestone-log.md` and `@_build_plan/milestones/2-confirmation-and-recovery/milestone-log.md` for what M1 and M2 built.
+- `CLAUDE.md` (project agent instructions) is loaded automatically.
 
 ## Your task
 

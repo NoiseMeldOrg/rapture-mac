@@ -4,8 +4,12 @@ You are entering plan mode to plan and then build milestone 1 of this project.
 
 ## Context
 
-- Read `@_build_plan/prd.md` for the full project context, scope, data model, and tech stack.
-- Read previous milestone folders (`@_build_plan/milestones/1-*/milestone-log.md`, etc.) to understand what has already been built. If you are working on milestone 1, there is no prior milestone to read.
+- Read `@_build_plan/prd.md` for the milestone scope, data model, and "Done when" criteria.
+- Read `@agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/plan.md` for line-level implementation detail (the 14 phases that group into the 4 milestones; this milestone covers phases 2–8 plus the FDA half of phase 13).
+- Read `@agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/references.md` for upstream references to port from (Anthropic's iMessage plugin `server.ts`, `openclaw/imsg`) and the data-plane "Swift port, not runtime imsg dep" ADR.
+- Read `@agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md` for architectural decisions and constraints (why-local-only, why-not-Shortcut, why-not-MAS).
+- This is Milestone 1; there is no prior `milestone-log.md` to read.
+- `CLAUDE.md` (project agent instructions) is loaded automatically.
 
 ## Your task
 

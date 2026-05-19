@@ -4,8 +4,12 @@ You are entering plan mode to plan and then build milestone 2 of this project.
 
 ## Context
 
-- Read `@_build_plan/prd.md` for the full project context, scope, data model, and tech stack.
-- Read previous milestone folders (`@_build_plan/milestones/1-*/milestone-log.md`, etc.) to understand what has already been built.
+- Read `@_build_plan/prd.md` for the milestone scope, data model, and "Done when" criteria.
+- Read `@agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/plan.md` for line-level implementation detail (this milestone covers phases 9–10 plus the Automation half of phase 13).
+- Read `@agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/references.md` for the AppleScript send shape and echo-guard normalization patterns to port from `server.ts` (cited line ranges).
+- Read `@agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md` for architectural decisions and constraints.
+- Read `@_build_plan/milestones/1-first-capture/milestone-log.md` for what M1 built and any decisions made during M1 implementation.
+- `CLAUDE.md` (project agent instructions) is loaded automatically.
 
 ## Your task
 

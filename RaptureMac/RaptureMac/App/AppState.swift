@@ -11,6 +11,7 @@ final class AppState {
     }
 
     var permissionState: PermissionState = .unknown
+    var automationPermissionState: AutomationPermissionState = .unknown
     var lastError: String?
     var lastErrorAt: Date?
 

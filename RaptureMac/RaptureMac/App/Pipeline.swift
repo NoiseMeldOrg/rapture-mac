@@ -4,14 +4,27 @@ import OSLog
 
 @MainActor
 final class Pipeline {
-    static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "Pipeline")
-    static let fdaRetryInterval: TimeInterval = 2
+    nonisolated static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "Pipeline")
+    nonisolated static let fdaRetryInterval: TimeInterval = 2
 
     private let appState: AppState
+    private let writer = FileWriter()
+    private let sender = AppleScriptSender()
+    private let notifications = NotificationDispatcher()
+    private lazy var echoGuard = EchoGuard(stateStore: appState.state)
+    private lazy var replier = Replier(
+        sender: sender,
+        echoGuard: echoGuard,
+        notifications: notifications,
+        stateStore: appState.state,
+        appState: appState
+    )
+
     private var dbPool: DatabasePool?
     private var watcher: ChatDBWatcher?
     private var resolver: SelfHandleResolver?
-    private var writer = FileWriter()
+    private var selfChatResolver: SelfChatResolver?
+    private var batchProcessor: BatchProcessor?
     private var fdaPollTask: Task<Void, Never>?
     private var consumerTask: Task<Void, Never>?
     private var started = false
@@ -32,10 +45,13 @@ final class Pipeline {
         consumerTask?.cancel()
         watcher?.stop()
         resolver?.stop()
+        selfChatResolver?.stop()
         fdaPollTask = nil
         consumerTask = nil
         watcher = nil
         resolver = nil
+        selfChatResolver = nil
+        batchProcessor = nil
         dbPool = nil
         started = false
     }
@@ -86,49 +102,42 @@ final class Pipeline {
         await resolver.start()
         self.resolver = resolver
 
+        let selfChatResolver = SelfChatResolver(dbPool: pool) { [weak resolver] in
+            resolver?.currentHandlesSnapshot() ?? []
+        }
+        await selfChatResolver.start()
+        self.selfChatResolver = selfChatResolver
+
+        let batchProcessor = BatchProcessor(
+            appState: appState,
+            writer: writer,
+            replier: replier,
+            echoGuard: echoGuard,
+            selfHandlesProvider: { [weak resolver] in
+                resolver?.currentHandlesSnapshot() ?? []
+            },
+            selfChatGuidProvider: { [weak selfChatResolver] in
+                selfChatResolver?.currentSelfChatGuid()
+            },
+            advanceWatermark: { [weak self] rowid in
+                self?.advanceWatermark(to: rowid)
+            }
+        )
+        self.batchProcessor = batchProcessor
+
         let watcher = ChatDBWatcher(dbPool: pool)
         self.watcher = watcher
 
-        let stateStore = appState.state
-        let stream = watcher.events { [weak stateStore] in
-            await MainActor.run { stateStore?.state.chatDbWatermark ?? 0 }
+        let appState = self.appState
+        let stream = watcher.events {
+            await MainActor.run { appState.state.state.chatDbWatermark }
         }
 
         consumerTask = Task { [weak self] in
-            for await event in stream {
+            for await batch in stream {
                 guard let self else { break }
-                await self.handle(event: event)
-            }
-        }
-    }
-
-    private func handle(event: MessageEvent) async {
-        let settings = appState.settings.settings
-        let handles = resolver?.currentHandlesSnapshot() ?? []
-        let decision = MessageFilter.decide(event: event, selfHandles: handles, settings: settings)
-
-        switch decision {
-        case .drop(let reason):
-            Self.log.debug("dropped rowid=\(event.rowid) reason=\(reason.rawValue, privacy: .public)")
-            advanceWatermark(to: event.rowid)
-        case .capture(let captured):
-            guard let folder = settings.outputFolder else {
-                appState.recordError("No output folder configured")
-                return
-            }
-            let result = await writer.write(captured, to: folder)
-            switch result.outcome {
-            case .success(let url):
-                Self.log.info("wrote \(url.lastPathComponent, privacy: .public) (rowid=\(event.rowid))")
-                if !result.failedAttachments.isEmpty {
-                    appState.recordError("Some attachments missing for \(url.lastPathComponent)")
-                } else if appState.lastError != nil {
-                    appState.clearError()
-                }
-                advanceWatermark(to: event.rowid)
-            case .failure(let reason):
-                Self.log.error("write failed rowid=\(event.rowid): \(reason, privacy: .public)")
-                appState.recordError(reason)
+                await self.batchProcessor?.process(batch: batch)
+                _ = self
             }
         }
     }

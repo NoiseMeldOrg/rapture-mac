@@ -101,7 +101,7 @@ final class FileWriter {
 }
 
 private extension FileManager {
-    func copyItem(at source: URL, to destination: URL, ifSourceExists: Bool) -> Bool {
+    nonisolated func copyItem(at source: URL, to destination: URL, ifSourceExists: Bool) -> Bool {
         guard fileExists(atPath: source.path) else { return false }
         do {
             try copyItem(at: source, to: destination)

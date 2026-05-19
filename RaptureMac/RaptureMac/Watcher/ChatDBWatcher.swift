@@ -4,7 +4,7 @@ import OSLog
 
 @MainActor
 final class ChatDBWatcher {
-    static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "ChatDBWatcher")
+    nonisolated static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "ChatDBWatcher")
 
     private let dbPool: DatabasePool
     private var pollTask: Task<Void, Never>?
@@ -13,8 +13,8 @@ final class ChatDBWatcher {
         self.dbPool = dbPool
     }
 
-    func events(watermarkProvider: @escaping @Sendable () async -> Int64) -> AsyncStream<MessageEvent> {
-        let (stream, continuation) = AsyncStream<MessageEvent>.makeStream(bufferingPolicy: .unbounded)
+    func events(watermarkProvider: @escaping @Sendable () async -> Int64) -> AsyncStream<[MessageEvent]> {
+        let (stream, continuation) = AsyncStream<[MessageEvent]>.makeStream(bufferingPolicy: .unbounded)
         let pool = dbPool
         pollTask = Task.detached(priority: .utility) {
             while !Task.isCancelled {
@@ -23,8 +23,8 @@ final class ChatDBWatcher {
                     let events = try await pool.read { db in
                         try Self.fetchEvents(db: db, watermark: watermark)
                     }
-                    for event in events {
-                        continuation.yield(event)
+                    if !events.isEmpty {
+                        continuation.yield(events)
                     }
                 } catch {
                     Self.log.error("Poll failed: \(error.localizedDescription, privacy: .public)")

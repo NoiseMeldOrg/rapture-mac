@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rapture for Mac — PRD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    html { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    body { font-feature-settings: "cv11", "ss01"; }
+    @media print {
+      html { background: white !important; color: black !important; color-scheme: light; }
+      html.dark { color-scheme: light; }
+      html.dark body, html.dark * { background: white !important; color: black !important; border-color: #d4d4d8 !important; }
+      .no-print { display: none !important; }
+      .print-card { break-inside: avoid; page-break-inside: avoid; }
+      header.sticky { position: static !important; backdrop-filter: none !important; }
+      main { padding-top: 0 !important; }
+      a { color: black !important; text-decoration: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 antialiased">
+  <header class="sticky top-0 z-10 backdrop-blur bg-zinc-50/80 dark:bg-zinc-950/80 border-b border-zinc-200 dark:border-zinc-800">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400">PRD · Rapture for Mac</span>
+      <button id="theme-toggle" class="no-print inline-flex items-center justify-center w-9 h-9 rounded-md border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition" aria-label="Toggle theme">
+        <i data-lucide="sun" class="hidden dark:inline-block w-4 h-4"></i>
+        <i data-lucide="moon" class="inline-block dark:hidden w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-14">
+
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 p-4 text-sm text-amber-900 dark:text-amber-200">
+      <p><strong class="font-semibold">About this file:</strong> Everything in <code class="font-mono text-xs">_build_plan/</code> (this PRD and the per-milestone folders) is a temporary documentation artifact for the initial build-out of this codebase. These files are not functional — no code, configuration, runtime logic, tests, or deployment process should import, read, reference, or depend on anything in <code class="font-mono text-xs">_build_plan/</code>. Once the initial milestones are built and shipped, the entire <code class="font-mono text-xs">_build_plan/</code> folder is expected to be deleted from the codebase.</p>
+    </div>
+
+    <section>
+      <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">Rapture for Mac</h1>
+      <p class="mt-5 text-lg sm:text-xl text-zinc-600 dark:text-zinc-400 leading-relaxed">A menu-bar app that turns Siri-dictated iMessages into timestamped <code class="font-mono text-base">.txt</code> files in a folder any AI assistant can read. Frictionless capture from a locked iPhone — no tap, no button, no shortcut to install — with an in-thread <code class="font-mono text-base">✓ Saved</code> reply confirming each capture from across the room.</p>
+      <div class="mt-6 flex flex-wrap gap-2">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Swift 5.9+</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">SwiftUI · MenuBarExtra</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">macOS 14+ (Sonoma)</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">GRDB.swift</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">No sandbox</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Apache-2.0</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Signed DMG · GitHub Releases</span>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>What the app does
+      </h2>
+      <ul class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 list-none p-0">
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="message-square" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Live iMessage capture</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Polls <code class="font-mono text-xs">chat.db</code> once per second; decoded text + attachments land in the user's folder within ~1s.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="user-check" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Self-chat + allowlist</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Self-chat always captured (no setup). User-managed allowlist for other contacts. SMS off by default — sender IDs are spoofable.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="check-circle-2" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">In-thread <code class="font-mono text-xs">✓ Saved</code> reply</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">iPhone's standard chime is the audible confirmation. Mode picker: All / Errors only / Off.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="history" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Catch-up on launch</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Watermarked replay of missed messages after wake/quit. 4+ messages collapse into one summary reply.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="monitor" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Menu-bar status + controls</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Today's count, last capture time, last error, pause/resume, open folder, quit. No Dock icon.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="settings" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Settings window</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Three tabs — General (folder, reply mode, launch-at-login), Allowlist (handles editor), About (version, diagnostics).</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="shield" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Permissions onboarding</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Modal sheets with deep-links to System Settings for FDA and Automation → Messages, with plain-language explainers.</p>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="package-check" class="w-3.5 h-3.5"></i>Already provided by the existing codebase
+      </h2>
+      <p class="mt-5 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Nothing yet. This is a fresh Xcode scaffold — no pre-built auth, app shell, settings system, or persistence layer to omit. Everything from Milestone 1 onward is yet to be built. The closest thing to a "starter" is Apple's default Xcode macOS app template (an empty <code class="font-mono text-xs">App</code> struct plus a <code class="font-mono text-xs">MenuBarExtra</code> scene), which provides essentially nothing of substance for this app.</p>
+    </section>
+
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i>Out of scope (v1)
+      </h2>
+      <ul class="mt-5 space-y-2.5 list-none p-0">
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Cloud mode (Sendblue)</span><span class="text-zinc-500 dark:text-zinc-400"> — deferred to v1.1 with a VPS-relay architecture; an on-Mac webhook would die when the Mac sleeps.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Group chat support</span><span class="text-zinc-500 dark:text-zinc-400"> — <code class="font-mono text-xs">chat_style == 43</code> filtered out at the source.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Contacts framework name resolution</span><span class="text-zinc-500 dark:text-zinc-400"> — allowlist uses raw handles only, no friendly-name lookup.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Edit / unsend tracking</span><span class="text-zinc-500 dark:text-zinc-400"> — captures are point-in-time; later edits don't propagate.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Mac App Store distribution</span><span class="text-zinc-500 dark:text-zinc-400"> — structurally impossible (sandbox blocks <code class="font-mono text-xs">chat.db</code> and the <code class="font-mono text-xs">osascript</code> subprocess used for replies).</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Auto-update (Sparkle)</span><span class="text-zinc-500 dark:text-zinc-400"> — manual download from GitHub Releases for v1.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Analytics</span><span class="text-zinc-500 dark:text-zinc-400"> — no PostHog, TelemetryDeck, or telemetry of any kind.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Routing Rapture iOS dictations into this folder</span><span class="text-zinc-500 dark:text-zinc-400"> — sibling-repo concern (claude-channel-rapture / rapture-api-gateway); would break the spec's "no networking in v1" boundary.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">In-app browsing / search / preview</span><span class="text-zinc-500 dark:text-zinc-400"> — the folder is the UI; use Finder, Spotlight, ripgrep, or your AI assistant.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">In-app editing / tagging / categorizing</span><span class="text-zinc-500 dark:text-zinc-400"> — <code class="font-mono text-xs">.txt</code> files are immutable; downstream AI decides what to do with them.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Built-in AI / LLM integration</span><span class="text-zinc-500 dark:text-zinc-400"> — capture layer, not the AI. Vendor neutrality is the differentiator.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Audio capture of the original dictation</span><span class="text-zinc-500 dark:text-zinc-400"> — text only; audio lives in iMessages on the iPhone.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Multi-folder destinations</span><span class="text-zinc-500 dark:text-zinc-400"> — one output folder per install.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Mac Notification Center pings per capture</span><span class="text-zinc-500 dark:text-zinc-400"> — the iMessage reply is the confirmation; a Mac notification would be redundant noise.</span></span>
+        </li>
+        <li class="flex items-start gap-3">
+          <i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i>
+          <span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Encryption / password protection of captures</span><span class="text-zinc-500 dark:text-zinc-400"> — point the output folder at an encrypted volume if needed.</span></span>
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="database" class="w-3.5 h-3.5"></i>Data model
+      </h2>
+      <p class="mt-3 text-sm text-zinc-500 dark:text-zinc-400">What the app needs to remember. Two small JSON files in <code class="font-mono text-xs">~/Library/Application Support/Rapture for Mac/</code>, atomic <code class="font-mono text-xs">.tmp</code> → <code class="font-mono text-xs">rename(2)</code> writes.</p>
+      <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2">
+            <i data-lucide="settings" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Settings</h3>
+          </div>
+          <table class="mt-4 w-full text-sm">
+            <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">outputFolder</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">The folder the user picked for captures (security-scoped bookmark, survives across launches).</td></tr>
+              <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">allowedHandles</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">Phone numbers / Apple IDs whose messages should be captured beyond self-chat.</td></tr>
+              <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">allowSMS</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">Whether to capture SMS/RCS too. Default off — sender IDs are spoofable.</td></tr>
+              <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">launchAtLogin</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">Auto-start with the Mac.</td></tr>
+              <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">paused</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">Whether capture is currently paused (set from the menu bar).</td></tr>
+              <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">replyMode</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">All / ErrorsOnly / Off.</td></tr>
+            </tbody>
+          </table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">File</span> · <code class="font-mono">settings.json</code></p>
+        </div>
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2">
+            <i data-lucide="database" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">PersistedState</h3>
+          </div>
+          <table class="mt-4 w-full text-sm">
+            <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">chatDbWatermark</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">Highest <code class="font-mono text-xs">ROWID</code> processed; catch-up reads everything above it.</td></tr>
+              <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">selfHandlesCacheTs</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">When the user's own iMessage handles were last refreshed.</td></tr>
+              <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">recentSentEchoes</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">Last ~15s of replies the app sent; used to drop those if they return as inbound.</td></tr>
+              <tr><td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">lastError</td><td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">Most recent capture failure, if any (surfaced in the menu bar).</td></tr>
+            </tbody>
+          </table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">File</span> · <code class="font-mono">state.json</code></p>
+        </div>
+      </div>
+      <p class="mt-5 text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">Output artifacts live in the user's chosen folder, not in the app's state: one <code class="font-mono text-xs">&lt;timestamp&gt;.txt</code> per captured message (UTF-8, optional <code class="font-mono text-xs">Attachments:</code> footer), and a sibling <code class="font-mono text-xs">&lt;timestamp&gt;/</code> folder per message-with-attachments containing the copied files.</p>
+    </section>
+
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="route" class="w-3.5 h-3.5"></i>Milestones
+      </h2>
+      <div class="mt-5 space-y-5">
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">1</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">First Capture</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">The app captures qualifying iMessages and writes them to disk. No UI, no replies — the app runs invisibly and the user's only evidence is <code class="font-mono text-xs">.txt</code> files appearing in <code class="font-mono text-xs">~/Documents/Rapture Notes/</code>.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Xcode project scaffold (<code class="font-mono text-xs">RaptureMac.xcodeproj</code>), macOS 14+ target, <code class="font-mono text-xs">LSUIElement=YES</code>, no sandbox, GRDB via SPM</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Models, atomic JSON stores for Settings and PersistedState</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span><code class="font-mono text-xs">AttributedBody</code> decoder (so Siri-dictated messages surface)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span><code class="font-mono text-xs">chat.db</code> watcher (1s polling, ROWID watermark)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Self-handle resolver + filter (9 drop rules, self-chat default)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>File writer (atomic <code class="font-mono text-xs">.tmp</code> → <code class="font-mono text-xs">rename(2)</code>), attachments to sibling folder</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Default output folder <code class="font-mono text-xs">~/Documents/Rapture Notes/</code> auto-created on first launch</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>FDA onboarding sheet + deep-link to System Settings + 2s polling</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Menu-bar UI (popover, status, controls)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span><code class="font-mono text-xs">✓ Saved</code> reply (Milestone 2)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Catch-up on launch (Milestone 2)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Settings window or allowlist editor (Milestone 3)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Code signing or distribution (Milestone 4)</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> The user grants FDA, leaves the app running invisibly, sends themselves an iMessage from any iCloud device, and within ~1s sees a <code class="font-mono text-xs">&lt;timestamp&gt;.txt</code> appear in <code class="font-mono text-xs">~/Documents/Rapture Notes/</code> with exactly the dictated text. Sending with a photo also produces the sibling folder with the copied image.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">2</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Confirmation &amp; Recovery</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Every capture is now visibly confirmed on the user's phone, and nothing gets dropped when the Mac sleeps or quits. Still no UI for the user to interact with — but the trust mechanisms are in place.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>AppleScript sender (<code class="font-mono text-xs">osascript</code> subprocess) posting via Messages.app</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Replier composing <code class="font-mono text-xs">✓ Saved: &lt;filename&gt;</code> on success, <code class="font-mono text-xs">✗ &lt;reason&gt;</code> on failure</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>15s echo guard so the app's own replies don't re-capture</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Automation → Messages pre-prompt explainer before the OS dialog</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Catch-up detection (first batch &gt; 3 → catch-up mode)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Per-message replies for 1–3 missed; <code class="font-mono text-xs">📥 Caught up: N (M failed)</code> summary for 4+</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span><code class="font-mono text-xs">UNUserNotification</code> fallback plumbing (toggle lands in M3)</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Menu-bar UI (Milestone 3)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Settings window or reply-mode picker — hardcoded to <code class="font-mono text-xs">.all</code> for now</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Allowlist editor (Milestone 3)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Code signing / distribution (Milestone 4)</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> User sends a self-message and receives <code class="font-mono text-xs">✓ Saved: &lt;filename&gt;</code> within ~3s. Quits the app, sends 5 messages from another device, relaunches, sees 5 <code class="font-mono text-xs">.txt</code> files appear and one summary reply <code class="font-mono text-xs">📥 Caught up: 5 notes captured</code>. The reply doesn't re-trigger a capture.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">3</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">User Control</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">The user can now see what the app is doing and change how it behaves — without quitting. Full menu-bar UX plus the Settings window with all three tabs.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Menu-bar popover: status line, today's count, last capture time, last error, pause/resume, open folder, settings, quit</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Menu-bar icon visually changes when paused</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Settings → General: folder picker (<code class="font-mono text-xs">NSOpenPanel</code> + bookmark + drag-and-drop), launch-at-login (<code class="font-mono text-xs">SMAppService</code>), reply-mode picker wired up, allow-SMS toggle</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Settings → Allowlist: add/remove handles (phone or email)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Settings → About: version (git-commit-count), repo link, license, diagnostics, acknowledgments</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Empty-allowlist hardcode from M1 replaced with the real editable list</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Code signing or notarization (Milestone 4)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>DMG packaging (Milestone 4)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Public GitHub repo flip (Milestone 4)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Auto-update, analytics (out of scope for v1)</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> User clicks the menu-bar icon, sees <code class="font-mono text-xs">✓ capturing · Today: 7 · Last: 2 min ago</code>, pauses and resumes capture (with visible icon change), opens Settings, picks a different folder, adds an allowlisted contact, switches reply mode to "Errors only", and confirms the new behavior matches.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">4</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Public Release</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">The app becomes installable by anyone — signed, notarized, packaged as a DMG, attached to a GitHub Release on a public Apache-2.0 repo.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Code signing with Developer ID Application cert (team <code class="font-mono text-xs">P8PLTH44DF</code>)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Hardened runtime entitlements + Automation → Messages entitlement</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Notarization via <code class="font-mono text-xs">notarytool</code> + ASC API key <code class="font-mono text-xs">GX6DYX9S2M</code></span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>DMG packaging with stapled notarization ticket</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Flip repo from private to public</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Add <code class="font-mono text-xs">SECURITY.md</code>, <code class="font-mono text-xs">CONTRIBUTING.md</code>, polish <code class="font-mono text-xs">README.md</code></span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>First GitHub Release with DMG + release notes</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone</h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Auto-update / Sparkle (out of scope for v1)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Mac App Store (structurally impossible)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>CI/CD pipelines (manual build-and-notarize in v1)</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Analytics (out of scope for v1)</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> A first-time user navigates to <code class="font-mono text-xs">github.com/NoiseMeldOrg/rapture-mac</code>, downloads the DMG from the latest Release, drags <code class="font-mono text-xs">Rapture for Mac.app</code> to Applications, launches it, completes the FDA and Automation prompts, sends themselves an iMessage from across the room, and receives <code class="font-mono text-xs">✓ Saved</code> confirmation — without touching a terminal.</span></p>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <footer class="pt-8 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400">
+      Generated by <span class="font-medium">bm-prd-creator</span>. Open the milestone-1 <code class="font-mono">prompt.md</code> to start building.
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var stored = localStorage.getItem('prd-theme');
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var initial = stored ? stored : (prefersDark ? 'dark' : 'light');
+      if (initial === 'dark') html.classList.add('dark');
+      var btn = document.getElementById('theme-toggle');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          var isDark = html.classList.toggle('dark');
+          localStorage.setItem('prd-theme', isDark ? 'dark' : 'light');
+        });
+      }
+      if (window.lucide) window.lucide.createIcons();
+    })();
+  </script>
+</body>
+</html>

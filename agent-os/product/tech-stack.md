@@ -36,7 +36,7 @@ That's it. No Sendblue SDK (no cloud mode in v1), no networking stack beyond Fou
 - `~/Library/Application Support/Rapture for Mac/settings.json` — user preferences
 - `~/Library/Application Support/Rapture for Mac/state.json` — runtime state (chat.db watermark, self-handle cache timestamp, recent echo entries)
 - **Atomic writes:** `.tmp` → `rename(2)` for both files
-- **Output folder:** user-chosen via `NSOpenPanel`, stored as security-scoped bookmark data
+- **Output folder:** user-chosen via `NSOpenPanel`, stored as security-scoped bookmark data. Defaults to `~/Documents/Rapture Notes/` (auto-created) on first launch when none is configured, so the app is functional the moment FDA is granted
 
 ## Permissions
 

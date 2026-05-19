@@ -199,7 +199,7 @@ Status item (`text.bubble`). Window content:
 
 1. **Full Disk Access**: first chat.db read failure → modal sheet, deep-link to `x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles`, poll every 2s.
 2. **Automation → Messages.app**: first Replier `osascript` call → pre-prompt, then OS prompt fires.
-3. **Folder picker**: `NSOpenPanel` with bookmark data persistence.
+3. **Folder picker**: `NSOpenPanel` with bookmark data persistence. **First-launch default**: if no folder is configured (clean install, no prior Settings file), auto-create and use `~/Documents/Rapture Notes/` so capture works immediately after FDA is granted — no forced "pick a folder" step before the first message can land. User can change the folder later in Settings → General. Surfaced during PRD shaping (2026-05-17) as load-bearing for the frictionless-onboarding promise.
 
 ## Phase 14: Distribution
 

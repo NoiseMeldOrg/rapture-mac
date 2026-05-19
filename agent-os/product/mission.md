@@ -74,3 +74,10 @@ This is a hard product commitment, not an aspiration. Any future feature that wo
 - Auto-update
 - Analytics
 - **Routing Rapture iOS dictations into the same folder.** A sibling-repo concern, not rapture-mac scope. The cleaner architecture is to extend [`claude-channel-rapture`](https://github.com/NoiseMeldOrg/claude-channel-rapture) with a file-output mode (running as `launchd` for always-on delivery) or to add server-side iCloud/Dropbox push in `rapture-api-gateway`. Either keeps gateway-connected logic out of the Mac app, which respects the spec's "no networking" boundary.
+- **In-app browsing / search / preview of captured notes.** The folder *is* the UI. Consumption is via Finder, Spotlight, ripgrep, or the user's AI assistant — not via a built-in note browser.
+- **In-app editing, tagging, or categorizing of captures.** `.txt` files are immutable; the downstream AI assistant decides what to do with them.
+- **Built-in AI / LLM integration.** This app is the capture layer, not the AI. Vendor neutrality (any LLM can read the folder) is the whole differentiator; baking in a specific provider would undercut it.
+- **Audio capture of the original dictation.** Text only. The audio lives in iMessages on the user's iPhone, retrievable from there if needed.
+- **Multi-folder destinations.** One output folder per install. Source-splitting is a downstream concern for whatever AI consumes the folder.
+- **Mac Notification Center pings on each capture.** The iMessage reply is the confirmation; a Mac notification would be redundant noise.
+- **Encryption / password protection of captures.** `.txt` files only. Users who need encryption point the output folder at an encrypted volume (Cryptomator vault, FileVault home folder, etc.).

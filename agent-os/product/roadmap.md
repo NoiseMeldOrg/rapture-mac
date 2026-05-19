@@ -6,6 +6,8 @@
 
 Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/plan.md`. Effort is shaped as `XS` (1 day), `S` (2–3 days), `M` (1 week), `L` (2 weeks).
 
+**Execution view:** For initial build-out, the 14 phases below are grouped into **4 user-testable milestones** scaffolded for fresh agent sessions in [`_build_plan/`](../../_build_plan/) — M1 First Capture · M2 Confirmation & Recovery · M3 User Control · M4 Public Release. That folder is **temporary** (deleted once initial milestones ship); the 14 phases below remain the canonical technical breakdown.
+
 ## Phase 1: Repo bootstrap (Complete)
 
 1. [x] gh repo created — `NoiseMeldOrg/rapture-mac` (private). `XS`

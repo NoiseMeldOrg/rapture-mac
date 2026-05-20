@@ -2,10 +2,11 @@
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 [![Release](https://img.shields.io/github/v/release/NoiseMeldOrg/rapture-mac?display_name=tag&sort=semver)](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest)
+[![Network: zero outbound](https://img.shields.io/badge/network-zero%20outbound-success)](./PRIVACY.md)
 
 A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Turns Siri-dictated iMessages into timestamped `.txt` files in a folder of your choice — so voice-captured thoughts land where any AI assistant (Claude, ChatGPT, Gemini, a local Llama) can read them.
 
-**Apache-2.0. Vendor-neutral. The folder is the only integration surface.**
+**Apache-2.0. Local-only. Vendor-neutral. The folder is the only integration surface.**
 
 ## Motivating flow
 

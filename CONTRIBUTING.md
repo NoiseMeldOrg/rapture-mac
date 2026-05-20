@@ -27,7 +27,7 @@ You'll also need:
 
 Most of these are visible from a single read of the codebase, but worth stating for new contributors:
 
-- **`@MainActor` is the project's default actor isolation** (`SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor` build setting). Cross only when you actually need to — typically in GRDB closures (`pool.read { ... }`) or `Task.detached` for the `osascript` subprocess. Use `nonisolated` explicitly when crossing.
+- **`@MainActor` is the project's default actor isolation** (`SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor` build setting). Cross only when you actually need to: typically in GRDB closures (`pool.read { ... }`) or `Task.detached` for the `osascript` subprocess. Use `nonisolated` explicitly when crossing.
 - **Pure-helper test pattern**. Where there's stateful orchestration (`BatchProcessor`, `EchoGuard`, `Replier`), the decision logic is extracted into pure `nonisolated static` helpers that take all inputs as arguments. Tests hit the helpers directly, no fixture infrastructure. See `BatchProcessor.isCatchup` (M2) and `BatchProcessor.policy` (M3) for examples to follow.
 - **OSLog subsystem is `noisemeld.RaptureMac`** with one category per file/role. Use `Logger(subsystem: "noisemeld.RaptureMac", category: "...")`.
 - **Atomic file writes**: `AtomicFile.write(_:to:)` wraps `Data.write(to:options: .atomic)`, which does `.tmp` → `rename(2)`. Don't roll your own.
@@ -36,7 +36,7 @@ Most of these are visible from a single read of the codebase, but worth stating 
 ## Issue and PR conventions
 
 - One commit per logical change; if a fix has cleanup along the way, split it.
-- Commit subjects in the same shape as the existing log: `feat(M3): user control — menu bar, settings tabs, allowlist editor`, `fix: LSUIElement apps need explicit NSApp.activate to claim front`. Past tense, present-imperative — match what's already there.
+- Commit subjects in the same shape as the existing log: `feat(M3): user control — menu bar, settings tabs, allowlist editor`, `fix: LSUIElement apps need explicit NSApp.activate to claim front`. Past tense, present-imperative; match what's already there.
 - PRs should describe **why** before **what**. The code shows the what.
 
 ## First-time release setup (maintainers)
@@ -45,7 +45,7 @@ You'll need three things once, before you can run `Scripts/release.sh`:
 
 ### 1. Developer ID Application certificate
 
-Required for signing a DMG distributed outside the Mac App Store. This is a **different cert type** from the `Apple Distribution` cert iOS uses for App Store / TestFlight — even with the same team ID. Apple's notarization service rejects anything signed with the wrong cert type.
+Required for signing a DMG distributed outside the Mac App Store. This is a **different cert type** from the `Apple Distribution` cert iOS uses for App Store / TestFlight, even with the same team ID. Apple's notarization service rejects anything signed with the wrong cert type.
 
 To create one:
 
@@ -73,7 +73,7 @@ xcrun notarytool store-credentials "rapture-mac-notary" \
   --issuer <your-issuer-uuid>
 ```
 
-The issuer UUID is the team-specific App Store Connect issuer ID — find it at <https://appstoreconnect.apple.com> → **Users and Access → Integrations → Team Keys**, top of the page.
+The issuer UUID is the team-specific App Store Connect issuer ID. Find it at <https://appstoreconnect.apple.com> → **Users and Access → Integrations → Team Keys**, top of the page.
 
 Verify:
 
@@ -81,7 +81,7 @@ Verify:
 xcrun notarytool history --keychain-profile rapture-mac-notary
 ```
 
-Should list past submissions (empty list on first run is fine — it confirms the profile is configured).
+Should list past submissions (empty list on first run is fine; it confirms the profile is configured).
 
 ### 3. `create-dmg`
 
@@ -104,7 +104,7 @@ The script will:
 3. Read the auto-generated `CFBundleShortVersionString` from the built Info.plist (the `Scripts/set_git_version.sh` Run Script phase writes it from the `main` commit count).
 4. Verify the signature (`codesign --verify --deep --strict`).
 5. Build the DMG via `create-dmg`.
-6. Submit to Apple's notarization service (`xcrun notarytool submit --wait` — blocks for ~30s–10min).
+6. Submit to Apple's notarization service (`xcrun notarytool submit --wait`, which blocks for ~30s–10min).
 7. Staple the notarization ticket onto the DMG.
 8. Run `spctl --assess` and `xcrun stapler validate` for final sanity.
 9. Print the DMG path, size, and SHA-256.

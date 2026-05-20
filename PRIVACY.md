@@ -7,8 +7,8 @@ Rapture for Mac is built so this section can be honestly short.
 **Everything.** Captured messages, their attachments, the app's settings, the app's runtime state. None of it leaves your computer.
 
 - Captured `.txt` files go into the folder *you* picked (default `~/Documents/Rapture Notes/`). They're plain text. You own them. You can move, delete, encrypt, or sync them wherever you want.
-- `~/Library/Application Support/Rapture for Mac/settings.json` — your preferences (output folder, allowlist, reply mode, etc.).
-- `~/Library/Application Support/Rapture for Mac/state.json` — runtime bookkeeping (the chat.db ROWID watermark, recent self-handle cache, last-error string).
+- `~/Library/Application Support/Rapture for Mac/settings.json`: your preferences (output folder, allowlist, reply mode, etc.).
+- `~/Library/Application Support/Rapture for Mac/state.json`: runtime bookkeeping (the chat.db ROWID watermark, recent self-handle cache, last-error string).
 
 Both files are plain JSON. You can `cat` them and see exactly what's in there.
 
@@ -41,13 +41,13 @@ We do **not** read your contacts, your phone's name, your other databases (Healt
 
 One:
 
-- **[GRDB.swift](https://github.com/groue/GRDB.swift)** — a Swift wrapper around SQLite, pinned at version 6.29.3 in `Package.resolved`. Used read-only against `chat.db`. GRDB itself has zero network code.
+- **[GRDB.swift](https://github.com/groue/GRDB.swift)**: a Swift wrapper around SQLite, pinned at version 6.29.3 in `Package.resolved`. Used read-only against `chat.db`. GRDB itself has zero network code.
 
 That's the entire third-party surface. No analytics SDK, no crash reporter, no logger that phones home, no AI/LLM SDK.
 
 ## What the `✓ Saved` reply looks like to your iMessage thread
 
-When the app sends `✓ Saved: 2026-05-19T14-32-08Z.txt` to confirm a capture, that message goes through Apple's iMessage infrastructure exactly the way any other iMessage would. Apple handles the transport; we have no visibility into it. The reply lands in your own iMessage thread on your phone — same chat, same conversation history.
+When the app sends `✓ Saved: 2026-05-19T14-32-08Z.txt` to confirm a capture, that message goes through Apple's iMessage infrastructure exactly the way any other iMessage would. Apple handles the transport; we have no visibility into it. The reply lands in your own iMessage thread on your phone, in the same chat as the conversation history.
 
 If you'd rather not send replies, switch to **Settings → General → Reply mode → Never reply** and the app falls back to a `UNUserNotification` for catch-up summaries (still local).
 

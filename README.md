@@ -4,7 +4,7 @@
 [![Release](https://img.shields.io/github/v/release/NoiseMeldOrg/rapture-mac?display_name=tag&sort=semver)](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest)
 [![Network: zero outbound](https://img.shields.io/badge/network-zero%20outbound-success)](./PRIVACY.md)
 
-A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Turns Siri-dictated iMessages into timestamped `.txt` files in a folder of your choice — so voice-captured thoughts land where any AI assistant (Claude, ChatGPT, Gemini, a local Llama) can read them.
+A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Turns Siri-dictated iMessages into timestamped `.txt` files in a folder of your choice, so voice-captured thoughts land where any AI assistant (Claude, ChatGPT, Gemini, a local Llama) can read them.
 
 **Apache-2.0. Local-only. Vendor-neutral. The folder is the only integration surface.**
 
@@ -14,7 +14,7 @@ Your phone is across the room, locked, untouched. You say:
 
 > *"Hey Siri, send a text to me saying rent is due on the 5th."*
 
-Siri transcribes and sends. No unlock, no app open, no taps. Rapture for Mac sees the message arrive, writes `2026-05-16T14-32-08Z.txt` to a folder you picked (local, Dropbox, Drive — all just paths), and replies in the chat:
+Siri transcribes and sends. No unlock, no app open, no taps. Rapture for Mac sees the message arrive, writes `2026-05-16T14-32-08Z.txt` to a folder you picked (local, Dropbox, Drive, all just paths), and replies in the chat:
 
 > *✓ Saved: 2026-05-16T14-32-08Z.txt*
 
@@ -24,15 +24,15 @@ That's the whole transaction. The defining property: **the iPhone side is fully 
 
 1. Download the latest DMG from the [Releases page](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest).
 2. Open the DMG, drag **Rapture for Mac.app** into `/Applications`.
-3. Launch the app. There's no Dock icon — look for the `text.bubble` glyph in the menu bar at the top of the screen.
+3. Launch the app. There's no Dock icon. Look for the `text.bubble` glyph in the menu bar at the top of the screen.
 
 ### First-run walkthrough
 
 The app will guide you through two macOS permissions. Both are required.
 
-1. **Full Disk Access** — needed to read `~/Library/Messages/chat.db`. The app opens a sheet with an **Open System Settings** button that deep-links to the right pane. Toggle Rapture for Mac on. (If you don't see it in the list, click `+` and add it manually.) The sheet closes automatically once access is granted.
-2. **Automation → Messages** — needed for the `✓ Saved` reply. The first time the app tries to reply, you'll see a one-time pre-prompt explaining what's about to happen, then macOS shows its own permission dialog. Click **OK**.
-3. Send yourself an iMessage from another device on the same iCloud account: *"Hey Siri, text me — this is a test."*
+1. **Full Disk Access**: needed to read `~/Library/Messages/chat.db`. The app opens a sheet with an **Open System Settings** button that deep-links to the right pane. Toggle Rapture for Mac on. (If you don't see it in the list, click `+` and add it manually.) The sheet closes automatically once access is granted.
+2. **Automation → Messages**: needed for the `✓ Saved` reply. The first time the app tries to reply, you'll see a one-time pre-prompt explaining what's about to happen, then macOS shows its own permission dialog. Click **OK**.
+3. Send yourself an iMessage from another device on the same iCloud account: *"Hey Siri, text me, this is a test."*
 4. Within about a second, a `.txt` file appears in `~/Documents/Rapture Notes/` (the default folder; you can change it under **Settings → General**).
 5. Within another second, you see `✓ Saved: <filename>.txt` in your iMessages thread on your phone. That's the audible-on-iPhone confirmation that the capture landed.
 
@@ -48,12 +48,12 @@ That's the whole product. Everything else (allowlist, reply modes, pause/resume)
 A short list of things you might expect but don't get; for the full rationale see [`agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md`](./agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md):
 
 - Group chat capture
-- In-app browsing / search / preview (the folder *is* the UI — use Finder, Spotlight, ripgrep, or your AI assistant)
+- In-app browsing / search / preview (the folder *is* the UI; use Finder, Spotlight, ripgrep, or your AI assistant)
 - Built-in AI integration (vendor-neutral by design)
-- Audio capture of the original dictation (text only — the audio stays on your iPhone)
-- Mac App Store distribution (structurally impossible — see [shape.md](./agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md))
+- Audio capture of the original dictation (text only; the audio stays on your iPhone)
+- Mac App Store distribution (structurally impossible; see [shape.md](./agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md))
 - Auto-update
-- Analytics or telemetry — zero outbound network calls in v1
+- Analytics or telemetry (zero outbound network calls in v1)
 
 ## Why the app isn't sandboxed
 
@@ -73,7 +73,7 @@ xcrun stapler validate ~/Downloads/Rapture-for-Mac-*.dmg
 spctl --assess --type install ~/Downloads/Rapture-for-Mac-*.dmg
 ```
 
-Both should succeed. The DMG is Developer ID signed (team `P8PLTH44DF`) and Apple-notarized — see [SECURITY.md](./SECURITY.md) for full details and how to report issues.
+Both should succeed. The DMG is Developer ID signed (team `P8PLTH44DF`) and Apple-notarized. See [SECURITY.md](./SECURITY.md) for full details and how to report issues.
 
 ## Build from source
 
@@ -90,10 +90,10 @@ xcodebuild \
 
 ## Sibling repos
 
-- [`rapture-ios`](https://github.com/NoiseMeldOrg/rapture-ios) — iOS app (the voice-capture-and-cloud-sync product)
-- [`rapture-android`](https://github.com/NoiseMeldOrg/rapture-android) — Android app
-- [`rapture-api-gateway`](https://github.com/NoiseMeldOrg/rapture-api-gateway) — Backend (Render.com)
-- [`claude-channel-rapture`](https://github.com/NoiseMeldOrg/claude-channel-rapture) — Claude Code plugin that pairs with Rapture iOS over a real-time channel
+- [`rapture-ios`](https://github.com/NoiseMeldOrg/rapture-ios): iOS app (the voice-capture-and-cloud-sync product)
+- [`rapture-android`](https://github.com/NoiseMeldOrg/rapture-android): Android app
+- [`rapture-api-gateway`](https://github.com/NoiseMeldOrg/rapture-api-gateway): Backend (Render.com)
+- [`claude-channel-rapture`](https://github.com/NoiseMeldOrg/claude-channel-rapture): Claude Code plugin that pairs with Rapture iOS over a real-time channel
 
 ## License
 

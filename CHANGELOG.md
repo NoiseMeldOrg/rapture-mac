@@ -4,7 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
-## [1.0.28] - 2026-05-20: dedup + link-preview filter (quality-of-life)
+## [1.0.29] - 2026-05-20: dedup + link-preview filter (quality-of-life)
+
+Built from commit `0e3a5fb`. SHA-256: `60de506934f00948f92f7d8d195447f2ca189a122bc5107e25b16c846e98ef67`.
+
 
 ### Changed
 
@@ -58,7 +61,7 @@ Built from commit `9a5972d`. SHA-256: `704a968d5054cfbb9707a710baa44e35ee3fcdffc
 
 For the build-by-build context behind these features, see `_build_plan/milestones/{1,2,3,4}/milestone-log.md`. For the architectural rationale (why local-mode-only, why not the Mac App Store), see `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md`.
 
-[Unreleased]: https://github.com/NoiseMeldOrg/rapture-mac/compare/v1.0.28...HEAD
-[1.0.28]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.28
+[Unreleased]: https://github.com/NoiseMeldOrg/rapture-mac/compare/v1.0.29...HEAD
+[1.0.29]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.29
 [1.0.27]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.27
 [1.0.18]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.18

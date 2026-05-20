@@ -13,11 +13,11 @@ Your phone is across the room, locked, untouched. You say:
 
 > *"Hey Siri, send a text to me saying rent is due on the 5th."*
 
-Siri transcribes and sends — no unlock, no app open, no taps. Rapture for Mac sees the message arrive, writes `2026-05-16T14-32-08Z.txt` to a folder you picked (local, Dropbox, Drive — all just paths), and replies in the chat:
+Siri transcribes and sends. No unlock, no app open, no taps. Rapture for Mac sees the message arrive, writes `2026-05-16T14-32-08Z.txt` to a folder you picked (local, Dropbox, Drive — all just paths), and replies in the chat:
 
 > *✓ Saved: 2026-05-16T14-32-08Z.txt*
 
-That's the whole transaction. The defining property: **the iPhone side is fully hands-free from a locked device.** It's the one Apple-permitted voice path that works without unlock — Shortcuts can't, the Action Button needs the phone in hand, the Notes app requires unlock.
+That's the whole transaction. The defining property: **the iPhone side is fully hands-free from a locked device.** It's the one Apple-permitted voice path that works without unlock. Shortcuts can't do it from the lock screen. The Action Button needs the phone in hand. The Notes app needs unlock.
 
 ## Install
 
@@ -27,7 +27,7 @@ That's the whole transaction. The defining property: **the iPhone side is fully 
 
 ### First-run walkthrough
 
-The app will guide you through two macOS permissions. Both are required; neither is optional.
+The app will guide you through two macOS permissions. Both are required.
 
 1. **Full Disk Access** — needed to read `~/Library/Messages/chat.db`. The app opens a sheet with an **Open System Settings** button that deep-links to the right pane. Toggle Rapture for Mac on. (If you don't see it in the list, click `+` and add it manually.) The sheet closes automatically once access is granted.
 2. **Automation → Messages** — needed for the `✓ Saved` reply. The first time the app tries to reply, you'll see a one-time pre-prompt explaining what's about to happen, then macOS shows its own permission dialog. Click **OK**.
@@ -40,7 +40,7 @@ That's the whole product. Everything else (allowlist, reply modes, pause/resume)
 ## v1 scope
 
 - **Local mode only.** Polls `~/Library/Messages/chat.db` once per second, decodes message text (including the binary `attributedBody` blob that iOS 16+ uses for Siri-dictated messages), filters to your self-chat plus a user-managed allowlist, writes one `.txt` per message (with attachments in a sibling folder), and replies via AppleScript through Messages.app.
-- **No cloud mode in v1.** A future v1.1 adds a Sendblue path via VPS relay — never an on-Mac webhook listener, which would die whenever the Mac sleeps.
+- **No cloud mode in v1.** A future v1.1 adds a Sendblue path via VPS relay. An on-Mac webhook listener would die whenever the Mac sleeps, so we won't ship one.
 
 ### Out of scope
 
@@ -56,12 +56,12 @@ A short list of things you might expect but don't get; for the full rationale se
 
 ## Why the app isn't sandboxed
 
-The app asks for **Full Disk Access** and **Automation → Messages**, which are unusual permissions on macOS. That's not a corner being cut — it's the only way the product can work:
+The app asks for **Full Disk Access** and **Automation → Messages**, which are unusual permissions on macOS. That's not a corner being cut. It's the only way the product can work:
 
 - **Reading `~/Library/Messages/chat.db` requires Full Disk Access**, period. No entitlement gets a sandboxed app into that file; this is an Apple privacy guarantee, not a configuration option. Without that read, the app has nothing to capture.
 - **Sending the `✓ Saved` reply requires spawning `osascript` and controlling Messages.app**, both of which the Mac App Store sandbox forbids for arbitrary apps.
 
-So the app ships *outside* the sandbox by structural necessity, which is also why it isn't (and can't be) on the Mac App Store. In exchange, it commits to never abusing the trust: zero network code, no telemetry, one third-party dependency. See [PRIVACY.md](./PRIVACY.md) for the full posture and how to verify it yourself with two shell commands.
+So the app ships outside the sandbox by structural necessity, which is also why it isn't (and can't be) on the Mac App Store. In exchange, the code carries no network calls, no telemetry, and only one third-party dependency. See [PRIVACY.md](./PRIVACY.md) for the full posture and how to verify it yourself with two shell commands.
 
 ## Verify the download
 

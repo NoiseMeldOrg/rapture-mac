@@ -4,7 +4,7 @@ Rapture for Mac is built so this section can be honestly short.
 
 ## What stays on your Mac
 
-**Everything.** Captured messages, their attachments, the app's settings, the app's runtime state — none of it leaves your computer.
+**Everything.** Captured messages, their attachments, the app's settings, the app's runtime state. None of it leaves your computer.
 
 - Captured `.txt` files go into the folder *you* picked (default `~/Documents/Rapture Notes/`). They're plain text. You own them. You can move, delete, encrypt, or sync them wherever you want.
 - `~/Library/Application Support/Rapture for Mac/settings.json` — your preferences (output folder, allowlist, reply mode, etc.).
@@ -14,12 +14,12 @@ Both files are plain JSON. You can `cat` them and see exactly what's in there.
 
 ## What we collect about you
 
-**Nothing.** There is no telemetry, no analytics, no crash reporter, no usage pings, no checking for updates, no "anonymous" data collection. No backend exists for this product. There is nothing for us to receive even if we wanted it.
+**Nothing.** No telemetry. No analytics. No crash reporter. No usage pings. No update checks. No "anonymous" data collection. There is no backend, and nothing for us to receive even if we wanted it.
 
 You can confirm this two ways:
 
 1. **Grep the source.** `grep -RnE "URLSession|URLRequest|NWConnection|NWListener" RaptureMac/RaptureMac/` returns zero results. There is no networking code in the app.
-2. **Check the signed entitlements.** Run `codesign -d --entitlements - /Applications/RaptureMac.app`. You'll see exactly two: `app-sandbox = false` and `automation.apple-events = true`. There are no `com.apple.security.network.*` entitlements, which means macOS itself would block any network attempt the app made — even one snuck in by a malicious dependency.
+2. **Check the signed entitlements.** Run `codesign -d --entitlements - /Applications/RaptureMac.app`. You'll see exactly two: `app-sandbox = false` and `automation.apple-events = true`. There are no `com.apple.security.network.*` entitlements, which means macOS itself would block any network attempt the app made, even one snuck in by a malicious dependency.
 
 ## Permissions the app asks for
 

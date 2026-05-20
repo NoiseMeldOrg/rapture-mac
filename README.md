@@ -44,7 +44,7 @@ The folder is the entire integration surface. Anything that reads files can cons
 
 Starter configs for common setups live in [`examples/`](./examples):
 
-- [`examples/claude-code/`](./examples/claude-code) — `CLAUDE.md` routing rules + launchd plist for background processing
+- [`examples/claude-code/`](./examples/claude-code) — `CLAUDE.md` routing rules, with three trigger options: manual `cd && claude`, Claude Code Desktop scheduled task, or a launchd plist for headless `claude -p`
 - [`examples/openclaw/`](./examples/openclaw) — OpenClaw skill that watches the folder; default reply via Telegram (Rapture already owns the iMessage layer)
 - [`examples/hermes/`](./examples/hermes) — Hermes Agent skill, schedules via built-in cron, default reply via Telegram
 - [`examples/cli/`](./examples/cli) — vendor-neutral shell script that pipes each note into any LLM CLI

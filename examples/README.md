@@ -4,7 +4,7 @@ The folder is the entire integration surface. Anything that reads files can cons
 
 | Agent | What's here | Setup time | Default reply channel |
 |---|---|---|---|
-| [Claude Code](./claude-code/) | `CLAUDE.md` routing rules + launchd plist | ~5 min | None (writes response files) |
+| [Claude Code](./claude-code/) | `CLAUDE.md` routing rules; manual, Desktop scheduled task, or launchd | ~5 min | None (writes response files) |
 | [OpenClaw](./openclaw/) | SKILL.md + setup notes | ~15 min | Telegram |
 | [Hermes Agent](./hermes/) | SKILL.md + setup notes | ~15 min | Telegram |
 | [Generic CLI](./cli/) | POSIX shell script | ~2 min | None (writes response files) |

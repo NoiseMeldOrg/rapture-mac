@@ -16,7 +16,7 @@ The user wants a tiny macOS menu-bar companion to the Rapture iOS app that turns
 |---|---|
 | App name | **Rapture for Mac** |
 | Bundle ID | `noisemeld.RaptureMac` |
-| Repo | **New private repo `NoiseMeldOrg/rapture-mac`** at `/Volumes/Dock SSD/Source/Repos/NoiseMeldOrg/rapture-mac` |
+| Repo | **New private repo `NoiseMeldOrg/rapture-mac`** |
 | Spec location (snapshot) | `rapture-ios/agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` |
 | Spec location (canonical) | `rapture-mac/agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` |
 | Deployment target | macOS 14 (Sonoma) |
@@ -55,7 +55,7 @@ Snapshot the shaping into `rapture-ios/agent-os/specs/2026-05-16-1854-rapture-ma
 - `visuals/` (empty)
 
 Then bootstrap the new repo:
-1. `gh repo create NoiseMeldOrg/rapture-mac --private --clone` into `/Volumes/Dock SSD/Source/Repos/NoiseMeldOrg/`.
+1. `gh repo create NoiseMeldOrg/rapture-mac --private --clone` (cloned alongside sibling org repos).
 2. Seed `README.md`, `.gitignore` (Swift/Xcode template + `.DS_Store` + `._*`), `CLAUDE.md` (point at this spec, parity with rapture-ios), `agent-os/product/{mission.md, tech-stack.md, roadmap.md}`.
 3. Copy this spec folder into `rapture-mac/agent-os/specs/` so source of truth lives there going forward.
 

@@ -11,7 +11,7 @@ v1 implements **local mode only**: polls `~/Library/Messages/chat.db`, decodes m
 | Decision | Choice | Rationale |
 |---|---|---|
 | Branding | Rapture for Mac, bundle `noisemeld.RaptureMac` | Same product line as Rapture iOS, new Mac surface. Lives under the Rapture umbrella. |
-| Repo | New private repo `NoiseMeldOrg/rapture-mac` (NOT a sibling layout) | User explicitly wanted a separate private repo in the org. Sits at `/Volumes/Dock SSD/Source/Repos/NoiseMeldOrg/rapture-mac`. |
+| Repo | New private repo `NoiseMeldOrg/rapture-mac` (NOT a sibling layout) | User explicitly wanted a separate private repo in the org. |
 | Spec location (snapshot) | `rapture-ios/agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` | Survives the shaping session in the current working repo. |
 | Spec location (canonical) | `rapture-mac/agent-os/specs/...` once that repo exists | Source of truth follows the code. |
 | v1 modes | **Local only**. Cloud mode (Sendblue + cloudflared) entirely deferred. | See "Why local-only" below. |

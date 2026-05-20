@@ -4,7 +4,7 @@
 
 ### imessage plugin (local-mode source of truth)
 
-- **Location:** `/Volumes/Dock SSD/Source/Repos/anthropics/claude-plugins-official/external_plugins/imessage/server.ts`
+- **Location:** `anthropics/claude-plugins-official/external_plugins/imessage/server.ts`
 - **Relevance:** Direct port target. The Swift implementation of `ChatDBWatcher`, `AttributedBodyDecoder`, `SelfHandleResolver`, `MessageFilter`, `AppleScriptSender`, and `EchoGuard` is a structural port of this file.
 - **Key patterns to port verbatim:**
   - **Polling SQL** (lines 120–129): joins `message ← chat_message_join ← chat`, left-joins `handle`. Watermark column = `m.ROWID`. Order ASC.
@@ -66,7 +66,7 @@
 
 ### boop-agent Sendblue webhook handler
 
-- **Location:** `/Volumes/Dock SSD/Source/Repos/NoiseMeld/boop-agent/server/index.ts` + `/Volumes/Dock SSD/Source/Repos/NoiseMeld/boop-agent/server/sendblue.ts`
+- **Location:** `boop-agent/server/index.ts` + `boop-agent/server/sendblue.ts` (internal NoiseMeld checkout)
 - **Relevance:** v1.1 cloud mode. The VPS-relay design will replicate this webhook handler on the user's hetzner VPS (not on the Mac). The Mac side will only consume push notifications from the relay.
 - **Corrections caught during shaping** (the original plan had bugs here):
   - Outbound endpoint is `https://api.sendblue.com/api/send-message` (`.com`, NOT `.co`).
@@ -78,10 +78,10 @@
 
 ### boop-agent dedup
 
-- **Location:** `/Volumes/Dock SSD/Source/Repos/NoiseMeld/boop-agent/convex/sendblueDedup.ts`
+- **Location:** `boop-agent/convex/sendblueDedup.ts` (internal NoiseMeld checkout)
 - **Relevance:** v1.1 idempotency pattern. The VPS relay will need this — `INSERT ... ON CONFLICT` keyed on `message_handle`, returning `claimed: false` for duplicate webhook retries.
 
 ### Full original design
 
-- **Location:** `~/.claude/plans/can-you-help-me-goofy-clover.md`
+- **Location:** Pre-shaping design notes (local-only; not in the repo).
 - **Relevance:** The complete pre-shaping design that included both modes. v1.1 starts from the cloud-mode sections of this file, with the corrections above applied and the architecture moved off the Mac.

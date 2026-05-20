@@ -41,7 +41,7 @@ This project is part of the Rapture product line. When making decisions about br
 ## Reference implementations
 
 The local-mode design is a structural port of:
-- `/Volumes/Dock SSD/Source/Repos/anthropics/claude-plugins-official/external_plugins/imessage/server.ts`
+- `anthropics/claude-plugins-official/external_plugins/imessage/server.ts`
 
 See `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/references.md` for the verified contract details.
 

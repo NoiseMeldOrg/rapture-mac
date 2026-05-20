@@ -135,6 +135,55 @@ final class BatchProcessorTests: XCTestCase {
         XCTAssertTrue(p.nextIsFirstNonemptyBatchSeen)
     }
 
+    // MARK: - GUID dedup (iCloud multi-device delivery duplicate suppression)
+
+    func testDedupFirstSightOfGuidIsNotDuplicate() {
+        let r = BatchProcessor.dedupCheck(guid: "guid-1", recent: [], capacity: 100)
+        XCTAssertFalse(r.isDuplicate)
+        XCTAssertEqual(r.updatedRecent, ["guid-1"])
+    }
+
+    func testDedupSecondSightOfGuidIsDuplicate() {
+        let r = BatchProcessor.dedupCheck(guid: "guid-1", recent: ["guid-1"], capacity: 100)
+        XCTAssertTrue(r.isDuplicate)
+        // When duplicate, buffer is unchanged (no re-append).
+        XCTAssertEqual(r.updatedRecent, ["guid-1"])
+    }
+
+    func testDedupEvictsOldestWhenCapacityExceeded() {
+        let recent = ["g1", "g2", "g3"]
+        let r = BatchProcessor.dedupCheck(guid: "g4", recent: recent, capacity: 3)
+        XCTAssertFalse(r.isDuplicate)
+        XCTAssertEqual(r.updatedRecent, ["g2", "g3", "g4"])
+    }
+
+    func testDedupKeepsCapacityWhenAtLimit() {
+        // Boundary: 100 entries, adding one new one keeps 100, oldest evicted.
+        let recent = (1...100).map { "g\($0)" }
+        let r = BatchProcessor.dedupCheck(guid: "g101", recent: recent, capacity: 100)
+        XCTAssertFalse(r.isDuplicate)
+        XCTAssertEqual(r.updatedRecent.count, 100)
+        XCTAssertEqual(r.updatedRecent.first, "g2")  // g1 evicted
+        XCTAssertEqual(r.updatedRecent.last, "g101")
+    }
+
+    func testDedupEmptyGuidIsNeverDuplicate() {
+        // Defensive: missing guid from chat.db is normalized to empty string; we don't
+        // want empty-vs-empty to collapse unrelated messages into one another.
+        let r1 = BatchProcessor.dedupCheck(guid: "", recent: [], capacity: 100)
+        XCTAssertFalse(r1.isDuplicate)
+        XCTAssertEqual(r1.updatedRecent, [], "Empty guid should not be tracked")
+
+        let r2 = BatchProcessor.dedupCheck(guid: "", recent: [""], capacity: 100)
+        XCTAssertFalse(r2.isDuplicate, "Empty-vs-empty must NOT dedup")
+    }
+
+    func testDedupCapacityValueIsOneHundred() {
+        XCTAssertEqual(BatchProcessor.recentGuidCapacity, 100)
+    }
+
+    // MARK: - pause persists across batches
+
     func testPausedPersistsAcrossMultipleBatchesWithoutTouchingFirstSeen() {
         // Two consecutive paused batches: state stays paused, firstSeen unchanged.
         let p1 = BatchProcessor.policy(

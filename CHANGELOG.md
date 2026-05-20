@@ -4,6 +4,17 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.28] - 2026-05-20: dedup + link-preview filter (quality-of-life)
+
+### Changed
+
+- **`ChatDBWatcher` skips `.pluginPayloadAttachment` "attachments".** iMessage attaches binary plist files to messages containing URLs to render link-preview cards in Messages.app. Those files are proprietary metadata, not user content; the URL itself is already in the message text. Skipping them removes the empty `<timestamp>/` sidecar folders that were cluttering the output folder for every link.
+- **`BatchProcessor` deduplicates by `message.guid`.** iCloud sync delivers each logical iMessage to chat.db once per paired device — each row has a different ROWID but the same GUID. Without dedup, a single Siri-dictated note became 3–4 captured files. A ring buffer of the last 100 GUIDs is now checked before processing.
+
+### Tests
+
+99 → 111 (12 new): 6 for the `.pluginPayloadAttachment` recognizer, 6 for the GUID-dedup ring-buffer helper.
+
 ## [1.0.27] - 2026-05-20: echo-cascade defense in depth
 
 Built from commit `c0247dc`. SHA-256: `486fd83d7180c2531ca673ec10b283717734d2cf10313352c03652eddee4fb5f`.
@@ -47,6 +58,7 @@ Built from commit `9a5972d`. SHA-256: `704a968d5054cfbb9707a710baa44e35ee3fcdffc
 
 For the build-by-build context behind these features, see `_build_plan/milestones/{1,2,3,4}/milestone-log.md`. For the architectural rationale (why local-mode-only, why not the Mac App Store), see `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md`.
 
-[Unreleased]: https://github.com/NoiseMeldOrg/rapture-mac/compare/v1.0.27...HEAD
+[Unreleased]: https://github.com/NoiseMeldOrg/rapture-mac/compare/v1.0.28...HEAD
+[1.0.28]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.28
 [1.0.27]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.27
 [1.0.18]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.18

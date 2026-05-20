@@ -33,10 +33,34 @@ final class BatchProcessor {
     /// the v1.0.18 echo-cascade incident.
     nonisolated static let backlogThreshold = 10
 
+    /// How many recent `message.guid` values to remember for cross-row dedup. iCloud sync
+    /// re-delivers a single logical iMessage to chat.db once per paired device — each
+    /// delivery has its own ROWID but the same `message.guid`. Without dedup, one
+    /// Siri-dictated note becomes 3–4 captured files.
+    nonisolated static let recentGuidCapacity = 100
+
     /// Pure helper for the catch-up decision. Unit-testable in isolation.
     nonisolated static func isCatchup(batchSize: Int, isFirstNonemptyBatchSeen: Bool) -> Bool {
         if batchSize >= backlogThreshold { return true }
         return !isFirstNonemptyBatchSeen && batchSize > catchupThreshold
+    }
+
+    /// Pure helper for the GUID-dedup decision. Returns the new GUID buffer plus a flag
+    /// indicating whether this event is a duplicate of a recently-seen GUID. Unit-testable.
+    nonisolated static func dedupCheck(
+        guid: String,
+        recent: [String],
+        capacity: Int
+    ) -> (isDuplicate: Bool, updatedRecent: [String]) {
+        // Empty GUIDs are a defensive default for missing data; don't treat as duplicate.
+        guard !guid.isEmpty else { return (false, recent) }
+        if recent.contains(guid) { return (true, recent) }
+        var updated = recent
+        updated.append(guid)
+        if updated.count > capacity {
+            updated.removeFirst(updated.count - capacity)
+        }
+        return (false, updated)
     }
 
     /// Per-batch policy resolution: defer vs process, plus the next-batch state.
@@ -87,6 +111,7 @@ final class BatchProcessor {
 
     private var isFirstNonemptyBatchSeen = false
     private var wasPausedLastBatch = false
+    private var recentGuids: [String] = []
 
     init(
         appState: AppState,
@@ -134,6 +159,23 @@ final class BatchProcessor {
         let handles = selfHandlesProvider()
 
         for event in batch {
+            // GUID-based dedup: iCloud sync delivers each logical message to chat.db
+            // once per paired device, each with a different ROWID but the same
+            // `message.guid`. Without this check, one Siri-dictated note becomes
+            // 3–4 captured files.
+            let dedup = Self.dedupCheck(
+                guid: event.guid,
+                recent: recentGuids,
+                capacity: Self.recentGuidCapacity
+            )
+            if dedup.isDuplicate {
+                Self.log.debug("dedup-suppressed rowid=\(event.rowid) guid=\(event.guid, privacy: .public)")
+                advanceWatermark(event.rowid)
+                outcome.droppedCount += 1
+                continue
+            }
+            recentGuids = dedup.updatedRecent
+
             let decision = MessageFilter.decide(
                 event: event,
                 selfHandles: handles,

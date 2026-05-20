@@ -92,12 +92,27 @@ final class ChatDBWatcher {
         """, arguments: [messageRowid])
         return rows.compactMap { row -> AttachmentRef? in
             guard let raw: String = row["filename"] else { return nil }
+            if isLinkPreviewPayload(filename: raw, transferName: row["transfer_name"]) {
+                return nil
+            }
             return AttachmentRef(
                 sourcePath: expandTilde(raw),
                 mimeType: row["mime_type"],
                 transferName: row["transfer_name"]
             )
         }
+    }
+
+    /// True when the attachment is iMessage's rich-link preview payload, not real
+    /// user content. iMessage attaches `.pluginPayloadAttachment` files to messages
+    /// containing URLs to render the preview card in Messages.app — they're Apple's
+    /// proprietary binary plist serialization of the link metadata (title, thumbnail,
+    /// etc.), not the linked content itself. Downstream AI assistants reading the
+    /// folder don't benefit from these; the URL is already in the message body.
+    nonisolated static func isLinkPreviewPayload(filename: String?, transferName: String?) -> Bool {
+        if filename?.hasSuffix(".pluginPayloadAttachment") == true { return true }
+        if transferName?.hasSuffix(".pluginPayloadAttachment") == true { return true }
+        return false
     }
 
     nonisolated static func expandTilde(_ path: String) -> String {

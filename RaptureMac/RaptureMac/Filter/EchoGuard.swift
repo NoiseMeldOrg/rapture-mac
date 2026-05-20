@@ -66,13 +66,18 @@ final class EchoGuard {
         text: String,
         now: Date
     ) -> (matched: Bool, remaining: [EchoEntry]) {
+        // Greedy: drop ALL matching entries, not just the first. iCloud's
+        // multi-device sync re-delivers each outbound message to chat.db once
+        // per paired device (Mac, iPhone, iPad, etc.), so one `track()` needs
+        // to suppress N inbound echoes. The previous one-shot behavior
+        // suppressed the first and let the rest cascade as captures.
         let normalized = normalize(text)
         var kept: [EchoEntry] = []
         kept.reserveCapacity(entries.count)
         var matched = false
         for entry in entries {
             if entry.expiresAt <= now { continue }
-            if !matched, entry.chatGuid == chatGuid, entry.normalizedText == normalized {
+            if entry.chatGuid == chatGuid, entry.normalizedText == normalized {
                 matched = true
                 continue
             }

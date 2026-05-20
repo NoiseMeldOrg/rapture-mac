@@ -34,10 +34,84 @@ enum MessageFilter {
 
         guard isSelfChat || allowed else { return .drop(.notAllowlisted) }
 
+        // Defense in depth: drop our own confirmation messages even if echo guard
+        // missed them (e.g., stale watermark, expired TTL, iCloud multi-device echo).
+        // These come back through iCloud sync with is_from_me=0 but are clearly the
+        // app's own outbound. The pattern is highly specific to the format we send,
+        // so false-positives on natural user dictation are vanishingly unlikely.
+        if isSelfChat && Self.looksLikeAppConfirmation(trimmed) {
+            return .drop(.appConfirmation)
+        }
+
         return .capture(CapturedMessage(
             event: event,
             decodedText: decodedText,
             isCatchup: isCatchup
         ))
+    }
+
+    /// True when `text` matches the structure of an outbound `✓ Saved: <filename>` or
+    /// `📥 Caught up: ...` confirmation that the app itself sends via `osascript`.
+    /// Pure function, exposed `static` so it's unit-testable without fixture infra.
+    static func looksLikeAppConfirmation(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // ✓ Saved: 2026-05-20T19-16-54Z.txt
+        // ✓ Saved: 2026-05-20T19-16-54Z-3.txt
+        if let body = trimmed.stripping(prefix: "✓ Saved: ") {
+            return Self.looksLikeNoteFilename(body)
+        }
+
+        // 📥 Caught up: 5 notes captured
+        // 📥 Caught up: 5 notes captured (1 failed)
+        if trimmed.hasPrefix("📥 Caught up: ") {
+            return true
+        }
+
+        // ✗ <reason> — the failure-reply form. Reasons we send are short user-facing
+        // strings ("Folder not writable", "Reply failed: ..."). A natural dictation
+        // beginning with the U+2717 cross is implausible. Drop conservatively.
+        if trimmed.hasPrefix("✗ ") || trimmed.hasPrefix("✗\u{00A0}") {
+            return true
+        }
+
+        return false
+    }
+
+    /// Matches the timestamped filenames produced by `FileWriter.baseName`:
+    /// ISO8601 UTC with `:` → `-`, optionally suffixed with `-N` for collisions,
+    /// always ending in `.txt`. Example: `2026-05-20T19-16-54Z-3.txt`.
+    private static func looksLikeNoteFilename(_ s: String) -> Bool {
+        // Required suffix
+        guard s.hasSuffix(".txt") else { return false }
+        let stem = String(s.dropLast(4))
+
+        // ISO timestamp head: YYYY-MM-DDTHH-MM-SSZ (20 chars)
+        guard stem.count >= 20 else { return false }
+        let head = stem.prefix(20)
+        let tail = stem.dropFirst(20)
+
+        let headChars = Array(head)
+        // Char positions for date/time/punctuation
+        let digitIndexes = [0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18]
+        for i in digitIndexes where !headChars[i].isNumber { return false }
+        guard headChars[4] == "-", headChars[7] == "-", headChars[10] == "T",
+              headChars[13] == "-", headChars[16] == "-", headChars[19] == "Z" else {
+            return false
+        }
+
+        // Optional `-N` collision suffix
+        if tail.isEmpty { return true }
+        guard tail.hasPrefix("-") else { return false }
+        let n = tail.dropFirst()
+        return !n.isEmpty && n.allSatisfy { $0.isNumber }
+    }
+}
+
+private extension String {
+    /// Returns `self` with `prefix` removed if present, else `nil`.
+    func stripping(prefix: String) -> String? {
+        guard hasPrefix(prefix) else { return nil }
+        return String(dropFirst(prefix.count))
     }
 }

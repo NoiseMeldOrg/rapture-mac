@@ -91,4 +91,43 @@ final class EchoGuardTests: XCTestCase {
         XCTAssertEqual(entries.count, 1)
         XCTAssertEqual(entries.first?.chatGuid, "chat-2")
     }
+
+    /// Regression test for the v1.0.18 echo-cascade: iCloud sync delivers a single
+    /// outbound message back to chat.db once per paired device. One `track()` must
+    /// be enough to suppress N inbound echoes.
+    func testConsumeGreedilyDropsAllMatchingEntries() {
+        let now = Date()
+        let exp = now.addingTimeInterval(EchoGuard.ttl)
+        // Simulate three identical entries tracked rapidly (or one track + duplicate
+        // chat.db rows from iCloud multi-device sync arriving in the same batch).
+        let entries = [
+            EchoEntry(chatGuid: "chat-1", normalizedText: "✓ saved: a.txt", expiresAt: exp),
+            EchoEntry(chatGuid: "chat-1", normalizedText: "✓ saved: a.txt", expiresAt: exp),
+            EchoEntry(chatGuid: "chat-1", normalizedText: "✓ saved: a.txt", expiresAt: exp),
+            EchoEntry(chatGuid: "chat-1", normalizedText: "different", expiresAt: exp),
+        ]
+        let result = EchoGuard.consumeMatch(
+            from: entries,
+            chatGuid: "chat-1",
+            text: "✓ Saved: a.txt",
+            now: now
+        )
+        XCTAssertTrue(result.matched)
+        XCTAssertEqual(result.remaining.count, 1, "Should drop ALL matching entries (the 3 ✓ saved), keep the non-match")
+        XCTAssertEqual(result.remaining.first?.normalizedText, "different")
+    }
+
+    func testConsumeGreedyPreservesNonMatchingChatGuid() {
+        let now = Date()
+        let exp = now.addingTimeInterval(EchoGuard.ttl)
+        let entries = [
+            EchoEntry(chatGuid: "chat-1", normalizedText: "hi", expiresAt: exp),
+            EchoEntry(chatGuid: "chat-2", normalizedText: "hi", expiresAt: exp),  // same text, different chat
+            EchoEntry(chatGuid: "chat-1", normalizedText: "hi", expiresAt: exp),
+        ]
+        let result = EchoGuard.consumeMatch(from: entries, chatGuid: "chat-1", text: "hi", now: now)
+        XCTAssertTrue(result.matched)
+        XCTAssertEqual(result.remaining.count, 1)
+        XCTAssertEqual(result.remaining.first?.chatGuid, "chat-2")
+    }
 }

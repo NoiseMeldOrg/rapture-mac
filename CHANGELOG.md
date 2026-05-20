@@ -4,6 +4,14 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Security / Reliability
+
+- **Defense in depth against echo cascades.** Three changes prevent the v1.0.18 incident (a 14-second self-feedback loop that wrote ~660 garbage files):
+  - `MessageFilter` now drops messages matching the structure of the app's own `✓ Saved: <timestamp>.txt` and `📥 Caught up: ...` confirmations when received from a self-handle. Defense against echo guard misses (stale watermark, expired TTL).
+  - `EchoGuard.consumeMatch` is now greedy: a single `track()` suppresses ALL matching inbound entries, not just the first. iCloud's multi-device sync re-delivers each outbound message once per paired device; one-shot consume was leaving extras to cascade.
+  - `BatchProcessor` enters catchup mode (replies suppressed, one summary) on any batch >= 10 events, not just the first non-empty batch. Backlogs from Mac sleep/wake or iCloud re-sync no longer trigger per-message replies.
+- v1.0.18 has been moved to draft state on GitHub Releases to prevent further installs of the affected build.
+
 ## [1.0.18] - 2026-05-19: first public release
 
 Built from commit `9a5972d`. SHA-256: `704a968d5054cfbb9707a710baa44e35ee3fcdffc991e213223440ccf5b1cfa3`.

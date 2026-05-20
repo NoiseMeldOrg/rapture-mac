@@ -22,11 +22,21 @@ extension FileWriter: FileWriting {}
 @MainActor
 final class BatchProcessor {
     nonisolated static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "BatchProcessor")
+
+    /// Triggers catch-up on the *first* non-empty batch (sleep/quit recovery on launch).
     nonisolated static let catchupThreshold = 3
+
+    /// Triggers catch-up on *any* batch this size or larger, regardless of first-seen state.
+    /// Live usage produces 1–2 events per poll; a backlog from iCloud re-sync, Mac wake-from-sleep,
+    /// or any other anomaly surfaces 10+ events at once. Treating those as catch-up suppresses
+    /// per-message replies (one summary instead) — the load-bearing protection against
+    /// the v1.0.18 echo-cascade incident.
+    nonisolated static let backlogThreshold = 10
 
     /// Pure helper for the catch-up decision. Unit-testable in isolation.
     nonisolated static func isCatchup(batchSize: Int, isFirstNonemptyBatchSeen: Bool) -> Bool {
-        !isFirstNonemptyBatchSeen && batchSize > catchupThreshold
+        if batchSize >= backlogThreshold { return true }
+        return !isFirstNonemptyBatchSeen && batchSize > catchupThreshold
     }
 
     /// Per-batch policy resolution: defer vs process, plus the next-batch state.
@@ -58,7 +68,7 @@ final class BatchProcessor {
         }
         // Just unpaused: re-evaluate this batch as a potential catch-up trigger.
         let firstSeenForDecision = wasPausedLastBatch ? false : isFirstNonemptyBatchSeen
-        let catchup = !firstSeenForDecision && batchSize > catchupThreshold
+        let catchup = isCatchup(batchSize: batchSize, isFirstNonemptyBatchSeen: firstSeenForDecision)
         return Policy(
             deferred: false,
             isCatchup: catchup,

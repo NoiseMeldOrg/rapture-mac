@@ -19,15 +19,36 @@ final class BatchProcessorTests: XCTestCase {
         XCTAssertTrue(BatchProcessor.isCatchup(batchSize: 5, isFirstNonemptyBatchSeen: false))
     }
 
-    func testNonFirstBatchOfTenIsNotCatchup() {
-        // Once the first non-empty batch is processed, subsequent batches of any size
-        // are live mode — rapid-fire dictation is not catch-up.
-        XCTAssertFalse(BatchProcessor.isCatchup(batchSize: 10, isFirstNonemptyBatchSeen: true))
+    func testNonFirstBatchOfNineIsNotCatchup() {
+        // Once the first non-empty batch is processed, subsequent batches under the
+        // backlog threshold are live mode — rapid-fire dictation of a few messages
+        // should still produce per-message replies.
+        XCTAssertFalse(BatchProcessor.isCatchup(batchSize: 9, isFirstNonemptyBatchSeen: true))
     }
 
-    func testThresholdValueIsThree() {
-        // Sentinel to catch accidental threshold changes — PRD specifies > 3.
+    func testNonFirstBatchOfTenTriggersBacklogCatchup() {
+        // Regression test for the v1.0.18 echo-cascade incident: backlog of >=10
+        // events (e.g., from Mac sleep/wake or iCloud re-sync) MUST trigger catchup
+        // mode regardless of first-batch-seen state, so replies are suppressed.
+        XCTAssertTrue(BatchProcessor.isCatchup(batchSize: 10, isFirstNonemptyBatchSeen: true))
+    }
+
+    func testNonFirstBatchOfFiftyTriggersBacklogCatchup() {
+        XCTAssertTrue(BatchProcessor.isCatchup(batchSize: 50, isFirstNonemptyBatchSeen: true))
+    }
+
+    func testCatchupThresholdValueIsThree() {
+        // Sentinel to catch accidental threshold changes — PRD specifies > 3 for
+        // first-batch catchup. Bumping this without updating the rationale could
+        // silently change behavior.
         XCTAssertEqual(BatchProcessor.catchupThreshold, 3)
+    }
+
+    func testBacklogThresholdValueIsTen() {
+        // Sentinel to catch accidental threshold changes for the v1.0.19 backlog
+        // protection. Lowering this might cause normal rapid dictation to suppress
+        // replies; raising this re-opens the cascade risk.
+        XCTAssertEqual(BatchProcessor.backlogThreshold, 10)
     }
 
     // MARK: - pause/resume policy
@@ -74,8 +95,23 @@ final class BatchProcessorTests: XCTestCase {
         XCTAssertFalse(p.nextWasPausedLastBatch)
     }
 
-    func testNormalLiveBatchHonorsFirstSeen() {
-        // Never paused; not the first batch; should never be catchup regardless of size.
+    func testNormalLiveBatchUnderBacklogThresholdIsNotCatchup() {
+        // Never paused; not the first batch; batch size under backlog threshold.
+        // This is rapid-fire dictation in normal use, not a backlog.
+        let p = BatchProcessor.policy(
+            paused: false,
+            wasPausedLastBatch: false,
+            isFirstNonemptyBatchSeen: true,
+            batchSize: 9
+        )
+        XCTAssertFalse(p.deferred)
+        XCTAssertFalse(p.isCatchup)
+    }
+
+    func testLiveBatchAtBacklogThresholdTriggersCatchup() {
+        // The v1.0.19 fix: any batch >=10 triggers catchup, even on non-first
+        // batches. This prevents the v1.0.18 echo-cascade scenario where a
+        // backlog of 600+ rows from chat.db was processed as if live.
         let p = BatchProcessor.policy(
             paused: false,
             wasPausedLastBatch: false,
@@ -83,7 +119,7 @@ final class BatchProcessorTests: XCTestCase {
             batchSize: 10
         )
         XCTAssertFalse(p.deferred)
-        XCTAssertFalse(p.isCatchup)
+        XCTAssertTrue(p.isCatchup)
     }
 
     func testFirstEverBatchOfFiveIsCatchup() {

@@ -9,6 +9,7 @@ enum DropReason: String, Sendable {
     case fromSelf
     case noSenderHandle
     case notAllowlisted
+    case appConfirmation
 }
 
 enum FilterDecision: Sendable {

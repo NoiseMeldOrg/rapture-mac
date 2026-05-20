@@ -4,6 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Added
+
+- `examples/` directory with starter configs for consuming the notes folder from Claude Code, OpenClaw, Hermes Agent, and a vendor-neutral shell pipeline. README points at it from a new "Using your captures" section. Configs are written from current agent documentation, not tested against a running install; issues and PRs welcome.
+
 ## [1.0.29] - 2026-05-20: dedup + link-preview filter (quality-of-life)
 
 Built from commit `0e3a5fb`. SHA-256: `60de506934f00948f92f7d8d195447f2ca189a122bc5107e25b16c846e98ef67`.

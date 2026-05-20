@@ -38,6 +38,19 @@ The app will guide you through two macOS permissions. Both are required.
 
 That's the whole product. Everything else (allowlist, reply modes, pause/resume) is in the menu-bar popover and the Settings window.
 
+## Using your captures
+
+The folder is the entire integration surface. Anything that reads files can consume it.
+
+Starter configs for common setups live in [`examples/`](./examples):
+
+- [`examples/claude-code/`](./examples/claude-code) — `CLAUDE.md` routing rules + launchd plist for background processing
+- [`examples/openclaw/`](./examples/openclaw) — OpenClaw skill that watches the folder; default reply via Telegram (Rapture already owns the iMessage layer)
+- [`examples/hermes/`](./examples/hermes) — Hermes Agent skill, schedules via built-in cron, default reply via Telegram
+- [`examples/cli/`](./examples/cli) — vendor-neutral shell script that pipes each note into any LLM CLI
+
+Pick whichever agent you already use. Rapture doesn't care.
+
 ## v1 scope
 
 - **Local mode only.** Polls `~/Library/Messages/chat.db` once per second, decodes message text (including the binary `attributedBody` blob that iOS 16+ uses for Siri-dictated messages), filters to your self-chat plus a user-managed allowlist, writes one `.txt` per message (with attachments in a sibling folder), and replies via AppleScript through Messages.app.
@@ -86,7 +99,7 @@ xcodebuild \
   build test
 ```
 
-73 tests should pass. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the longer walkthrough, the `_build_plan/` directory for the milestone-by-milestone build log, and `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` for the canonical technical spec.
+All tests should pass. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the longer walkthrough, the `_build_plan/` directory for the milestone-by-milestone build log, and `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` for the canonical technical spec.
 
 ## Sibling repos
 

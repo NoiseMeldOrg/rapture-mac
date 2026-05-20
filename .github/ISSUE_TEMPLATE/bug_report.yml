@@ -1,0 +1,81 @@
+name: Bug report
+description: Something isn't working the way the README or PRD says it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The more specific the better — Rapture for Mac has a small pipeline (chat.db → filter → file → reply), and bug reports usually point at exactly one stage.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: One or two sentences. What did you do, what did you expect, what did the app actually do?
+      placeholder: |
+        Dictated "Hey Siri, text me — test 42" from a locked iPhone. The reply arrived on my phone, but no .txt file appeared in ~/Documents/Rapture Notes/.
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: Rapture for Mac version
+      description: From **Menu bar icon → Settings… → About**. Format like `1.0.18 (build 1000018)`.
+      placeholder: 1.0.18 (build 1000018)
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      description: From **Apple menu → About This Mac**.
+      placeholder: macOS 14.5 (Sonoma)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Which stage do you think broke?
+      description: It's fine to guess. We'd rather have a wrong guess than no guess.
+      options:
+        - Not sure
+        - Permissions / onboarding (Full Disk Access or Automation prompt)
+        - Capture (the .txt file never appeared)
+        - Decoding (the .txt is empty or has the wrong text)
+        - Reply (no ✓ Saved came back in iMessage)
+        - Catch-up after sleep / quit
+        - Menu bar UI / Settings window
+        - Install (DMG won't open, Gatekeeper rejected, etc.)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: last-error
+    attributes:
+      label: "Settings → About → Diagnostics: last error string (if any)"
+      description: Open the Settings window, scroll to About, expand "Show paths and last error". Paste the last-error line if it isn't empty.
+      placeholder: "(none)"
+
+  - type: textarea
+    id: console-logs
+    attributes:
+      label: Console.app logs (optional but very helpful)
+      description: |
+        Open Console.app, search for `subsystem == "noisemeld.RaptureMac"`, reproduce the bug, and paste the relevant lines. Redact anything personal first.
+      render: text
+
+  - type: checkboxes
+    id: pre-flight
+    attributes:
+      label: Sanity checks
+      options:
+        - label: I'm on the latest release at https://github.com/NoiseMeldOrg/rapture-mac/releases/latest.
+          required: true
+        - label: I've granted Full Disk Access to **Rapture for Mac** (Applications copy, not a dev build).
+          required: false
+        - label: I've already searched [existing issues](https://github.com/NoiseMeldOrg/rapture-mac/issues?q=is%3Aissue) for this.
+          required: false

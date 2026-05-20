@@ -1,5 +1,7 @@
 # Security Policy
 
+> If you're looking for what data the app collects or transmits, see [PRIVACY.md](./PRIVACY.md). The short version: nothing leaves your Mac.
+
 ## Reporting a vulnerability
 
 If you find a security issue in Rapture for Mac, **please do not open a public GitHub issue**. Email **michael@noisemeld.com** with the details. We'll respond within 5 business days and aim to ship a fix (or a documented mitigation) within 90 days.

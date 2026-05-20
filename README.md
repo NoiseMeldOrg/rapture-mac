@@ -54,6 +54,15 @@ A short list of things you might expect but don't get; for the full rationale se
 - Auto-update
 - Analytics or telemetry — zero outbound network calls in v1
 
+## Why the app isn't sandboxed
+
+The app asks for **Full Disk Access** and **Automation → Messages**, which are unusual permissions on macOS. That's not a corner being cut — it's the only way the product can work:
+
+- **Reading `~/Library/Messages/chat.db` requires Full Disk Access**, period. No entitlement gets a sandboxed app into that file; this is an Apple privacy guarantee, not a configuration option. Without that read, the app has nothing to capture.
+- **Sending the `✓ Saved` reply requires spawning `osascript` and controlling Messages.app**, both of which the Mac App Store sandbox forbids for arbitrary apps.
+
+So the app ships *outside* the sandbox by structural necessity, which is also why it isn't (and can't be) on the Mac App Store. In exchange, it commits to never abusing the trust: zero network code, no telemetry, one third-party dependency. See [PRIVACY.md](./PRIVACY.md) for the full posture and how to verify it yourself with two shell commands.
+
 ## Verify the download
 
 Before opening the DMG:

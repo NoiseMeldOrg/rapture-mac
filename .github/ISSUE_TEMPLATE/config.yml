@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/NoiseMeldOrg/rapture-mac/blob/main/SECURITY.md
+    about: Please do NOT open a public issue for security problems. See SECURITY.md for the private reporting flow.
+  - name: Privacy or data-collection question
+    url: https://github.com/NoiseMeldOrg/rapture-mac/blob/main/PRIVACY.md
+    about: PRIVACY.md explains what stays local, what we collect (nothing), and how to verify it yourself.

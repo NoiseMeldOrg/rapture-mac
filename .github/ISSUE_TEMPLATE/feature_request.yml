@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest something new the app should do — or an improvement to how it already does something.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Heads-up before you write: a few things are explicitly out of scope for the foreseeable future. Reading these first saves us both time.
+
+        - **Group-chat capture**, **contacts-name resolution**, **auto-update**, **in-app browsing of captures**, **built-in AI/LLM integration**, **multi-folder output**, **audio capture**, and **Mac App Store distribution** are all out-of-scope. The rationale lives in [the README's Out-of-scope section](https://github.com/NoiseMeldOrg/rapture-mac#out-of-scope) and the deeper [`shape.md`](https://github.com/NoiseMeldOrg/rapture-mac/blob/main/agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md).
+        - **Cloud-mode capture (Sendblue, etc.)** is deferred to v1.1, but only via a VPS-relay architecture — never an on-Mac webhook listener.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the underlying problem?
+      description: One paragraph on what you're trying to accomplish. We'd rather hear the *problem* than the *fix* — sometimes the right answer isn't what you initially picture.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like the app to do?
+      description: Your proposed solution, however rough. Sketches of menu items, hypothetical settings, or "feels-like" descriptions all welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered (optional)
+      description: Tools that already solve this for you, workarounds you tried, ways you'd accept partial solutions.
+
+  - type: checkboxes
+    id: scope-check
+    attributes:
+      label: Scope check
+      options:
+        - label: I've checked the README's Out-of-scope list and `shape.md`, and my idea isn't on either.
+          required: true
+        - label: I'm OK with this idea being closed if it would compromise the "folder is the only integration surface" design constraint.
+          required: false

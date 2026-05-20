@@ -66,7 +66,7 @@
 
 ### boop-agent Sendblue webhook handler
 
-- **Location:** `boop-agent/server/index.ts` + `boop-agent/server/sendblue.ts` (internal NoiseMeld checkout)
+- **Source:** [`raroque/boop-agent`](https://github.com/raroque/boop-agent) — files `server/index.ts` and `server/sendblue.ts`. (The local NoiseMeld checkout that was used during shaping is a public fork of this.)
 - **Relevance:** v1.1 cloud mode. The VPS-relay design will replicate this webhook handler on the user's hetzner VPS (not on the Mac). The Mac side will only consume push notifications from the relay.
 - **Corrections caught during shaping** (the original plan had bugs here):
   - Outbound endpoint is `https://api.sendblue.com/api/send-message` (`.com`, NOT `.co`).
@@ -78,7 +78,7 @@
 
 ### boop-agent dedup
 
-- **Location:** `boop-agent/convex/sendblueDedup.ts` (internal NoiseMeld checkout)
+- **Source:** [`raroque/boop-agent`](https://github.com/raroque/boop-agent) — file `convex/sendblueDedup.ts`.
 - **Relevance:** v1.1 idempotency pattern. The VPS relay will need this — `INSERT ... ON CONFLICT` keyed on `message_handle`, returning `claimed: false` for duplicate webhook retries.
 
 ### Full original design

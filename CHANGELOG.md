@@ -4,6 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.27] - 2026-05-20: echo-cascade defense in depth
+
+Built from commit `c0247dc`. SHA-256: `486fd83d7180c2531ca673ec10b283717734d2cf10313352c03652eddee4fb5f`.
+
 ### Security / Reliability
 
 - **Defense in depth against echo cascades.** Three changes prevent the v1.0.18 incident (a 14-second self-feedback loop that wrote ~660 garbage files):
@@ -43,5 +47,6 @@ Built from commit `9a5972d`. SHA-256: `704a968d5054cfbb9707a710baa44e35ee3fcdffc
 
 For the build-by-build context behind these features, see `_build_plan/milestones/{1,2,3,4}/milestone-log.md`. For the architectural rationale (why local-mode-only, why not the Mac App Store), see `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md`.
 
-[Unreleased]: https://github.com/NoiseMeldOrg/rapture-mac/compare/v1.0.18...HEAD
+[Unreleased]: https://github.com/NoiseMeldOrg/rapture-mac/compare/v1.0.27...HEAD
+[1.0.27]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.27
 [1.0.18]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.18

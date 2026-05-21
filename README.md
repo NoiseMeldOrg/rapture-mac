@@ -40,9 +40,12 @@ That's the whole product. Everything else (allowlist, reply modes, pause/resume)
 
 ## Using your captures
 
-The folder is the entire integration surface. Anything that reads files can consume it.
+The folder is the entire integration surface. The captures are plain `.txt` files. You can:
 
-Starter configs for common setups live in [`examples/`](./examples):
+- **Use them manually** when you're back at your computer. Open the folder, triage by hand, file what matters.
+- **Hand them off to an AI agent or assistant** to read and process automatically, according to your own rules.
+
+Starter configs for the automated path live in [`examples/`](./examples):
 
 - [`examples/claude-code/`](./examples/claude-code) — `CLAUDE.md` routing rules, with three trigger options: manual `cd && claude`, Claude Code Desktop scheduled task, or a launchd plist for headless `claude -p`
 - [`examples/openclaw/`](./examples/openclaw) — OpenClaw skill that watches the folder; default reply via Telegram (Rapture already owns the iMessage layer)

@@ -1,6 +1,11 @@
 # Examples
 
-The folder is the entire integration surface. Anything that reads files can consume a Rapture notes folder. These examples are starter configs for the agents users most commonly arrive with.
+The folder is the entire integration surface. The captures are plain `.txt` files. Two ways to consume them:
+
+- **Manually**, when you're back at your computer. Open the folder, read the notes, act on what matters.
+- **Automatically**, by setting up an AI agent or assistant to watch the folder and process each note according to your own rules.
+
+These examples are starter configs for the automated path, for the agents users most commonly arrive with.
 
 | Agent | What's here | Setup time | Default reply channel |
 |---|---|---|---|

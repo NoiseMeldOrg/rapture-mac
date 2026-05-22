@@ -64,7 +64,15 @@ If you'd rather poll than react to changes (every N seconds regardless of folder
 
 ### Model choice
 
-The example pins `--model haiku` because note classification is a lightweight task and Haiku is fast + cheap. `claude -p` uses whatever auth your interactive `claude` is using — subscription, API key, whatever's in `~/.claude/`; the `-p` flag does *not* force API-key billing. If you'd rather use Sonnet or Opus, edit the `ProgramArguments` line in the plist.
+The example pins `--model haiku` because note classification is a lightweight task and Haiku is fast + cheap. If you'd rather use Sonnet or Opus, edit the `ProgramArguments` line in the plist.
+
+### Billing (effective June 15, 2026)
+
+This mode invokes `claude -p`, which on that date moves to a separate **Agent SDK credit** pool: Pro $20/month, Max 5x $100, Max 20x $200, billed at API rates, no rollover. After the credit is exhausted, the job either halts until the next billing cycle or (if you enable extra usage) charges at full API rates.
+
+On Haiku, classification runs for roughly thousandths of a cent per note, so the included credit covers thousands of captures for typical personal use. Sonnet and Opus will burn through it much faster.
+
+The other two modes above (manual `claude`, Desktop scheduled task) remain on the regular subscription pool.
 
 ## CLAUDE.md routing rules
 

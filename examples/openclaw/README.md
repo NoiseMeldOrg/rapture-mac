@@ -1,14 +1,14 @@
 # OpenClaw consumer
 
-**You don't need `imsg`.** Rapture for Mac already owns the iMessage layer (captures inbound, sends the `✓ Saved` reply). OpenClaw consumes the notes folder as a file source, no Messages.app integration needed.
+**You don't need `imsg` (unless you want OpenClaw to reply via iMessage).** Rapture for Mac already owns the iMessage capture layer (it reads inbound and sends the `✓ Saved` reply). OpenClaw consumes the notes folder as a file source.
 
-Default reply channel for this example is Telegram, which works hands-free from a locked iPhone via standard push notifications. The "phone is across the room" property that motivated Rapture is preserved end-to-end.
+This example sends processing summaries via Telegram, which works hands-free from a locked iPhone via standard push notifications. For other channels (Discord, Signal, Slack, etc.), swap the `--channel` and `--to` arguments below.
 
 ## Setup
 
 1. **Install OpenClaw** (skip if already installed):
    ```sh
-   curl -fsSL https://openclaw.ai/install.sh | bash
+   curl -fsSL --proto '=https' --tlsv1.2 https://openclaw.ai/install.sh | bash
    ```
 
 2. **Install the skill:**
@@ -17,36 +17,43 @@ Default reply channel for this example is Telegram, which works hands-free from 
    cp SKILL.md ~/.openclaw/skills/rapture-watch/
    ```
 
-3. **Configure a Telegram gateway** (skip if you already have one). See <https://docs.openclaw.ai/channels/telegram>. The minimum is creating a bot via @BotFather and pasting the token into your OpenClaw config.
+3. **Configure a Telegram channel** (skip if you already have one). Minimum: create a bot via @BotFather and add the token to your OpenClaw config. See <https://docs.openclaw.ai/channels/telegram>.
 
-4. **Schedule it** with OpenClaw's cron:
+4. **Schedule it** with OpenClaw's cron. Note the explicit `--announce --channel --to` — isolated cron jobs default to `announce` delivery, but without an explicit channel and target the route resolves from main/current session (probably not what you want for an unattended job):
    ```sh
    openclaw cron add \
      --name "rapture-watch" \
      --every "5m" \
      --session isolated \
-     --message "Run the rapture-watch skill against ~/Documents/Rapture Notes/"
+     --message "Run the rapture-watch skill against your Rapture notes folder." \
+     --announce --channel telegram --to "$YOUR_TELEGRAM_CHAT_ID"
    ```
 
 5. **Verify:**
    ```sh
-   # List jobs to get the job ID (last column).
    openclaw cron list
-
-   # Force a run synchronously.
    openclaw cron run <job-id> --wait
    ```
 
-   The run should report any unprocessed `.txt` files. If you have none, dictate a Siri test note to yourself and re-run.
+   The forced run should report any unprocessed `.txt` files. If you have none, dictate a Siri test note to yourself and re-run.
+
+## How the notes folder is resolved
+
+The skill reads the current notes-folder path in this order:
+
+1. **Rapture's sidecar file** at `~/Library/Application Support/Rapture for Mac/output-folder.path` (written by the menu-bar app when the user picks or changes the output folder in Settings → General).
+2. **`~/Documents/Rapture Notes/`**, the default.
+
+This means changing your folder in Rapture's Settings is picked up automatically without needing to edit the skill or re-create the cron job.
 
 ## Reply via iMessage instead (advanced)
 
-If you specifically want OpenClaw to reply via iMessage rather than Telegram, two paths exist:
+OpenClaw has a native iMessage channel (`docs/channels/imessage.md`). It uses Steipete's `imsg` CLI:
 
-- **`imsg`** (OpenClaw's official iMessage gateway). Install per <https://docs.openclaw.ai/channels/imessage>. Uses helper-injection / private APIs; SIP-disable required for advanced features (reactions, edits, threading) but not for basic send.
-- **Shell out to `osascript`** from a custom OpenClaw skill. Same mechanism Rapture itself uses for its `✓ Saved` confirmations. No Homebrew dependency:
-  ```sh
-  /usr/bin/osascript -e 'tell application "Messages" to send "your reply" to chat id "your-chat-guid"'
-  ```
+```sh
+brew install steipete/tap/imsg
+```
 
-Either option works alongside Rapture without conflict: both Rapture's and OpenClaw's outbound sends show up in `chat.db` with `is_from_me=true`, which Rapture's filter drops. No echo cascade.
+Then configure `channels.imessage` in your OpenClaw config and swap `--channel telegram` for `--channel imessage --to "imessage:+15551234567"` in the cron command above. OpenClaw's `is_from_me=true` filter and Rapture's own echo guard coexist without conflict — both apps' outbound sends are dropped by the other side's filters.
+
+OpenClaw's iMessage channel also supports opt-in catch-up replay (`channels.imessage.catchup.enabled: true`), which replays inbound messages that landed in `chat.db` while the gateway was offline. Off by default; enable in your OpenClaw config if you want that behavior.

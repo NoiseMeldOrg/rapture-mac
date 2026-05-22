@@ -14,9 +14,18 @@ metadata:
 
 Runs from a Hermes cron job. Processes any new `.txt` files Rapture for Mac has written to your notes folder since the last run.
 
+## Resolving the notes folder
+
+At every invocation, resolve `$NOTES_FOLDER` in this order:
+
+1. If `~/Library/Application Support/Rapture for Mac/output-folder.path` exists and is readable, use its contents (one absolute path, possibly with trailing newline — trim whitespace).
+2. Otherwise default to `~/Documents/Rapture Notes/`.
+
+This lets users change their notes folder in Rapture's Settings → General without re-creating the cron job or editing the skill.
+
 ## When to use
 
-When a Hermes cron job invokes this skill against `~/Documents/Rapture Notes/` (or your configured Rapture output folder).
+When a Hermes cron job invokes this skill against the resolved `$NOTES_FOLDER`.
 
 ## Procedure
 
@@ -26,24 +35,25 @@ When a Hermes cron job invokes this skill against `~/Documents/Rapture Notes/` (
    1. Read it.
    2. Classify into one of: `todo`, `journal`, `idea`, `code-task`, `reminder`, `other`.
    3. Take the routing action below.
-   4. Move the source to `processed/YYYY-MM/<original-filename>`.
-4. Send a single summary message via the cron job's configured delivery channel (Telegram by default): `📥 Processed N notes: <todo: 3, journal: 1, ...>`. Suppress when N = 0.
+   4. Move the source to `$NOTES_FOLDER/processed/YYYY-MM/<original-filename>`.
+4. Send a single summary message via the cron job's configured delivery channel: `📥 Processed N notes: <todo: 3, journal: 1, ...>`. Suppress when N = 0. (Hermes' delivery default is `local` / CLI; the cron job must pass `--deliver telegram` or similar for the summary to reach a messaging channel.)
 
 ## Routing actions
 
-- **todo**: append to `<notes-folder>/inbox/todos.md` as a Markdown checkbox: `- [ ] <text>  (captured <iso-ts>)`.
-- **journal**: append to `<notes-folder>/inbox/journal-YYYY-MM.md` under an ISO timestamp heading.
-- **idea**: append to `<notes-folder>/inbox/ideas.md`, same format as journal.
+- **todo**: append to `$NOTES_FOLDER/inbox/todos.md` as a Markdown checkbox: `- [ ] <text>  (captured <iso-ts>)`.
+- **journal**: append to `$NOTES_FOLDER/inbox/journal-YYYY-MM.md` under an ISO timestamp heading.
+- **idea**: append to `$NOTES_FOLDER/inbox/ideas.md`, same format as journal.
 - **code-task**: leave the file in place. Surface in the summary as `🔧 code task in <filename>`.
-- **reminder**: append to `<notes-folder>/inbox/reminders.md`. If the user mentioned a date, prepend it.
-- **other**: append to `<notes-folder>/inbox/uncategorized.md`.
+- **reminder**: append to `$NOTES_FOLDER/inbox/reminders.md`. If the user mentioned a date, prepend it.
+- **other**: append to `$NOTES_FOLDER/inbox/uncategorized.md`.
 
 ## Pitfalls
 
 - Don't process `*.tmp` files. Skip them.
 - Don't touch files in `processed/`. They've already been handled.
-- If the notes folder doesn't exist, exit cleanly with a message in the summary.
-- No iMessage gateway: Hermes doesn't ship one for macOS. Rapture itself sends the `✓ Saved` confirmation when each file lands, so this skill's reply channel is for the *processing* summary, not the per-capture acknowledgement.
+- If `$NOTES_FOLDER` doesn't exist, exit cleanly with a message in the summary.
+- If the sidecar exists but contains an unreadable / nonexistent path, fall back to the default.
+- Rapture for Mac already sends the `✓ Saved` confirmation in the iMessage thread when each file lands, so this skill's delivery channel is for the *processing* summary, not the per-capture acknowledgement.
 
 ## Verification
 

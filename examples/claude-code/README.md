@@ -31,13 +31,16 @@ The first run will trigger permission prompts for any tools the routing rules us
 
 Docs: <https://docs.claude.com/en/desktop-scheduled-tasks>
 
-## 3. launchd plist (background, no Desktop install)
+## 3. launchd plist (event-driven, no Desktop install)
 
-Use the headless `claude -p` mode driven by a launchd plist. Suitable if you're a terminal-only user and don't want to install Claude Code Desktop.
+Use the headless `claude -p` mode driven by a launchd plist that fires whenever the notes folder changes. Lower latency than the polled Routines option, and no Desktop dependency.
 
 ```sh
 # Copy and edit
 cp com.user.rapture-processor.plist ~/Library/LaunchAgents/
+
+# Replace YOUR_USERNAME with your actual short username
+sed -i '' "s|YOUR_USERNAME|$USER|" ~/Library/LaunchAgents/com.user.rapture-processor.plist
 
 # Adjust the claude binary path inside the plist if needed
 which claude
@@ -55,7 +58,13 @@ tail -f /tmp/rapture-processor.out.log /tmp/rapture-processor.err.log
 
 To stop: `launchctl unload ~/Library/LaunchAgents/com.user.rapture-processor.plist`.
 
-The plist runs every 5 minutes (`StartInterval = 300`). Edit the integer to taste; the useful floor is a few seconds, whatever Claude's per-run startup + processing time is.
+The job fires whenever the contents of `~/Documents/Rapture Notes/` change — file added, removed, or renamed. `ThrottleInterval = 10` keeps launchd from re-running more than once every 10 seconds. The bash `ls *.txt` guard skips firings when no `.txt` files are pending; necessary because moving processed files into `processed/` also triggers `WatchPaths`.
+
+If you'd rather poll than react to changes (every N seconds regardless of folder activity), swap the `WatchPaths` key for `StartInterval` and set the integer to your desired seconds.
+
+### Model choice
+
+The example pins `--model haiku` because note classification is a lightweight task and Haiku is fast + cheap. `claude -p` uses whatever auth your interactive `claude` is using — subscription, API key, whatever's in `~/.claude/`; the `-p` flag does *not* force API-key billing. If you'd rather use Sonnet or Opus, edit the `ProgramArguments` line in the plist.
 
 ## CLAUDE.md routing rules
 

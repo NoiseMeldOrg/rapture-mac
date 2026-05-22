@@ -9,11 +9,16 @@
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>cd "$HOME/Documents/Rapture Notes" &amp;&amp; /usr/local/bin/claude -p "process new notes per ./CLAUDE.md"</string>
+    <string>cd "$HOME/Documents/Rapture Notes" &amp;&amp; ls *.txt &gt;/dev/null 2&gt;&amp;1 &amp;&amp; /usr/local/bin/claude --model haiku -p "process new notes per ./CLAUDE.md"</string>
   </array>
 
-  <key>StartInterval</key>
-  <integer>300</integer>
+  <key>WatchPaths</key>
+  <array>
+    <string>/Users/YOUR_USERNAME/Documents/Rapture Notes</string>
+  </array>
+
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
 
   <key>RunAtLoad</key>
   <false/>

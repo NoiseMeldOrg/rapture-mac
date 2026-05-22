@@ -35,7 +35,8 @@ That's it. No Sendblue SDK (no cloud mode in v1), no networking stack beyond Fou
 
 - `~/Library/Application Support/Rapture for Mac/settings.json` — user preferences
 - `~/Library/Application Support/Rapture for Mac/state.json` — runtime state (chat.db watermark, self-handle cache timestamp, recent echo entries)
-- **Atomic writes:** `.tmp` → `rename(2)` for both files
+- `~/Library/Application Support/Rapture for Mac/output-folder.path` — plain-text absolute path of the current output folder. Public contract for downstream consumers (Claude Code SessionStart hook, OpenClaw / Hermes skills, custom scripts). Rapture rewrites this atomically whenever the user picks or changes the output folder in Settings → General, so consumers track folder changes without needing to know about Apple security-scoped bookmarks.
+- **Atomic writes:** `.tmp` → `rename(2)` for all three files
 - **Output folder:** user-chosen via `NSOpenPanel`, stored as security-scoped bookmark data. Defaults to `~/Documents/Rapture Notes/` (auto-created) on first launch when none is configured, so the app is functional the moment FDA is granted
 
 ## Permissions

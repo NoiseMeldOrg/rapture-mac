@@ -1,12 +1,21 @@
 # Product Roadmap
 
-> Last Updated: 2026-05-16
-> Version: 1.0.0
-> Status: v1 in active development
+> Last Updated: 2026-05-22
+> Version: 1.1.0
+> Status: v1 shipped — public release v1.0.29 live on GitHub Releases (2026-05-20)
 
 Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/plan.md`. Effort is shaped as `XS` (1 day), `S` (2–3 days), `M` (1 week), `L` (2 weeks).
 
-**Execution view:** For initial build-out, the 14 phases below are grouped into **4 user-testable milestones** scaffolded for fresh agent sessions in [`_build_plan/`](../../_build_plan/) — M1 First Capture · M2 Confirmation & Recovery · M3 User Control · M4 Public Release. That folder is **temporary** (deleted once initial milestones ship); the 14 phases below remain the canonical technical breakdown.
+**Execution view:** Initial build-out grouped the 14 phases into **4 user-testable milestones** scaffolded for fresh agent sessions in [`_build_plan/`](../../_build_plan/) — M1 First Capture (2026-05-19) · M2 Confirmation & Recovery (2026-05-19) · M3 User Control (2026-05-19) · M4 Public Release (2026-05-19, v1.0.18 → patched to v1.0.29 by 2026-05-20). `_build_plan/` is **preserved as a historical record**, not deleted; the 14 phases below remain the canonical technical breakdown.
+
+**Post-M4 patches (2026-05-20):**
+- **v1.0.27** — echo-cascade defense-in-depth (pattern-match drop for own `✓ Saved`/`📥 Caught up` confirmations, greedy echo-guard consume, backlog-size catchup trigger). Closes the v1.0.18 incident where iCloud-relayed outbounds re-entered as `is_from_me=0` and bypassed the filter.
+- **v1.0.29** — dedup by `message.guid` (multi-device iCloud delivery was capturing each Siri note 3–4×) + skip `.pluginPayloadAttachment` link-preview sidecars.
+
+111 tests covering every failure mode from the v1.0.18 incident.
+
+**Planned patches:**
+- **v1.0.30 (planned)** — output-folder path sidecar. On every output-folder change (including first-launch default initialization), `SettingsStore` writes the resolved absolute path to `~/Library/Application Support/Rapture for Mac/output-folder.path` (atomic `.tmp` → `rename(2)`, same pattern as `settings.json` / `state.json`). Public contract for downstream consumers (Claude Code SessionStart hook, OpenClaw / Hermes skills, custom shell scripts) so changing the folder in Settings → General is picked up automatically without consumer reconfiguration. No new spec — single-file Swift change in `SettingsStore.swift`; documented in `tech-stack.md`. `XS`
 
 ## Phase 1: Repo bootstrap (Complete)
 
@@ -15,71 +24,71 @@ Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local
 3. [x] agent-os scaffold — `product/{mission,tech-stack,roadmap}.md`. `XS`
 4. [x] Spec copied to canonical location. `XS`
 
-## Phase 2: Xcode project scaffold
+## Phase 2: Xcode project scaffold (Complete)
 
-5. [ ] Create `RaptureMac.xcodeproj` — macOS 14 target, SwiftUI menu-bar, `LSUIElement=YES`, hardened runtime ON, no sandbox. GRDB via SPM. `S`
-6. [ ] `RaptureMacApp.swift` shell — `MenuBarExtra(.window)`, `AppState` as `@Observable` root. `XS`
+5. [x] Create `RaptureMac.xcodeproj` — macOS 14 target, SwiftUI menu-bar, `LSUIElement=YES`, hardened runtime ON, no sandbox. GRDB via SPM. `S`
+6. [x] `RaptureMacApp.swift` shell — `MenuBarExtra(.window)`, `AppState` as `@Observable` root. `XS`
 
-## Phase 3: Models + persistence
+## Phase 3: Models + persistence (Complete)
 
-7. [ ] Models — `MessageEvent`, `CapturedMessage`, `AttachmentRef`, `Settings`, `PersistedState`, `ReplyMode`. `XS`
-8. [ ] `SettingsStore` + `StateStore` — atomic JSON writes to `~/Library/Application Support/Rapture for Mac/`. `S`
+7. [x] Models — `MessageEvent`, `CapturedMessage`, `AttachmentRef`, `Settings`, `PersistedState`, `ReplyMode`. `XS`
+8. [x] `SettingsStore` + `StateStore` — atomic JSON writes to `~/Library/Application Support/Rapture for Mac/`. `S`
 
-## Phase 4: AttributedBody decoder
+## Phase 4: AttributedBody decoder (Complete)
 
-9. [ ] `AttributedBodyDecoder.decode(_:)` — pure Swift port of the `server.ts:82–102` byte-scan algorithm. Unit tests against fixture blobs. `S`
+9. [x] `AttributedBodyDecoder.decode(_:)` — pure Swift port of the `server.ts:82–102` byte-scan algorithm. Unit tests against fixture blobs. `S`
 
-## Phase 5: chat.db watcher
+## Phase 5: chat.db watcher (Complete)
 
-10. [ ] `ChatDBWatcher` — GRDB read-only `DatabasePool`, 1s polling, ROWID watermark, `AsyncStream<MessageEvent>` output, attachment join per row. `M`
-11. [ ] Permission failure surfaces cleanly — publishes `permissionRequired(.fullDiskAccess)`, doesn't crash. `XS`
+10. [x] `ChatDBWatcher` — GRDB read-only `DatabasePool`, 1s polling, ROWID watermark, `AsyncStream<MessageEvent>` output, attachment join per row. `M`
+11. [x] Permission failure surfaces cleanly — publishes `permissionRequired(.fullDiskAccess)`, doesn't crash. `XS`
 
-## Phase 6: Self-handle resolution
+## Phase 6: Self-handle resolution (Complete)
 
-12. [ ] `SelfHandleResolver` — 60s refresh task; normalization matches `server.ts:177–185`. `XS`
+12. [x] `SelfHandleResolver` — 60s refresh task; normalization matches `server.ts:177–185`. `XS`
 
-## Phase 7: Filter
+## Phase 7: Filter (Complete)
 
-13. [ ] `MessageFilter` — 9 drop rules in order (mirrors `server.ts:777–798`). Returns `.capture` or `.drop(reason)` for menu-bar diagnostics. `S`
+13. [x] `MessageFilter` — 9 drop rules in order (mirrors `server.ts:777–798`). Returns `.capture` or `.drop(reason)` for menu-bar diagnostics. `S`
 
-## Phase 8: File writer
+## Phase 8: File writer (Complete)
 
-14. [ ] `FileWriter` — atomic `.tmp` → `rename(2)`. Attachment sibling folder. One-retry on missing attachment. `WriteResult` with failure detail. `S`
+14. [x] `FileWriter` — atomic `.tmp` → `rename(2)`. Attachment sibling folder. One-retry on missing attachment. `WriteResult` with failure detail. Path-traversal sanitization on attachment filenames added during M4. `S`
 
-## Phase 9: AppleScript replier + echo guard
+## Phase 9: AppleScript replier + echo guard (Complete)
 
-15. [ ] `AppleScriptSender` — `Process` invocation of `osascript -` with stdin script, argv `[text, chatGuid]`. Handle Automation permission denial. `S`
-16. [ ] `Replier` — compose `✓ Saved` / `✗ <reason>` based on `replyMode`. Trigger on every `WriteResult`. `XS`
-17. [ ] `EchoGuard` — 15s LRU. Normalize matches `server.ts:431–457` (lowercase, strip ZWJ, smart quotes → ASCII, collapse whitespace, cap 120). `S`
+15. [x] `AppleScriptSender` — `Process` invocation of `osascript -` with stdin script, argv `[text, chatGuid]`. Handle Automation permission denial. `S`
+16. [x] `Replier` — compose `✓ Saved` / `✗ <reason>` based on `replyMode`. Trigger on every `WriteResult`. `XS`
+17. [x] `EchoGuard` — 15s LRU. Normalize matches `server.ts:431–457` (lowercase, strip ZWJ, smart quotes → ASCII, collapse whitespace, cap 120). Hardened in v1.0.27 with greedy consume + pattern-match drop fallback after iCloud multi-device relay surfaced the echo cascade. `S`
 
-## Phase 10: Catch-up
+## Phase 10: Catch-up (Complete)
 
-18. [ ] Catch-up detection — first batch after launch with >3 messages → `isCatchup=true`. `XS`
-19. [ ] Catch-up replier mode — ≤3 per-message; 4+ summary; `UNUserNotification` fallback when `replyMode=.off`. `S`
+18. [x] Catch-up detection — batch of 10+ events triggers catchup (broadened from "first batch with >3" in v1.0.27 to survive sleep/wake backlogs). `XS`
+19. [x] Catch-up replier mode — ≤3 per-message; 4+ summary; `UNUserNotification` fallback when `replyMode=.off`. `S`
 
-## Phase 11: Settings window
+## Phase 11: Settings window (Complete)
 
-20. [ ] Settings shell — `Window` (not `Settings` scene), tabs: General, Allowlist, About. `S`
-21. [ ] General tab — folder picker (`NSOpenPanel` + bookmark), launch-at-login (`SMAppService`), reply mode picker. `S`
-22. [ ] Allowlist tab — `List` editor for handles. Self-chat is always captured. `XS`
-23. [ ] About tab — version, repo link, last-error diag. `XS`
+20. [x] Settings shell — `Window` (not `Settings` scene), tabs: General, Allowlist, About. `S`
+21. [x] General tab — folder picker (`NSOpenPanel` + bookmark), launch-at-login (`SMAppService`), reply mode picker. `S`
+22. [x] Allowlist tab — `List` editor for handles. Self-chat is always captured. `XS`
+23. [x] About tab — version, repo link, last-error diag. `XS`
 
-## Phase 12: Menu bar UI
+## Phase 12: Menu bar UI (Complete)
 
-24. [ ] `MenuBarView` — status line, today count, last time, last error, pause/resume, open folder, settings, quit. `S`
+24. [x] `MenuBarView` — status line, today count, last time, last error, pause/resume, open folder, settings, quit. `S`
 
-## Phase 13: Permissions UX
+## Phase 13: Permissions UX (Complete)
 
-25. [ ] Full Disk Access onboarding — modal sheet, deep-link to `x-apple.systempreferences:...`, poll every 2s. `S`
-26. [ ] Automation pre-prompt — explain before OS prompt fires. `XS`
+25. [x] Full Disk Access onboarding — modal sheet, deep-link to `x-apple.systempreferences:...`, poll every 2s. `S`
+26. [x] Automation pre-prompt — explain before OS prompt fires. `XS`
 
-## Phase 14: Distribution
+## Phase 14: Distribution (Complete)
 
-27. [ ] Code signing build phase — Developer ID, hardened runtime, entitlements. `S`
-28. [ ] Notarization script — `notarytool` + `stapler`. `S`
-29. [ ] DMG packaging — `create-dmg` or `hdiutil`. `XS`
-30. [ ] Flip repo to public on GitHub + add `LICENSE` (Apache-2.0), `SECURITY.md`, `CONTRIBUTING.md`. `XS`
-31. [ ] First signed + notarized release — GitHub Releases, DMG attached. `XS`
+27. [x] Code signing build phase — Developer ID (team `P8PLTH44DF`), hardened runtime, entitlements, timestamp, no `get-task-allow`. `S`
+28. [x] Notarization script — `notarytool` + `stapler` via `Scripts/release.sh`. `S`
+29. [x] DMG packaging — `hdiutil` via `Scripts/release.sh`. `XS`
+30. [x] Flip repo to public on GitHub + add `LICENSE` (Apache-2.0), `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `PRIVACY.md`. `XS`
+31. [x] First signed + notarized release — GitHub Releases, DMG attached. Released as v1.0.18 (2026-05-19), patched through v1.0.29 (2026-05-20). `XS`
 
 ## v1.1 (deferred)
 

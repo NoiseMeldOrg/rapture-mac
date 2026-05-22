@@ -9,7 +9,7 @@ These examples are starter configs for the automated path, for the agents users 
 
 | Agent | What's here | Setup time | Default reply channel |
 |---|---|---|---|
-| [Claude Code](./claude-code/) | `CLAUDE.md` routing rules; manual, Desktop scheduled task, or launchd | ~5 min | None (writes response files) |
+| [Claude Code](./claude-code/) | One-line install of a `SessionStart` hook + `CLAUDE.md` routing rules. Opportunistic — fires when you next open Claude Code. | ~2 min | None (in-session) |
 | [OpenClaw](./openclaw/) | SKILL.md + setup notes | ~15 min | Telegram |
 | [Hermes Agent](./hermes/) | SKILL.md + setup notes | ~15 min | Telegram |
 | [Generic CLI](./cli/) | POSIX shell script | ~2 min | None (writes response files) |

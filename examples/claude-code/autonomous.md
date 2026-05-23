@@ -9,7 +9,22 @@ The cost is that this uses `claude -p`, which on **June 15, 2026** moves to a se
 - You want immediate, autonomous action when a note lands (no "next time you open Claude" delay).
 - You're comfortable with the Agent SDK credit budget at Haiku rates.
 - You have a default project directory you want Claude to act in.
-- You accept the security posture: the watcher runs `claude -p --permission-mode bypassPermissions`, which auto-approves every tool call without prompting. Read [aidee-relay's security notes](https://github.com/NoiseMeldOrg/aidee-relay#security--read-this-before-you-install) for an honest discussion of the blast radius — it applies here too. For personal use on a Mac you control with self-captured Siri notes, this is defensible. For anything else, it isn't.
+- You accept the security posture below.
+
+## Security — read this before installing
+
+The watcher runs `claude -p --permission-mode bypassPermissions`, which auto-approves every tool call without prompting. **Anyone who can write a `.txt` file to your notes folder can effectively run anything your user account can run** — `Bash`, `Read`, `Write`, `Edit`, `WebFetch`, and every MCP tool loaded by the project.
+
+In practice the only writer is Rapture (driven by your Siri dictations), so the practical blast radius equals "whoever has momentary access to your unlocked iPhone." A prompt injection in the *content* of a note (or in a webpage the agent later fetches) could also chain Claude into destructive tool calls without you ever asking it to.
+
+For personal use on a Mac you control with self-captured Siri notes, this is defensible. For anything else, it isn't. If you don't want this exposure, use the SessionStart hook in the main [README](./README.md) instead — it lets you approve actions in a live session before they run.
+
+### Hardening you can do today
+
+- Keep the notes folder on your internal disk (not on a shared cloud drive a co-worker could write to)
+- Don't enable `IMESSAGE_ALLOW_SMS` in Rapture — SMS sender IDs are spoofable
+- Watch `tail -f /tmp/rapture-notes-watch.err.log` for unexpected failures
+- `bash Scripts/uninstall-claude-watch.sh` immediately if you suspect anything
 
 ## Install
 

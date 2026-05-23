@@ -149,18 +149,24 @@ while IFS= read -r -d "" path; do
   done
   [ \${#pending[@]} -eq 0 ] && continue
 
-  echo "[\$(date -Iseconds)] processing \${#pending[@]} pending note(s)"
-  # Run claude from WORKDIR via subshell so it picks up the project's CLAUDE.md
-  # and the cwd is correct for tool calls (claude has no --workdir flag).
-  # --permission-mode bypassPermissions: the watcher is autonomous — there's no
-  #   user to approve tool calls per-invocation. See autonomous.md for the
-  #   blast-radius discussion before installing this.
+  echo "[\$(date -Iseconds)] processing \${#pending[@]} pending note(s) one at a time"
+  # Process each note in its own claude invocation. Batch prompts confused
+  # smaller models (Haiku would move all files to processed/ but skip the
+  # routing step for some — known context-fragmentation failure mode).
+  # Per-file gives claude full attention on one decision. Same total cost.
+  #
+  # --permission-mode bypassPermissions: the watcher is autonomous — there's
+  #   no user to approve tool calls per-invocation. See autonomous.md for
+  #   the blast-radius discussion before installing this.
   # < /dev/null: skip claude's 3s "waiting for stdin" timeout.
-  if ! (cd "\$WORKDIR" && "\$CLAUDE_BIN" -p --model haiku \\
-       --permission-mode bypassPermissions \\
-       "Process new notes in \$NOTES per the rules in \$NOTES/CLAUDE.md." < /dev/null); then
-    echo "[\$(date -Iseconds)] claude -p failed (exit \$?)"
-  fi
+  for note in "\${pending[@]}"; do
+    echo "[\$(date -Iseconds)] processing: \$note"
+    if ! (cd "\$WORKDIR" && "\$CLAUDE_BIN" -p --model haiku \\
+         --permission-mode bypassPermissions \\
+         "Process the single Rapture note at \$note per the rules in \$NOTES/CLAUDE.md. Required sequence: (1) read the note, (2) classify it per the hints, (3) execute the routing action — write the entry to the destination file — and ONLY THEN (4) move the source file. Never move a file to processed/ without first writing its routing destination. Print one summary line: '→ <category>[/client:<name>]: <destination>'." < /dev/null); then
+      echo "[\$(date -Iseconds)] claude -p failed (exit \$?) on \$note"
+    fi
+  done
 done < <(fswatch -0 "\$NOTES" "\$APP_SUPPORT")
 EOF
 chmod +x "$WATCH_SCRIPT"

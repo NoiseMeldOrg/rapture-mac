@@ -14,10 +14,11 @@ Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local
 
 111 tests covering every failure mode from the v1.0.18 incident.
 
+**Post-v1.0.29 patches:**
+- **v1.0.48 (shipped 2026-05-22)** — menu bar icon = Rapture brand mark. Custom template image in `Assets.xcassets/MenuBarIcon.imageset/` (@1x/@2x/@3x black-on-transparent with `template-rendering-intent`). `MenuBarLabel` in `RaptureMacApp.swift` shows the brand mark when capturing normally; keeps SF Symbols (`exclamationmark.triangle.fill`, `pause.fill`) for the warning/paused states because those communicate clearly across all apps. Replaces the placeholder `text.bubble`. Auto-versioner jumped to 1.0.48 because of intervening doc/scripts commits (no v1.0.30–v1.0.47 were released).
+
 **Planned patches:**
-- **v1.0.30 (planned)** — two-part patch:
-  1. **Output-folder path sidecar.** On every output-folder change (including first-launch default initialization), `SettingsStore` writes the resolved absolute path to `~/Library/Application Support/Rapture for Mac/output-folder.path` (atomic `.tmp` → `rename(2)`, same pattern as `settings.json` / `state.json`). Public contract for downstream consumers (Claude Code SessionStart hook, OpenClaw / Hermes skills, custom shell scripts) so changing the folder in Settings → General is picked up automatically without consumer reconfiguration. Documented in `tech-stack.md`.
-  2. **Menu bar icon = Rapture brand mark.** Custom template image in `Assets.xcassets/MenuBarIcon.imageset/` (@1x/@2x/@3x black-on-transparent with `template-rendering-intent`). `MenuBarLabel` in `RaptureMacApp.swift` shows the brand mark when capturing normally; keeps SF Symbols (`exclamationmark.triangle.fill`, `pause.fill`) for the warning/paused states because those communicate clearly across all apps. Replaces the placeholder `text.bubble`. `XS`
+- **Output-folder path sidecar (planned, next release)** — on every output-folder change (including first-launch default initialization), `SettingsStore` writes the resolved absolute path to `~/Library/Application Support/Rapture for Mac/output-folder.path` (atomic `.tmp` → `rename(2)`, same pattern as `settings.json` / `state.json`). Public contract for downstream consumers (Claude Code SessionStart hook, OpenClaw / Hermes skills, custom shell scripts) so changing the folder in Settings → General is picked up automatically without consumer reconfiguration. Documented in `tech-stack.md`. `XS`
 
 ## Phase 1: Repo bootstrap (Complete)
 

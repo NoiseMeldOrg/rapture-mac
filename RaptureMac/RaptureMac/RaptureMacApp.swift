@@ -53,7 +53,7 @@ private struct MenuBarLabel: View {
     @State private var didStart = false
 
     var body: some View {
-        Image(systemName: iconName)
+        iconView
             .task {
                 guard !didStart else { return }
                 didStart = true
@@ -65,7 +65,20 @@ private struct MenuBarLabel: View {
             }
     }
 
-    private var iconName: String {
+    // Brand mark for the normal "capturing" state; SF Symbols for permission /
+    // automation / paused states because those communicate clearly across all apps.
+    // MenuBarIcon.imageset uses template-rendering-intent so macOS handles the
+    // light/dark menu-bar inversion automatically.
+    @ViewBuilder
+    private var iconView: some View {
+        if let systemSymbol = systemIconName {
+            Image(systemName: systemSymbol)
+        } else {
+            Image("MenuBarIcon")
+        }
+    }
+
+    private var systemIconName: String? {
         if appState.permissionState != .ok {
             return "exclamationmark.triangle.fill"
         }
@@ -75,7 +88,7 @@ private struct MenuBarLabel: View {
         if appState.settings.settings.paused {
             return "pause.fill"
         }
-        return "text.bubble"
+        return nil
     }
 
     private func presentPermissionsIfNeeded(_ state: AppState.PermissionState) {

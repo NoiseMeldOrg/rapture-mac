@@ -21,10 +21,16 @@ SCRIPT_PATH="$SCRIPT_DIR/rapture-notes-check.sh"
 SETTINGS="$HOME/.claude/settings.json"
 DEFAULT_NOTES="${RAPTURE_NOTES_FOLDER:-$HOME/Documents/Rapture Notes}"
 
-command -v jq >/dev/null || {
-  echo "Error: jq is required. Install with: brew install jq" >&2
-  exit 1
-}
+if ! command -v jq >/dev/null; then
+  if command -v brew >/dev/null; then
+    echo "→ jq is required and not installed. Running: brew install jq"
+    brew install jq || { echo "Error: brew install jq failed. Install manually and re-run." >&2; exit 1; }
+  else
+    echo "Error: jq is required and Homebrew is not installed." >&2
+    echo "Install jq manually (https://jqlang.github.io/jq/) or install Homebrew first." >&2
+    exit 1
+  fi
+fi
 
 # 0. Ensure CLAUDE.md routing rules exist in the notes folder.
 # The hook reports pending notes and points Claude at $NOTES/CLAUDE.md for
@@ -32,10 +38,11 @@ command -v jq >/dev/null || {
 # it from the repo on first install; we never overwrite an existing one (users
 # may have customized it).
 NOTES_RULES="$DEFAULT_NOTES/CLAUDE.md"
+RULES_INSTALLED=false
 if [ -d "$DEFAULT_NOTES" ] && [ ! -f "$NOTES_RULES" ]; then
-  echo "Installing starter CLAUDE.md routing rules to $NOTES_RULES"
+  echo "→ Installing starter CLAUDE.md routing rules to $NOTES_RULES"
   if curl -fsSL "https://raw.githubusercontent.com/NoiseMeldOrg/rapture-mac/main/examples/claude-code/CLAUDE.md" -o "$NOTES_RULES"; then
-    echo "  Edit it to tune the classification rubric to your workflow."
+    RULES_INSTALLED=true
   else
     echo "  Warning: failed to download CLAUDE.md. The hook will report pending" >&2
     echo "  notes but Claude will have no routing rules. Create $NOTES_RULES" >&2
@@ -106,8 +113,18 @@ mv "$TMP" "$SETTINGS"
 echo "✓ Installed Rapture notes SessionStart hook"
 echo "  Check script: $SCRIPT_PATH"
 echo "  Hook entry:   $SETTINGS"
+if [ "$RULES_INSTALLED" = true ]; then
+  echo "  Routing:      $NOTES_RULES (starter — customize to your workflow)"
+  echo
+  echo "→ Customize the routing rules:"
+  echo "    \$EDITOR \"$NOTES_RULES\""
+elif [ -f "$NOTES_RULES" ]; then
+  echo "  Routing:      $NOTES_RULES (already present, not modified)"
+fi
 echo
-echo "Start a new Claude Code session to verify — if you have unprocessed .txt"
-echo "files in your notes folder, the count will surface as session context."
+echo "→ Verify by starting a new Claude Code session. If pending notes exist,"
+echo "  the count will appear in session context. If not, dictate a Siri note"
+echo "  and open Claude after."
 echo
-echo "Uninstall: bash scripts/uninstall-claude-hook.sh"
+echo "Status:    bash Scripts/status.sh"
+echo "Uninstall: bash Scripts/uninstall-claude-hook.sh"

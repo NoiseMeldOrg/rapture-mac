@@ -35,8 +35,19 @@ CLAUDE_BIN="${RAPTURE_CLAUDE_BIN:-/opt/homebrew/bin/claude}"
 DEFAULT_NOTES="${RAPTURE_NOTES_FOLDER:-$HOME/Documents/Rapture Notes}"
 
 # --- prerequisite checks ---
-command -v jq >/dev/null || { echo "Error: jq required — brew install jq" >&2; exit 1; }
-command -v fswatch >/dev/null || { echo "Error: fswatch required — brew install fswatch" >&2; exit 1; }
+MISSING=()
+command -v jq >/dev/null || MISSING+=(jq)
+command -v fswatch >/dev/null || MISSING+=(fswatch)
+if [ ${#MISSING[@]} -gt 0 ]; then
+  if command -v brew >/dev/null; then
+    echo "→ Required tools not installed: ${MISSING[*]}. Running: brew install ${MISSING[*]}"
+    brew install "${MISSING[@]}" || { echo "Error: brew install failed. Install manually and re-run." >&2; exit 1; }
+  else
+    echo "Error: missing required tools: ${MISSING[*]}. Homebrew is not installed." >&2
+    echo "Install Homebrew (https://brew.sh) then re-run, or install the tools manually." >&2
+    exit 1
+  fi
+fi
 [ -x "$CLAUDE_BIN" ] || { echo "Error: claude binary not executable at $CLAUDE_BIN. Override with RAPTURE_CLAUDE_BIN=/path/to/claude bash install-claude-watch.sh" >&2; exit 1; }
 
 # --- 0. ensure CLAUDE.md routing rules exist in the notes folder ---
@@ -46,10 +57,11 @@ command -v fswatch >/dev/null || { echo "Error: fswatch required — brew instal
 # may have customized it).
 NOTES_DIR="${RAPTURE_NOTES_FOLDER:-$HOME/Documents/Rapture Notes}"
 NOTES_RULES="$NOTES_DIR/CLAUDE.md"
+RULES_INSTALLED=false
 if [ -d "$NOTES_DIR" ] && [ ! -f "$NOTES_RULES" ]; then
-  echo "Installing starter CLAUDE.md routing rules to $NOTES_RULES"
+  echo "→ Installing starter CLAUDE.md routing rules to $NOTES_RULES"
   if curl -fsSL "https://raw.githubusercontent.com/NoiseMeldOrg/rapture-mac/main/examples/claude-code/CLAUDE.md" -o "$NOTES_RULES"; then
-    echo "  Edit it to tune the classification rubric to your workflow."
+    RULES_INSTALLED=true
   else
     echo "  Warning: failed to download CLAUDE.md. The watcher will run but claude" >&2
     echo "  will have no routing rules. Manually create $NOTES_RULES or re-run" >&2
@@ -202,8 +214,17 @@ echo "  Plist:   $PLIST_PATH"
 echo "  Logs:    tail -f $LOG_OUT $LOG_ERR"
 echo "  Workdir: $WORKDIR  (Claude runs from here when processing notes)"
 echo "  Claude:  $CLAUDE_BIN (--model haiku)"
+if [ "$RULES_INSTALLED" = true ]; then
+  echo "  Routing: $NOTES_RULES (starter — customize to your workflow)"
+  echo
+  echo "→ Customize the routing rules:"
+  echo "    \$EDITOR \"$NOTES_RULES\""
+elif [ -f "$NOTES_RULES" ]; then
+  echo "  Routing: $NOTES_RULES (already present, not modified)"
+fi
 echo
-echo "Dictate a Siri note to verify. You should see activity in the logs"
-echo "within a second or two of the file landing."
+echo "→ Verify: dictate a Siri note. Activity should appear in $LOG_OUT"
+echo "  within ~1 second of the file landing."
 echo
+echo "Status:    bash Scripts/status.sh"
 echo "Uninstall: bash Scripts/uninstall-claude-watch.sh"

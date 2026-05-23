@@ -28,12 +28,14 @@ When Claude Code is invoked from a folder containing this file, it picks up thes
 
 ## Routing actions
 
-- **todo**: append a line to `inbox/todos.md` in the format `- [ ] <text>  (captured <iso-ts>)`, then move source to `processed/YYYY-MM/`.
-- **journal**: append the text to `inbox/journal-YYYY-MM.md` under an ISO timestamp heading, then move source to `processed/YYYY-MM/`.
-- **idea**: append to `inbox/ideas.md` (same format as journal), then move source to `processed/YYYY-MM/`.
-- **code-task**: append a one-line pointer to `inbox/code-tasks.md` (format: `- [ ] <filename> — <one-sentence summary>  (captured <iso-ts>)`), then move source to `code-tasks/<original-filename>`. Don't try to execute the task here; the user will spin up a real project session when ready. The separate `code-tasks/` subfolder keeps these visible without cluttering `processed/`.
-- **reminder**: append to `inbox/reminders.md` (prepend a date if the note mentions one), then move source to `processed/YYYY-MM/`.
-- **other**: append to `inbox/uncategorized.md` (note in the summary that classification was unclear), then move source to `processed/YYYY-MM/`.
+Each routing destination is a single `.md` file at the notes-folder root, alongside `CLAUDE.md` and the raw `.txt` captures. The `*.txt` glob the worker uses only matches captured notes, so the routed `.md` files don't get re-processed.
+
+- **todo**: append a line to `todos.md` in the format `- [ ] <text>  (captured <iso-ts>)`, then move source to `processed/YYYY-MM/`.
+- **journal**: append the text to `journal-YYYY-MM.md` under an ISO timestamp heading, then move source to `processed/YYYY-MM/`.
+- **idea**: append to `ideas.md` (same format as journal), then move source to `processed/YYYY-MM/`.
+- **code-task**: append a one-line pointer to `code-tasks.md` (format: `- [ ] <filename> — <one-sentence summary>  (captured <iso-ts>)`), then move source to `code-tasks/<original-filename>`. Don't try to execute the task here; the user will spin up a real project session when ready. The separate `code-tasks/` subfolder keeps these visible without cluttering `processed/`.
+- **reminder**: append to `reminders.md` (prepend a date if the note mentions one), then move source to `processed/YYYY-MM/`.
+- **other**: append to `uncategorized.md` (note in the summary that classification was unclear), then move source to `processed/YYYY-MM/`.
 
 ## Catch-up rule
 
@@ -42,5 +44,6 @@ If there are more than 20 unprocessed files (the Mac slept for a long weekend, f
 ## Don't
 
 - Don't touch files in `processed/` or `code-tasks/`. They've already been routed.
+- Don't re-process the routed `.md` files at root (`todos.md`, `journal-*.md`, `ideas.md`, `code-tasks.md`, `reminders.md`, `uncategorized.md`); they're routing destinations, not input notes.
 - Don't generate iMessage replies. Rapture itself sent the `✓ Saved` confirmation when each file landed.
 - Don't write outside this folder unless a captured note explicitly tells you to.

@@ -85,8 +85,8 @@ fswatch -0 "\$NOTES" | while IFS= read -r -d "" _event; do
   # Run claude from WORKDIR via subshell so it picks up the project's CLAUDE.md
   # and the cwd is correct for tool calls (claude has no --workdir flag).
   # --permission-mode bypassPermissions: the watcher is autonomous — there's no
-  #   user to approve tool calls per-invocation. Same security posture as
-  #   aidee-relay's daemon (see autonomous.md for the blast-radius discussion).
+  #   user to approve tool calls per-invocation. See autonomous.md for the
+  #   blast-radius discussion before installing this.
   # < /dev/null: skip claude's 3s "waiting for stdin" timeout.
   if ! (cd "\$WORKDIR" && "\$CLAUDE_BIN" -p --model haiku \\
        --permission-mode bypassPermissions \\

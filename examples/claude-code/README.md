@@ -1,6 +1,6 @@
 # Claude Code consumer
 
-One recommended way to wire Claude Code up to act on your Rapture notes, plus a manual fallback for when you'd rather drive it yourself.
+One recommended way to wire Claude Code up to act on your Rapture notes, plus a manual fallback for when you'd rather drive it yourself. If you specifically want **sub-second event-driven autonomous action** (Siri → new Claude Code session immediately, no waiting until you next open Claude), see [autonomous.md](./autonomous.md) — that's the right shape for you and it has a different cost trade-off worth reading about up front.
 
 ## Recommended: SessionStart hook (opportunistic)
 

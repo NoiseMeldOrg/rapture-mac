@@ -39,6 +39,28 @@ command -v jq >/dev/null || { echo "Error: jq required — brew install jq" >&2;
 command -v fswatch >/dev/null || { echo "Error: fswatch required — brew install fswatch" >&2; exit 1; }
 [ -x "$CLAUDE_BIN" ] || { echo "Error: claude binary not executable at $CLAUDE_BIN. Override with RAPTURE_CLAUDE_BIN=/path/to/claude bash install-claude-watch.sh" >&2; exit 1; }
 
+# --- 0. ensure CLAUDE.md routing rules exist in the notes folder ---
+# The worker hands claude the prompt "Process new notes ... per CLAUDE.md".
+# If that file doesn't exist, claude has no rules to follow. We download it
+# from the repo on first install; we never overwrite an existing one (users
+# may have customized it).
+NOTES_DIR="${RAPTURE_NOTES_FOLDER:-$HOME/Documents/Rapture Notes}"
+NOTES_RULES="$NOTES_DIR/CLAUDE.md"
+if [ -d "$NOTES_DIR" ] && [ ! -f "$NOTES_RULES" ]; then
+  echo "Installing starter CLAUDE.md routing rules to $NOTES_RULES"
+  if curl -fsSL "https://raw.githubusercontent.com/NoiseMeldOrg/rapture-mac/main/examples/claude-code/CLAUDE.md" -o "$NOTES_RULES"; then
+    echo "  Edit it to tune the classification rubric to your workflow."
+  else
+    echo "  Warning: failed to download CLAUDE.md. The watcher will run but claude" >&2
+    echo "  will have no routing rules. Manually create $NOTES_RULES or re-run" >&2
+    echo "  the installer when you have network." >&2
+  fi
+elif [ ! -d "$NOTES_DIR" ]; then
+  echo "Warning: notes folder $NOTES_DIR does not exist yet. The watcher" >&2
+  echo "will fail at startup. Launch Rapture once to auto-create the default" >&2
+  echo "folder, then re-run this installer." >&2
+fi
+
 # --- 1. write the worker script ---
 mkdir -p "$SCRIPT_DIR"
 cat > "$WATCH_SCRIPT" <<EOF
@@ -61,6 +83,20 @@ CLAUDE_BIN="\${RAPTURE_CLAUDE_BIN:-$CLAUDE_BIN}"
 
 [ -d "\$NOTES" ] || { echo "Notes folder not found: \$NOTES" >&2; exit 1; }
 
+# Clean up the fswatch child process on exit. Process substitution children
+# don't always get reaped automatically when bash exits via SIGTERM (which is
+# how 'launchctl unload' and KeepAlive restart land), so leftover fswatch
+# processes can linger. This trap kills them deterministically.
+trap 'pkill -P \$\$ 2>/dev/null; true' EXIT
+
+# Watch the App Support folder too, so we can self-restart when the user picks a
+# new output folder in Rapture's Settings → General (Rapture writes the new path
+# to the sidecar file on every folder change). Other writes in App Support
+# (state.json watermark advances, settings.json edits) are filtered out below
+# via the mtime check on the sidecar specifically.
+APP_SUPPORT="\$HOME/Library/Application Support/Rapture for Mac"
+LAST_SIDECAR_MTIME=\$(stat -f %m "\$SIDECAR" 2>/dev/null || echo "0")
+
 echo "[\$(date -Iseconds)] rapture-notes-watch: watching \$NOTES → \$CLAUDE_BIN in \$WORKDIR"
 
 # fswatch coalesces events with a 1s latency by default — typically one fire per
@@ -69,7 +105,27 @@ echo "[\$(date -Iseconds)] rapture-notes-watch: watching \$NOTES → \$CLAUDE_BI
 # folder root and let one claude -p invocation batch-process them per the rules
 # in CLAUDE.md. The routing rules move processed files into processed/, so the
 # next fswatch event finds the folder empty and skips claude entirely.
-fswatch -0 "\$NOTES" | while IFS= read -r -d "" _event; do
+#
+# Process substitution (< <(fswatch ...)) keeps the while loop in the main shell
+# so 'exit 0' actually exits the script (and launchd's KeepAlive restarts us).
+# A piped 'fswatch | while ...' would put the loop in a subshell where exit
+# only kills the subshell, leaving fswatch orphaned and the bash hung.
+while IFS= read -r -d "" path; do
+  # Self-restart on output-folder change: if the sidecar's mtime advanced since
+  # startup, the user picked a different notes folder. Exit so launchd's
+  # KeepAlive restarts the worker, which re-resolves \$NOTES from the sidecar.
+  CURRENT_SIDECAR_MTIME=\$(stat -f %m "\$SIDECAR" 2>/dev/null || echo "0")
+  if [ "\$CURRENT_SIDECAR_MTIME" != "\$LAST_SIDECAR_MTIME" ]; then
+    echo "[\$(date -Iseconds)] sidecar changed, exiting for launchd restart"
+    exit 0
+  fi
+
+  # Ignore App Support events that didn't change the sidecar (state.json
+  # watermark writes, etc.).
+  case "\$path" in
+    "\$APP_SUPPORT"*) continue ;;
+  esac
+
   shopt -s nullglob
   files=("\$NOTES"/*.txt)
   [ \${#files[@]} -eq 0 ] && continue
@@ -93,7 +149,7 @@ fswatch -0 "\$NOTES" | while IFS= read -r -d "" _event; do
        "Process new notes in \$NOTES per the rules in \$NOTES/CLAUDE.md." < /dev/null); then
     echo "[\$(date -Iseconds)] claude -p failed (exit \$?)"
   fi
-done
+done < <(fswatch -0 "\$NOTES" "\$APP_SUPPORT")
 EOF
 chmod +x "$WATCH_SCRIPT"
 

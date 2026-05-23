@@ -26,6 +26,26 @@ command -v jq >/dev/null || {
   exit 1
 }
 
+# 0. Ensure CLAUDE.md routing rules exist in the notes folder.
+# The hook reports pending notes and points Claude at $NOTES/CLAUDE.md for
+# routing. If that file is missing, Claude has nothing to follow. We download
+# it from the repo on first install; we never overwrite an existing one (users
+# may have customized it).
+NOTES_RULES="$DEFAULT_NOTES/CLAUDE.md"
+if [ -d "$DEFAULT_NOTES" ] && [ ! -f "$NOTES_RULES" ]; then
+  echo "Installing starter CLAUDE.md routing rules to $NOTES_RULES"
+  if curl -fsSL "https://raw.githubusercontent.com/NoiseMeldOrg/rapture-mac/main/examples/claude-code/CLAUDE.md" -o "$NOTES_RULES"; then
+    echo "  Edit it to tune the classification rubric to your workflow."
+  else
+    echo "  Warning: failed to download CLAUDE.md. The hook will report pending" >&2
+    echo "  notes but Claude will have no routing rules. Create $NOTES_RULES" >&2
+    echo "  manually or re-run the installer when you have network." >&2
+  fi
+elif [ ! -d "$DEFAULT_NOTES" ]; then
+  echo "Note: notes folder $DEFAULT_NOTES does not exist yet. Launch Rapture"
+  echo "once to auto-create it, then the hook will start reporting pending notes."
+fi
+
 # 1. Write the check script
 mkdir -p "$SCRIPT_DIR"
 cat > "$SCRIPT_PATH" <<EOF

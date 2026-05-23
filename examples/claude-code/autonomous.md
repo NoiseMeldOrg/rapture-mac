@@ -9,6 +9,7 @@ The cost is that this uses `claude -p`, which on **June 15, 2026** moves to a se
 - You want immediate, autonomous action when a note lands (no "next time you open Claude" delay).
 - You're comfortable with the Agent SDK credit budget at Haiku rates.
 - You have a default project directory you want Claude to act in.
+- You accept the security posture: the watcher runs `claude -p --permission-mode bypassPermissions`, which auto-approves every tool call without prompting. Read [aidee-relay's security notes](https://github.com/NoiseMeldOrg/aidee-relay#security--read-this-before-you-install) for an honest discussion of the blast radius — it applies here too. For personal use on a Mac you control with self-captured Siri notes, this is defensible. For anything else, it isn't.
 
 ## Install
 

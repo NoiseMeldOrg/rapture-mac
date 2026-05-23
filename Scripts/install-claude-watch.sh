@@ -82,9 +82,17 @@ fswatch -0 "\$NOTES" | while IFS= read -r -d "" _event; do
   [ \${#pending[@]} -eq 0 ] && continue
 
   echo "[\$(date -Iseconds)] processing \${#pending[@]} pending note(s)"
-  "\$CLAUDE_BIN" -p --model haiku --workdir "\$WORKDIR" \\
-    "Process new notes in \$NOTES per the rules in \$NOTES/CLAUDE.md." \\
-    || echo "[\$(date -Iseconds)] claude -p failed (exit \$?)"
+  # Run claude from WORKDIR via subshell so it picks up the project's CLAUDE.md
+  # and the cwd is correct for tool calls (claude has no --workdir flag).
+  # --permission-mode bypassPermissions: the watcher is autonomous — there's no
+  #   user to approve tool calls per-invocation. Same security posture as
+  #   aidee-relay's daemon (see autonomous.md for the blast-radius discussion).
+  # < /dev/null: skip claude's 3s "waiting for stdin" timeout.
+  if ! (cd "\$WORKDIR" && "\$CLAUDE_BIN" -p --model haiku \\
+       --permission-mode bypassPermissions \\
+       "Process new notes in \$NOTES per the rules in \$NOTES/CLAUDE.md." < /dev/null); then
+    echo "[\$(date -Iseconds)] claude -p failed (exit \$?)"
+  fi
 done
 EOF
 chmod +x "$WATCH_SCRIPT"

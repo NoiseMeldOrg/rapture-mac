@@ -7,6 +7,13 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 ### Added
 
 - `examples/` directory with starter configs for consuming the notes folder from Claude Code, OpenClaw, Hermes Agent, and a vendor-neutral shell pipeline. README points at it from a new "Using your captures" section. Configs are written from current agent documentation, not tested against a running install; issues and PRs welcome.
+- **Watcher control scripts:** `Scripts/start-watch.sh`, `Scripts/stop-watch.sh`, `Scripts/restart-watch.sh` — load / unload / restart the launchd agent without hand-running `launchctl`. They prefer the modern `bootstrap`/`bootout`/`kickstart` API with a fallback to legacy `load`/`unload`. `status.sh` now lists them. Use `restart-watch.sh` after editing the worker or plist.
+- **Optional config file** (`examples/watch.env.example` → `~/.config/rapture-mac/watch.env`): `KEY=VALUE` overrides for the two models, notes folder, workdir, and claude binary. The installer writes them into the launchd plist as `EnvironmentVariables`, so they persist across reboots and reinstalls instead of being hardcoded in the generated worker.
+
+### Changed
+
+- **Per-note model split in the event-driven watcher.** The generated worker now picks the model per note: notes containing a URL or an attachment run on a stronger model (`RAPTURE_MEDIA_MODEL`, default `sonnet`) so they can drive an extraction skill end-to-end; plain text/reminder notes stay on the cheap default (`RAPTURE_TEXT_MODEL`, default `haiku`). Detection is a deterministic `grep`, so model choice never itself depends on a model. Previously every note ran on Haiku, which was too weak to reliably run a media-extraction skill — links were filed but never extracted.
+- **Worker prompt + example routing rules now insist on explicit skill invocation and shell `>>` appends.** With many skills installed, a small model won't reliably auto-trigger the right extraction skill from its description, and rewriting a shared list file (instead of appending) clobbered earlier entries. Both failure modes are now called out in the generated prompt and the `examples/claude-code/CLAUDE.md` starter.
 
 ## [1.0.29] - 2026-05-20: dedup + link-preview filter (quality-of-life)
 

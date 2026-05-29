@@ -161,9 +161,20 @@ while IFS= read -r -d "" path; do
   # < /dev/null: skip claude's 3s "waiting for stdin" timeout.
   for note in "\${pending[@]}"; do
     echo "[\$(date -Iseconds)] processing: \$note"
-    if ! (cd "\$WORKDIR" && "\$CLAUDE_BIN" -p --model haiku \\
+    # Per-note model split: media notes (a URL or an attachment) need a model
+    # strong enough to drive an extraction skill end-to-end; Haiku can't. Plain
+    # text/reminder notes stay on cheap Haiku. Detection is a deterministic grep,
+    # so the model choice never itself depends on a model. Override either with
+    # RAPTURE_MEDIA_MODEL / RAPTURE_TEXT_MODEL.
+    if grep -qiE 'https?://|^Attachments?:' "\$note"; then
+      MODEL="\${RAPTURE_MEDIA_MODEL:-sonnet}"
+    else
+      MODEL="\${RAPTURE_TEXT_MODEL:-haiku}"
+    fi
+    echo "[\$(date -Iseconds)] model: \$MODEL"
+    if ! (cd "\$WORKDIR" && "\$CLAUDE_BIN" -p --model "\$MODEL" \\
          --permission-mode bypassPermissions \\
-         "Process the single Rapture note at \$note per the rules in \$NOTES/CLAUDE.md. Required sequence: (1) read the note, (2) classify it per the hints, (3) execute the routing action — write the entry to the destination file — and ONLY THEN (4) move the source file. Never move a file to processed/ without first writing its routing destination. Print one summary line: '→ <category>[/client:<name>]: <destination>'." < /dev/null); then
+         "Process the single Rapture note at \$note per the rules in \$NOTES/CLAUDE.md. Required sequence: (1) read the note, (2) classify it per the hints, checking any Media extraction section FIRST, (3) execute the routing action; for media notes invoke the named extraction skill (e.g. extract-transcript / extract-webpage / tool-markitdown) EXPLICITLY by name rather than relying on auto-trigger, and append any list entries with a shell '>>' append rather than a rewrite; then ONLY (4) move the source file. Never move a file to processed/ without first writing its routing destination. Print one summary line: '→ <category>[/client:<name>]: <destination>'." < /dev/null); then
       echo "[\$(date -Iseconds)] claude -p failed (exit \$?) on \$note"
     fi
   done
@@ -206,6 +217,26 @@ cat > "$PLIST_PATH" <<EOF
 </plist>
 EOF
 
+# --- 2b. inject persistent config (optional) ---
+# A KEY=VALUE config file lets you pin the models, notes folder, workdir, or
+# claude binary without hand-editing the generated plist (which a reinstall
+# regenerates). Each line becomes a launchd EnvironmentVariable the worker reads,
+# so the settings survive reboots and reinstalls. Supported keys:
+# RAPTURE_MEDIA_MODEL, RAPTURE_TEXT_MODEL, RAPTURE_NOTES_FOLDER,
+# RAPTURE_CLAUDE_WORKDIR, RAPTURE_CLAUDE_BIN. See examples/watch.env.example.
+CONFIG_FILE="${RAPTURE_CONFIG:-$HOME/.config/rapture-mac/watch.env}"
+if [ -f "$CONFIG_FILE" ]; then
+  echo "→ Applying config from $CONFIG_FILE"
+  /usr/libexec/PlistBuddy -c "Add :EnvironmentVariables dict" "$PLIST_PATH" 2>/dev/null || true
+  while IFS='=' read -r _k _v; do
+    case "$_k" in ''|\#*) continue ;; esac
+    _k="$(printf '%s' "$_k" | xargs)"; _v="$(printf '%s' "$_v" | xargs)"
+    [ -n "$_k" ] || continue
+    /usr/libexec/PlistBuddy -c "Add :EnvironmentVariables:$_k string $_v" "$PLIST_PATH" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c "Set :EnvironmentVariables:$_k $_v" "$PLIST_PATH"
+  done < "$CONFIG_FILE"
+fi
+
 # Validate before loading
 plutil -lint "$PLIST_PATH" >/dev/null || { echo "Error: generated plist is invalid" >&2; exit 1; }
 
@@ -219,7 +250,8 @@ echo "  Worker:  $WATCH_SCRIPT"
 echo "  Plist:   $PLIST_PATH"
 echo "  Logs:    tail -f $LOG_OUT $LOG_ERR"
 echo "  Workdir: $WORKDIR  (Claude runs from here when processing notes)"
-echo "  Claude:  $CLAUDE_BIN (--model haiku)"
+echo "  Models:  media → ${RAPTURE_MEDIA_MODEL:-sonnet}, text → ${RAPTURE_TEXT_MODEL:-haiku}  (claude: $CLAUDE_BIN)"
+echo "  Config:  $CONFIG_FILE  (optional KEY=VALUE — see examples/watch.env.example)"
 if [ "$RULES_INSTALLED" = true ]; then
   echo "  Routing: $NOTES_RULES (starter — customize to your workflow)"
   echo

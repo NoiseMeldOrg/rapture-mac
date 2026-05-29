@@ -12,6 +12,11 @@
 
 When Claude Code is invoked from a folder containing this file, it picks up these instructions automatically.
 
+## Two reliability rules (read first)
+
+1. **Invoke skills explicitly BY NAME — never rely on a skill auto-triggering from its description.** With many skills installed, description-matching is unreliable and the right one usually won't fire on its own. When a routing action names a skill (e.g. "use the extract-transcript skill"), call it by name.
+2. **Append to shared list/log files with a shell `>>` append, never by reading-and-rewriting with Edit/Write.** A weak model that rewrites a shared file regenerates it with only the current item and clobbers everything else. Use `printf '%s\n' "- entry" >> file`.
+
 ## What you're processing
 
 `.txt` files in this folder, one per Siri-dictated iMessage captured by Rapture for Mac. Filenames are ISO 8601 UTC timestamps. File contents are the user's spoken thought, transcribed by Siri.
@@ -22,9 +27,21 @@ When Claude Code is invoked from a folder containing this file, it picks up thes
 2. Skip any `*.tmp` files; those are Rapture's in-flight atomic writes.
 3. For each remaining file in ascending mtime order:
    1. Read it.
-   2. Classify into one of: `todo`, `journal`, `idea`, `code-task`, `reminder`, `other`.
+   2. Classify. **Check media first:** if the note's payload is a URL or an attachment, route it via the **Media extraction** section below. Otherwise classify into one of: `todo`, `journal`, `idea`, `code-task`, `reminder`, `other`.
    3. Take the routing action below. **Every action ends with moving the source file out of the folder root** so it doesn't get re-processed on the next invocation. Most go to `processed/YYYY-MM/`; code-tasks go to `code-tasks/` for manual triage.
 4. Print a one-line summary per file: `→ <category>: <action taken>`.
+
+## Media extraction (if you have extraction skills installed)
+
+Most captured notes are just a pasted link. If you have the relevant skills installed, extract the *content* (so it's searchable later) rather than just filing the link. The worker runs media notes on a stronger model (see `install-claude-watch.sh`) precisely so these skill calls are reliable.
+
+- **YouTube URL** → invoke the `extract-transcript` skill by name; save the markdown alongside your notes (e.g. a `transcripts/` folder).
+- **Other web link** → invoke `extract-webpage` (or `tool-firecrawl-scraper`).
+- **Document attachment** (PDF/DOCX/PPTX/XLSX) → invoke `tool-markitdown`.
+- **Image attachment** → you're on a vision-capable model; read the image directly and write a description + any visible text. (markitdown returns empty on images with no EXIF.)
+- **X / Facebook / Instagram** → no reliable extractor yet; log the link to a `needs-processing.md` checklist so it's never lost.
+
+If you don't have these skills, fall back to filing the link under `idea`/`reminder`. Either way, move the source note out of the root when done.
 
 ## Routing actions
 

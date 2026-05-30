@@ -166,7 +166,7 @@ while IFS= read -r -d "" path; do
     # text/reminder notes stay on cheap Haiku. Detection is a deterministic grep,
     # so the model choice never itself depends on a model. Override either with
     # RAPTURE_MEDIA_MODEL / RAPTURE_TEXT_MODEL.
-    if grep -qiE 'https?://|^Attachments?:' "\$note"; then
+    if grep -qiE 'https?://|^Attachments?:|remind me|remember to|don.?t forget|make sure to' "\$note"; then
       MODEL="\${RAPTURE_MEDIA_MODEL:-sonnet}"
     else
       MODEL="\${RAPTURE_TEXT_MODEL:-haiku}"

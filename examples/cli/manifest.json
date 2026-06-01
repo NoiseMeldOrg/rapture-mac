@@ -1,0 +1,9 @@
+{
+  "displayName": "Generic CLI",
+  "description": "A pure shell script that processes each new .txt file in your Rapture notes folder through whatever LLM CLI you set. Works with anything that reads stdin and writes to stdout.",
+  "docs": [
+    { "label": "README", "file": "README.md" },
+    { "label": "Script", "file": "process-notes.sh" }
+  ],
+  "installs": []
+}

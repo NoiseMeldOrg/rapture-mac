@@ -1,0 +1,9 @@
+{
+  "displayName": "Hermes Agent",
+  "description": "Process notes via Hermes' skill system on a cron schedule, with summaries delivered to Telegram (or Signal, Discord, Slack, WhatsApp). Independent of Claude Code.",
+  "docs": [
+    { "label": "README", "file": "README.md" },
+    { "label": "Skill", "file": "SKILL.md" }
+  ],
+  "installs": []
+}

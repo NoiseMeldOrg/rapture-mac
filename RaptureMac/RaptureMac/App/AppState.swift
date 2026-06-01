@@ -17,10 +17,19 @@ final class AppState {
 
     let settings: SettingsStore
     let state: StateStore
+    let integrations: IntegrationsState
 
     init() {
         self.settings = SettingsStore()
         self.state = StateStore()
+        let loginPath = LoginShellPath.capture()
+        let runner = IntegrationRunner(loginPath: loginPath)
+        self.integrations = IntegrationsState(
+            runner: runner,
+            examplesRoot: Bundle.main.examplesURL,
+            scriptsRoot: Bundle.main.scriptsURL,
+            watcherConfig: WatcherConfigStore()
+        )
         self.lastError = state.state.lastError
     }
 

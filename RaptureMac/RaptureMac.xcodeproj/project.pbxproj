@@ -85,6 +85,7 @@
 				AAAA000000000000000A000B /* Sources */,
 				AAAA000000000000000A000C /* Frameworks */,
 				AAAA000000000000000A000D /* Resources */,
+				AAAA000000000000000A001F /* Bundle Integrations Resources */,
 				AAAA000000000000000A001E /* Auto-Version (git commit count) */,
 			);
 			buildRules = (
@@ -203,6 +204,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
 			shellScript = "\"${SRCROOT}/../Scripts/set_git_version.sh\"\n";
+		};
+		AAAA000000000000000A001F /* Bundle Integrations Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Bundle Integrations Resources";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"${SRCROOT}/../Scripts/copy-integrations-resources.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

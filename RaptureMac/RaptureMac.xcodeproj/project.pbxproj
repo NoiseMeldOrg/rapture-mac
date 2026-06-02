@@ -383,7 +383,8 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Rapture for Mac";
+				INFOPLIST_KEY_CFBundleDisplayName = "Rapture";
+				INFOPLIST_KEY_CFBundleName = "Rapture";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright \U00a9 NoiseMeld. Apache-2.0 licensed.";
@@ -393,7 +394,7 @@
 				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = noisemeld.RaptureMac;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Rapture";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -418,7 +419,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
-				INFOPLIST_KEY_CFBundleDisplayName = "Rapture for Mac";
+				INFOPLIST_KEY_CFBundleDisplayName = "Rapture";
+				INFOPLIST_KEY_CFBundleName = "Rapture";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright \U00a9 NoiseMeld. Apache-2.0 licensed.";
@@ -428,7 +430,7 @@
 				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = noisemeld.RaptureMac;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Rapture";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -454,7 +456,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RaptureMac.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RaptureMac";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Rapture.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Rapture";
 			};
 			name = Debug;
 		};
@@ -474,7 +476,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RaptureMac.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RaptureMac";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Rapture.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Rapture";
 			};
 			name = Release;
 		};

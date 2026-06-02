@@ -1,6 +1,6 @@
 import XCTest
 import SwiftUI
-@testable import RaptureMac
+@testable import Rapture
 
 @MainActor
 final class WatcherConfigStoreTests: XCTestCase {

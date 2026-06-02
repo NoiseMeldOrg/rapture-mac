@@ -39,7 +39,7 @@ enum AutomationPrompt {
         alert.informativeText = """
             Rapture wasn't able to send a confirmation reply because macOS blocked Automation access for Messages.app.
 
-            Open System Settings → Privacy & Security → Automation, find Rapture for Mac, and turn Messages on.
+            Open System Settings → Privacy & Security → Automation, find Rapture, and turn Messages on.
             """
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Open System Settings")

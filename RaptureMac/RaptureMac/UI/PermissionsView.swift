@@ -20,12 +20,12 @@ struct PermissionsView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Label("Click Open System Settings below.", systemImage: "1.circle")
-                Label("Scroll to Rapture for Mac and turn the toggle on.", systemImage: "2.circle")
+                Label("Scroll to Rapture and turn the toggle on.", systemImage: "2.circle")
                 Label("This window closes automatically once granted.", systemImage: "3.circle")
             }
             .font(.callout)
 
-            Text("Not in the list? Click the **+** button in System Settings and add Rapture for Mac manually.")
+            Text("Not in the list? Click the **+** button in System Settings and add Rapture manually.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

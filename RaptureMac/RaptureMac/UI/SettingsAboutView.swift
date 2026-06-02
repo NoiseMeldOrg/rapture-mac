@@ -10,7 +10,7 @@ struct SettingsAboutView: View {
         Form {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Rapture for Mac")
+                    Text("Rapture")
                         .font(.title3)
                         .fontWeight(.semibold)
                     Text(versionLine)

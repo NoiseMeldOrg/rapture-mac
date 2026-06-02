@@ -1,5 +1,5 @@
 import XCTest
-@testable import RaptureMac
+@testable import Rapture
 
 final class AttributedBodyDecoderTests: XCTestCase {
     private func fixture(filler: Data = Data([0x01, 0x02, 0x03]), lengthPrefix: [UInt8], payload: Data) -> Data {

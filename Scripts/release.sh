@@ -46,8 +46,8 @@ SIGN_IDENTITY="Developer ID Application"
 NOTARY_PROFILE="rapture-mac-notary"
 DERIVED="/tmp/RaptureMacDerived"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_NAME="RaptureMac.app"          # filesystem bundle name (Display Name "Rapture for Mac" via CFBundleDisplayName)
-DMG_VOLNAME="Rapture for Mac"      # name of the mounted DMG volume in Finder
+APP_NAME="Rapture.app"             # filesystem bundle name (Display Name "Rapture" via CFBundleDisplayName)
+DMG_VOLNAME="Rapture"              # name of the mounted DMG volume in Finder
 PROJECT="$REPO_ROOT/RaptureMac/RaptureMac.xcodeproj"
 
 cd "$REPO_ROOT"
@@ -134,7 +134,7 @@ run codesign -d --entitlements - --xml "$APP"
 
 # --- Stage 5: Build DMG ---
 say "Stage 5/9: build DMG"
-DMG="$DERIVED/Rapture-for-Mac-$VERSION.dmg"
+DMG="$DERIVED/Rapture-$VERSION.dmg"
 if [ "$DRY_RUN" -eq 0 ] && [ -f "$DMG" ]; then
   rm -f "$DMG"
 fi

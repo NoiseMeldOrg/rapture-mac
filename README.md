@@ -23,7 +23,7 @@ That's the whole transaction. The defining property: **the iPhone side is fully 
 ## Install
 
 1. Download the latest DMG from the [Releases page](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest).
-2. Open the DMG, drag **Rapture for Mac.app** into `/Applications`.
+2. Open the DMG, drag **Rapture.app** into `/Applications`.
 3. Launch the app. There's no Dock icon. Look for the `text.bubble` glyph in the menu bar at the top of the screen.
 
 ### First-run walkthrough
@@ -85,8 +85,8 @@ So the app ships outside the sandbox by structural necessity, which is also why 
 Before opening the DMG:
 
 ```sh
-xcrun stapler validate ~/Downloads/Rapture-for-Mac-*.dmg
-spctl --assess --type install ~/Downloads/Rapture-for-Mac-*.dmg
+xcrun stapler validate ~/Downloads/Rapture-*.dmg
+spctl --assess --type install ~/Downloads/Rapture-*.dmg
 ```
 
 Both should succeed. The DMG is Developer ID signed (team `P8PLTH44DF`) and Apple-notarized. See [SECURITY.md](./SECURITY.md) for full details and how to report issues.

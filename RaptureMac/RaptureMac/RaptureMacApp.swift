@@ -24,7 +24,7 @@ struct RaptureMacApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Window("Rapture for Mac", id: "permissions") {
+        Window("Rapture", id: "permissions") {
             PermissionsView()
                 .environment(appState)
                 .frame(minWidth: 480, minHeight: 320)

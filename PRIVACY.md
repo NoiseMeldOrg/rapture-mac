@@ -19,7 +19,7 @@ Both files are plain JSON. You can `cat` them and see exactly what's in there.
 You can confirm this two ways:
 
 1. **Grep the source.** `grep -RnE "URLSession|URLRequest|NWConnection|NWListener" RaptureMac/RaptureMac/` returns zero results. There is no networking code in the app.
-2. **Check the signed entitlements.** Run `codesign -d --entitlements - /Applications/RaptureMac.app`. You'll see exactly two: `app-sandbox = false` and `automation.apple-events = true`. There are no `com.apple.security.network.*` entitlements, which means macOS itself would block any network attempt the app made, even one snuck in by a malicious dependency.
+2. **Check the signed entitlements.** Run `codesign -d --entitlements - /Applications/Rapture.app`. You'll see exactly two: `app-sandbox = false` and `automation.apple-events = true`. There are no `com.apple.security.network.*` entitlements, which means macOS itself would block any network attempt the app made, even one snuck in by a malicious dependency.
 
 ## Permissions the app asks for
 

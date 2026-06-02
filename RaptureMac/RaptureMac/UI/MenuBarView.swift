@@ -95,7 +95,7 @@ struct MenuBarView: View {
                 .padding(.vertical, 2)
 
             Button(action: { NSApp.terminate(nil) }) {
-                rowLabel("Quit Rapture for Mac", symbol: "power")
+                rowLabel("Quit Rapture", symbol: "power")
             }
             .buttonStyle(.plain)
         }

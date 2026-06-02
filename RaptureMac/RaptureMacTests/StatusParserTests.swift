@@ -1,5 +1,5 @@
 import XCTest
-@testable import RaptureMac
+@testable import Rapture
 
 final class StatusParserTests: XCTestCase {
 

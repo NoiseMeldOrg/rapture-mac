@@ -43,8 +43,8 @@ The build is reproducible from `main` at any commit: `xcodebuild -derivedDataPat
 After downloading a DMG from the [Releases page](https://github.com/NoiseMeldOrg/rapture-mac/releases) and before opening it:
 
 ```
-xcrun stapler validate ~/Downloads/Rapture-for-Mac-*.dmg
-spctl --assess --type install ~/Downloads/Rapture-for-Mac-*.dmg
+xcrun stapler validate ~/Downloads/Rapture-*.dmg
+spctl --assess --type install ~/Downloads/Rapture-*.dmg
 ```
 
 Both should succeed. If either fails, the DMG was either tampered with or notarization was revoked. Don't open it; report to `michael@noisemeld.com` with the SHA-256 of the file you have.

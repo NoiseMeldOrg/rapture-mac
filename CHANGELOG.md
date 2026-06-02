@@ -4,6 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.64] - 2026-06-02: Integrations panel + rename
+
+Built from commit `ae224e9`. SHA-256: `d35db2bf8edc8165335d0a14de5a06a119d116e81e8f97e4c1a38819f727b3e5`.
+
 ### Added
 
 - **Integrations panel** in Settings: install, configure, and monitor downstream Rapture consumers from inside the app — no Terminal required. The new tab discovers consumers dynamically from `examples/` at runtime, so dropping a new `examples/<name>/` folder (with an optional `manifest.json`) adds a card without a code change. Ships with cards for Claude Code (SessionStart hook + autonomous watcher, with workdir picker, model overrides, start/stop/restart controls, and a `Grant Reminders…` deep-link) and informational cards for OpenClaw, Hermes, and the Generic CLI. `Scripts/` and `examples/` are bundled as Resources so install scripts run from inside the signed app — no runtime fetch from GitHub, in line with PRIVACY.md's zero-outbound commitment. See [`agent-os/specs/2026-05-31-2030-integrations-panel/`](./agent-os/specs/2026-05-31-2030-integrations-panel/) for the design notes.
@@ -14,8 +18,13 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ### Changed
 
+- **App renamed to just "Rapture".** `Rapture.app` (was `RaptureMac.app`); window titles, Dock, Spotlight, Raycast, About box, and FDA/Automation instructions all updated. **Bundle ID stays `noisemeld.RaptureMac`** so TCC grants (FDA + Automation) survive the upgrade. **Application Support folder stays `~/Library/Application Support/Rapture for Mac/`** so existing settings + state persist. After upgrading, `/Applications/RaptureMac.app` and `/Applications/Rapture.app` will coexist until you delete the old bundle by hand.
 - **Per-note model split in the event-driven watcher.** The generated worker now picks the model per note: notes containing a URL or an attachment run on a stronger model (`RAPTURE_MEDIA_MODEL`, default `sonnet`) so they can drive an extraction skill end-to-end; plain text/reminder notes stay on the cheap default (`RAPTURE_TEXT_MODEL`, default `haiku`). Detection is a deterministic `grep`, so model choice never itself depends on a model. Previously every note ran on Haiku, which was too weak to reliably run a media-extraction skill — links were filed but never extracted.
 - **Worker prompt + example routing rules now insist on explicit skill invocation and shell `>>` appends.** With many skills installed, a small model won't reliably auto-trigger the right extraction skill from its description, and rewriting a shared list file (instead of appending) clobbered earlier entries. Both failure modes are now called out in the generated prompt and the `examples/claude-code/CLAUDE.md` starter.
+
+### Tests
+
+111 → 227 (+116 new): 30 IntegrationDiscovery, 24 StatusParser, 25 WatcherConfigStore, 14 IntegrationRunner, 12 Prerequisites, 11 StatusPillResolution. All run in ~0.3 s.
 
 ## [1.0.29] - 2026-05-20: dedup + link-preview filter (quality-of-life)
 
@@ -74,7 +83,8 @@ Built from commit `9a5972d`. SHA-256: `704a968d5054cfbb9707a710baa44e35ee3fcdffc
 
 For the build-by-build context behind these features, see `_build_plan/milestones/{1,2,3,4}/milestone-log.md`. For the architectural rationale (why local-mode-only, why not the Mac App Store), see `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md`.
 
-[Unreleased]: https://github.com/NoiseMeldOrg/rapture-mac/compare/v1.0.29...HEAD
+[Unreleased]: https://github.com/NoiseMeldOrg/rapture-mac/compare/v1.0.64...HEAD
+[1.0.64]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.64
 [1.0.29]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.29
 [1.0.27]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.27
 [1.0.18]: https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.18

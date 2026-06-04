@@ -4,6 +4,23 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Fixed
+
+- **iCloud cross-device replays no longer become duplicate captures.** The v1.0.29 GUID dedup only collapses identical-`message.guid` deliveries, but iCloud sync delivers the same Siri-dictated note to chat.db with a **fresh GUID and a 1–2 s timestamp offset** each time, so each delivery produced a new file plus a "Saved" reply. The reporting user was seeing 3–4 duplicate confirmations per dictation and a daily 15:16 EDT cluster of replays (root cause: a scheduled Calendar travel-time wake event reconnecting iMessage iCloud and dumping queued duplicates). A new `ContentDedupCache` keyed on `(normalized self-handle, normalized text, attachment count)` with a 7-day TTL and 500-entry FIFO cap now sits between the echo guard and the file writer in `BatchProcessor`, dropping replays silently and persisting across app restarts via `state.json`.
+
+### Changed
+
+- **Per-message reply is now `✅ Saved`** (was `✓ Saved: <filename>.txt`). The filename wasn't actionable on a phone and the short form is easier to glance at. The new `MessageFilter.looksLikeAppConfirmation` matches both the new and the legacy forms so pre-upgrade replays still get suppressed.
+- **Catch-up summary is now `📥 Caught up: N notes`** (was `📥 Caught up: N notes captured`). "Caught up" already implies "captured."
+
+### Removed
+
+- **Autonomous launchd watcher (`com.user.rapture-notes-watch`) and its supporting infrastructure.** The Integrations panel v1.0.64 shipped two ways for Claude Code to consume the notes folder — a SessionStart hook (opportunistic) and an autonomous fswatch-driven `claude -p` worker registered with launchd (always-on). The autonomous worker turned out to be the wrong shape for the work: `claude -p` is non-interactive by design, so it required `--permission-mode bypassPermissions`, `< /dev/null` stdin tricks, and (on the next iteration) a `timeout` wrapper to prevent hangs. The worker also couldn't `lstat` files on external volumes because the launchd context inherits a TCC profile distinct from the user's terminal — which would have required granting Full Disk Access to `/bin/bash` and `/opt/homebrew/bin/claude`. On 2026-06-04 we discovered the worker had been silently broken for two days (one `claude -p` invocation hung, the script's for-loop blocked, three orphan bash processes were racing on the same fswatch stream, zero processing happened), and elected to remove the layer entirely rather than fix it. The SessionStart hook covers the same need with the right shape of tool: Claude Code running interactively, inheriting your terminal's TCC, prompting for permissions when needed. See [`agent-os/specs/2026-06-04-1530-remove-autonomous-watcher/`](./agent-os/specs/2026-06-04-1530-remove-autonomous-watcher/) for the full rationale. Removed: `Scripts/install-claude-watch.sh`, `Scripts/uninstall-claude-watch.sh`, `Scripts/{start,stop,restart}-watch.sh`, `examples/claude-code/autonomous.md`, `examples/watch.env.example`, `RaptureMac/Integrations/WatcherConfigStore.swift`, and the watcher-specific branches of `StatusParser` / `IntegrationDiscovery.StatusKey` / `SettingsIntegrationsView`. The Integrations panel UI stays; the Claude Code card now shows one install option (SessionStart hook) instead of two.
+
+### Tests
+
+227 → 205 (-38 net: +16 new `ContentDedupCacheTests`, -54 watcher-only tests across `WatcherConfigStoreTests` whole, plus trimmed watcher cases in `StatusPillResolutionTests`, `StatusParserTests`, `PrerequisitesTests`, `IntegrationDiscoveryTests`). All 205 remaining pass in ~0.5s.
+
 ## [1.0.64] - 2026-06-02: Integrations panel + rename
 
 Built from commit `ae224e9`. SHA-256: `d35db2bf8edc8165335d0a14de5a06a119d116e81e8f97e4c1a38819f727b3e5`.

@@ -38,14 +38,12 @@ struct InstallProfile: Identifiable, Equatable, Sendable {
 
 enum StatusKey: Equatable, Sendable {
     case hook
-    case watcher
     case unknown(String)
 
     init(_ raw: String) {
         switch raw {
-        case "hook":    self = .hook
-        case "watcher": self = .watcher
-        default:        self = .unknown(raw)
+        case "hook": self = .hook
+        default:     self = .unknown(raw)
         }
     }
 }

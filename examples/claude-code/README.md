@@ -1,8 +1,8 @@
 # Claude Code consumer
 
-One recommended way to wire Claude Code up to act on your Rapture notes, plus a manual fallback for when you'd rather drive it yourself. If you specifically want **sub-second event-driven autonomous action** (Siri → new Claude Code session immediately, no waiting until you next open Claude), see [autonomous.md](./autonomous.md) — that's the right shape for you and it has a different cost trade-off worth reading about up front.
+A SessionStart hook that surfaces pending Rapture notes whenever you next open Claude Code, plus a manual fallback for when you'd rather drive it yourself.
 
-## Recommended: SessionStart hook (opportunistic)
+## SessionStart hook (opportunistic)
 
 A small hook fires whenever you start a new Claude Code session. If your notes folder has unprocessed `.txt` files, the hook surfaces the count as session context, and Claude offers to triage them per the rules in your notes folder's `CLAUDE.md`. If there's nothing pending, the hook is silent.
 
@@ -12,7 +12,7 @@ Why this shape:
 - **Composes with your normal Claude usage.** You open Claude Code several times a day for unrelated work; triage happens opportunistically alongside.
 - **Pauseable.** Run the uninstall to stop it. Re-run install to bring it back.
 
-Trade-off: latency is "the next time you open Claude" rather than seconds. For triage / classification work that's the right trade. If you need notes acted on while you're away from your Mac, this isn't the right shape — write your own watcher.
+Trade-off: latency is "the next time you open Claude" rather than seconds. For triage / classification work that's the right trade. If you need notes acted on while you're away from your Mac, this isn't the right shape — write your own watcher consumer that reads the folder directly.
 
 ### Install
 

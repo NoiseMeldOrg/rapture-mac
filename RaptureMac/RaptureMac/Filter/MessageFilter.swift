@@ -50,20 +50,27 @@ enum MessageFilter {
         ))
     }
 
-    /// True when `text` matches the structure of an outbound `✓ Saved: <filename>` or
-    /// `📥 Caught up: ...` confirmation that the app itself sends via `osascript`.
-    /// Pure function, exposed `static` so it's unit-testable without fixture infra.
+    /// True when `text` matches the structure of an outbound confirmation that
+    /// the app itself sends via `osascript`. Covers the current short forms
+    /// (`✅ Saved`, `📥 Caught up: …`, `✗ …`) plus the legacy `✓ Saved: <filename>`
+    /// form that may still echo back through iCloud sync from before the
+    /// short-form upgrade. Pure, exposed `static` for unit testing.
     static func looksLikeAppConfirmation(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // ✅ Saved — current short form (no filename).
+        if trimmed == "✅ Saved" { return true }
+
         // ✓ Saved: 2026-05-20T19-16-54Z.txt
         // ✓ Saved: 2026-05-20T19-16-54Z-3.txt
+        // Legacy: kept so pre-upgrade replays still get suppressed.
         if let body = trimmed.stripping(prefix: "✓ Saved: ") {
             return Self.looksLikeNoteFilename(body)
         }
 
-        // 📥 Caught up: 5 notes captured
-        // 📥 Caught up: 5 notes captured (1 failed)
+        // 📥 Caught up: 5 notes
+        // 📥 Caught up: 5 notes (1 failed)
+        // 📥 Caught up: 5 notes captured  (legacy long form)
         if trimmed.hasPrefix("📥 Caught up: ") {
             return true
         }

@@ -1,63 +1,20 @@
 {
   "displayName": "Claude Code",
-  "description": "Watch the notes folder and triage each note inside a Claude Code session — either opportunistically when you next open Claude, or autonomously the moment a note lands.",
+  "description": "Triage notes from the Rapture folder inside a Claude Code session. Fires opportunistically the next time you open Claude — no daemon, no per-message cost.",
   "docs": [
     { "label": "Overview", "file": "README.md" },
-    { "label": "Autonomous mode", "file": "autonomous.md" },
     { "label": "Routing rules", "file": "CLAUDE.md" }
   ],
   "installs": [
     {
       "id": "claude-hook",
       "name": "SessionStart hook",
-      "description": "Opportunistic. Fires when you next open Claude Code. No daemon, no per-message cost. Composes with your normal Claude usage.",
+      "description": "Fires when you next open Claude Code. Reports the count of pending .txt files and offers to triage per CLAUDE.md. Composes with your normal Claude usage.",
       "install": "Scripts/install-claude-hook.sh",
       "uninstall": "Scripts/uninstall-claude-hook.sh",
       "statusKey": "hook",
       "requires": {
         "cli": ["claude", "jq"]
-      }
-    },
-    {
-      "id": "claude-watch",
-      "name": "Autonomous watcher",
-      "description": "Sub-second. Always-on. Fires a fresh claude -p invocation within ~1s of each new note landing. Uses Agent SDK credits separately from your subscription pool.",
-      "install": "Scripts/install-claude-watch.sh",
-      "uninstall": "Scripts/uninstall-claude-watch.sh",
-      "start": "Scripts/start-watch.sh",
-      "stop": "Scripts/stop-watch.sh",
-      "restart": "Scripts/restart-watch.sh",
-      "logs": [
-        "/tmp/rapture-notes-watch.out.log",
-        "/tmp/rapture-notes-watch.err.log"
-      ],
-      "statusKey": "watcher",
-      "configFile": "~/.config/rapture-mac/watch.env",
-      "config": [
-        {
-          "key": "RAPTURE_CLAUDE_WORKDIR",
-          "label": "Claude workdir",
-          "type": "folder",
-          "default": "$HOME"
-        },
-        {
-          "key": "RAPTURE_MEDIA_MODEL",
-          "label": "Media model",
-          "type": "select",
-          "options": ["haiku", "sonnet", "opus"],
-          "default": "sonnet"
-        },
-        {
-          "key": "RAPTURE_TEXT_MODEL",
-          "label": "Text model",
-          "type": "select",
-          "options": ["haiku", "sonnet", "opus"],
-          "default": "haiku"
-        }
-      ],
-      "requires": {
-        "cli": ["claude", "jq", "fswatch"],
-        "tcc": ["Reminders"]
       }
     }
   ]

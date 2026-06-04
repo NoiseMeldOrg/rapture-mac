@@ -12,7 +12,17 @@ final class ReplierTests: XCTestCase {
 
     func testReplyAllSuccess() {
         let text = Replier.composeReplyText(replyMode: .all, outcome: successOutcome())
-        XCTAssertEqual(text, "✓ Saved: 2026-05-19T04-12-08Z.txt")
+        XCTAssertEqual(text, "✅ Saved")
+    }
+
+    func testReplyAllSuccessOmitsFilename() {
+        // The reply intentionally drops the filename — user can't act on a path
+        // from their phone, and the short form is easier to glance at.
+        let text = Replier.composeReplyText(
+            replyMode: .all,
+            outcome: successOutcome(filename: "2026-06-04T08-22-17Z-99.txt")
+        )
+        XCTAssertEqual(text, "✅ Saved")
     }
 
     func testReplyAllFailure() {
@@ -39,17 +49,17 @@ final class ReplierTests: XCTestCase {
 
     func testCatchupTextSuccessOnly() {
         let text = Replier.composeCatchupText(successCount: 5, failureCount: 0)
-        XCTAssertEqual(text, "📥 Caught up: 5 notes captured")
+        XCTAssertEqual(text, "📥 Caught up: 5 notes")
     }
 
     func testCatchupTextWithFailures() {
         let text = Replier.composeCatchupText(successCount: 4, failureCount: 1)
-        XCTAssertEqual(text, "📥 Caught up: 4 notes captured (1 failed)")
+        XCTAssertEqual(text, "📥 Caught up: 4 notes (1 failed)")
     }
 
     func testCatchupTextZeroSuccessWithFailures() {
         let text = Replier.composeCatchupText(successCount: 0, failureCount: 3)
-        XCTAssertEqual(text, "📥 Caught up: 0 notes captured (3 failed)")
+        XCTAssertEqual(text, "📥 Caught up: 0 notes (3 failed)")
     }
 
     // MARK: - catchupDestination

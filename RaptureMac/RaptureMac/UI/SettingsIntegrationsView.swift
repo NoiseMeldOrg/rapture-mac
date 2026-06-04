@@ -125,10 +125,6 @@ struct InstallSectionView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                if !install.config.isEmpty {
-                    ConfigFormView(install: install)
-                }
-
                 actionRow
 
                 if let prereqs, !prereqs.missingItems.isEmpty {
@@ -171,37 +167,6 @@ struct InstallSectionView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .disabled(pendingAction == .running)
-            }
-            if install.start != nil {
-                Button(action: { dispatch(.start) }) {
-                    Text("Start")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(pendingAction == .running)
-            }
-            if install.stop != nil {
-                Button(action: { dispatch(.stop) }) {
-                    Text("Stop")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(pendingAction == .running)
-            }
-            if install.restart != nil {
-                Button(action: { dispatch(.restart) }) {
-                    Text("Restart")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(pendingAction == .running)
-            }
-            if !install.logs.isEmpty {
-                Button(action: openLogs) {
-                    Text("Open logs")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
             }
             if pendingAction == .running {
                 ProgressView()
@@ -282,22 +247,8 @@ struct InstallSectionView: View {
     }
 
     private func dispatch(_ action: IntegrationsState.ActionKind) {
-        let env = collectConfigEnv()
         Task { @MainActor in
-            await appState.integrations.run(action, for: install, env: env)
-        }
-    }
-
-    /// For installs that have a configFile, also pass the current config values as env vars
-    /// so the install script can pick them up via its existing watch.env path.
-    private func collectConfigEnv() -> [String: String] {
-        guard install.configFile != nil else { return [:] }
-        return appState.integrations.watcherConfig.values
-    }
-
-    private func openLogs() {
-        for url in install.logs {
-            NSWorkspace.shared.open(url)
+            await appState.integrations.run(action, for: install, env: [:])
         }
     }
 
@@ -307,108 +258,12 @@ struct InstallSectionView: View {
     }
 }
 
-// MARK: - Config form
-
-struct ConfigFormView: View {
-    let install: InstallProfile
-    @Environment(AppState.self) private var appState
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(install.config) { field in
-                ConfigFieldView(field: field, store: appState.integrations.watcherConfig)
-            }
-        }
-    }
-}
-
-struct ConfigFieldView: View {
-    let field: ConfigField
-    let store: WatcherConfigStore
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(field.label)
-                .frame(width: 130, alignment: .leading)
-                .font(.callout)
-            content
-            Spacer()
-        }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch field.kind {
-        case .folder:
-            HStack(spacing: 6) {
-                Text(displayedValue)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Button("Pick…") { pickFolder() }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-            }
-        case .select(let options):
-            Picker("", selection: bindingFor(field)) {
-                ForEach(options, id: \.self) { option in
-                    Text(option).tag(option)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-        case .string:
-            TextField("", text: bindingFor(field))
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 220)
-        }
-    }
-
-    private var displayedValue: String {
-        let raw = store.values[field.key] ?? field.default ?? ""
-        let expanded = (raw as NSString).expandingTildeInPath
-        return expanded == "$HOME"
-            ? FileManager.default.homeDirectoryForCurrentUser.path
-            : expanded
-    }
-
-    private func bindingFor(_ field: ConfigField) -> Binding<String> {
-        Binding(
-            get: { store.values[field.key] ?? field.default ?? "" },
-            set: { store.set(field.key, $0) }
-        )
-    }
-
-    private func pickFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Use This Folder"
-        let currentRaw = store.values[field.key] ?? field.default ?? ""
-        if !currentRaw.isEmpty {
-            let expanded = (currentRaw as NSString).expandingTildeInPath
-            if expanded != "$HOME", FileManager.default.fileExists(atPath: expanded) {
-                panel.directoryURL = URL(fileURLWithPath: expanded)
-            }
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        if panel.runModal() == .OK, let url = panel.url {
-            store.set(field.key, url.path)
-        }
-    }
-}
-
 // MARK: - Status pill
 
 enum StatusPill: Equatable {
     case notInstalled
     case installed
     case partiallyInstalled
-    case running(pid: Int?)
-    case loaded
     case unknown
 }
 
@@ -429,8 +284,6 @@ struct StatusPillView: View {
         case .notInstalled:        return "Not installed"
         case .installed:           return "Installed"
         case .partiallyInstalled:  return "Partial"
-        case .running(let pid):    return pid.map { "Running · PID \($0)" } ?? "Running"
-        case .loaded:              return "Loaded"
         case .unknown:             return "Unknown"
         }
     }
@@ -440,8 +293,6 @@ struct StatusPillView: View {
         case .notInstalled:        return .secondary.opacity(0.18)
         case .installed:           return .green.opacity(0.20)
         case .partiallyInstalled:  return .yellow.opacity(0.25)
-        case .running:             return .green.opacity(0.30)
-        case .loaded:              return .blue.opacity(0.20)
         case .unknown:             return .secondary.opacity(0.18)
         }
     }
@@ -449,8 +300,7 @@ struct StatusPillView: View {
     private var foreground: Color {
         switch pill {
         case .notInstalled, .unknown:    return .secondary
-        case .installed, .running:       return .green
-        case .loaded:                    return .blue
+        case .installed:                 return .green
         case .partiallyInstalled:        return .orange
         }
     }
@@ -469,17 +319,6 @@ nonisolated func pillForInstall(_ install: InstallProfile, status: StatusReport?
         case (false, _):       return .notInstalled
         case (true, false):    return .partiallyInstalled
         case (true, true):     return .installed
-        }
-    case .watcher:
-        if !status.watcher.workerInstalled || !status.watcher.plistInstalled {
-            return .notInstalled
-        }
-        switch status.watcher.launchdState {
-        case .notLoaded:
-            return .installed
-        case .loaded(let pid, _, let idle):
-            if idle { return .loaded }
-            return .running(pid: pid)
         }
     case .unknown:
         return .unknown

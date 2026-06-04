@@ -5,16 +5,27 @@ final class MessageFilterTests: XCTestCase {
 
     // MARK: - looksLikeAppConfirmation pattern matcher
 
-    func testMatchesSavedConfirmationNoSuffix() {
+    func testMatchesShortSavedConfirmation() {
+        // Current short form (no filename) — what the app emits today.
+        XCTAssertTrue(MessageFilter.looksLikeAppConfirmation("✅ Saved"))
+        XCTAssertTrue(MessageFilter.looksLikeAppConfirmation("  ✅ Saved  "))
+    }
+
+    func testMatchesLegacySavedConfirmationNoSuffix() {
+        // Pre-upgrade format. iCloud can replay these days later; keep matching.
         XCTAssertTrue(MessageFilter.looksLikeAppConfirmation("✓ Saved: 2026-05-20T19-16-54Z.txt"))
     }
 
-    func testMatchesSavedConfirmationWithCollisionSuffix() {
+    func testMatchesLegacySavedConfirmationWithCollisionSuffix() {
         XCTAssertTrue(MessageFilter.looksLikeAppConfirmation("✓ Saved: 2026-05-20T19-16-54Z-3.txt"))
         XCTAssertTrue(MessageFilter.looksLikeAppConfirmation("✓ Saved: 2026-05-20T19-16-54Z-82.txt"))
     }
 
     func testMatchesCatchupSummary() {
+        // Current short form.
+        XCTAssertTrue(MessageFilter.looksLikeAppConfirmation("📥 Caught up: 5 notes"))
+        XCTAssertTrue(MessageFilter.looksLikeAppConfirmation("📥 Caught up: 12 notes (3 failed)"))
+        // Legacy long form — iCloud replays of pre-upgrade summaries.
         XCTAssertTrue(MessageFilter.looksLikeAppConfirmation("📥 Caught up: 5 notes captured"))
         XCTAssertTrue(MessageFilter.looksLikeAppConfirmation("📥 Caught up: 12 notes captured (3 failed)"))
     }
@@ -52,6 +63,9 @@ final class MessageFilterTests: XCTestCase {
     func testRejectsCheckmarkAlone() {
         XCTAssertFalse(MessageFilter.looksLikeAppConfirmation("✓"))
         XCTAssertFalse(MessageFilter.looksLikeAppConfirmation("✓ something else"))
+        XCTAssertFalse(MessageFilter.looksLikeAppConfirmation("✅"))
+        XCTAssertFalse(MessageFilter.looksLikeAppConfirmation("✅ Saved!"))  // exact match only
+        XCTAssertFalse(MessageFilter.looksLikeAppConfirmation("✅ saved"))   // case-sensitive
     }
 
     // MARK: - End-to-end: MessageFilter.decide drops these on self-chat
@@ -85,6 +99,20 @@ final class MessageFilterTests: XCTestCase {
             XCTAssertEqual(reason, .appConfirmation)
         case .capture:
             XCTFail("Expected drop(.appConfirmation), got capture")
+        }
+    }
+
+    func testFilterDropsShortFormSavedFromSelfChat() {
+        let event = appConfirmationEvent(text: "✅ Saved")
+        let selfHandles: Set<String> = ["+15555550199"]
+        let settings = Settings()
+
+        let decision = MessageFilter.decide(event: event, selfHandles: selfHandles, settings: settings)
+
+        if case .drop(let reason) = decision {
+            XCTAssertEqual(reason, .appConfirmation)
+        } else {
+            XCTFail("Expected drop(.appConfirmation)")
         }
     }
 

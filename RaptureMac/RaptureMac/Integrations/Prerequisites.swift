@@ -39,7 +39,6 @@ enum Prerequisites {
     /// `MissingItem.installCommand`.
     static let installCommands: [String: String] = [
         "jq":       "brew install jq",
-        "fswatch":  "brew install fswatch",
         "claude":   "brew install --cask claude-code",
         "rg":       "brew install ripgrep",
         "fd":       "brew install fd"
@@ -49,7 +48,6 @@ enum Prerequisites {
     /// might want pre-granted. Unknown TCC names render a button that opens the
     /// Privacy & Security root pane.
     private static let tccURLs: [String: URL] = [
-        "Reminders":      URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders")!,
         "Calendar":       URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendar")!,
         "Contacts":       URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Contacts")!,
         "Accessibility":  URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!,

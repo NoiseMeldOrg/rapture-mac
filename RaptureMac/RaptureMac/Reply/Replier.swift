@@ -74,8 +74,8 @@ final class Replier {
             return nil
         case (.errorsOnly, .success):
             return nil
-        case (.all, .success(let url)):
-            return "✓ Saved: \(url.lastPathComponent)"
+        case (.all, .success):
+            return "✅ Saved"
         case (_, .failure(let reason)):
             return "✗ \(reason)"
         }
@@ -83,9 +83,9 @@ final class Replier {
 
     nonisolated static func composeCatchupText(successCount: Int, failureCount: Int) -> String {
         if failureCount > 0 {
-            return "📥 Caught up: \(successCount) notes captured (\(failureCount) failed)"
+            return "📥 Caught up: \(successCount) notes (\(failureCount) failed)"
         }
-        return "📥 Caught up: \(successCount) notes captured"
+        return "📥 Caught up: \(successCount) notes"
     }
 
     nonisolated static func catchupDestination(replyMode: ReplyMode, selfChatGuid: String?) -> CatchupDestination {

@@ -7,10 +7,6 @@ final class PrerequisitesTests: XCTestCase {
 
     func testKnownTCCNamesResolveToExpectedURLs() {
         XCTAssertEqual(
-            Prerequisites.tccURL(for: "Reminders").absoluteString,
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders"
-        )
-        XCTAssertEqual(
             Prerequisites.tccURL(for: "Calendar").absoluteString,
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendar"
         )
@@ -41,7 +37,6 @@ final class PrerequisitesTests: XCTestCase {
 
     func testKnownCLIInstallCommandsAreCanonical() {
         XCTAssertEqual(Prerequisites.installCommands["jq"], "brew install jq")
-        XCTAssertEqual(Prerequisites.installCommands["fswatch"], "brew install fswatch")
         XCTAssertEqual(Prerequisites.installCommands["claude"], "brew install --cask claude-code")
     }
 
@@ -66,7 +61,7 @@ final class PrerequisitesTests: XCTestCase {
 
     func testAllCLIsPresentMarksReportAllPresent() {
         let report = Prerequisites.detect(
-            Requires(cli: ["claude", "jq", "fswatch"], brew: [], tcc: []),
+            Requires(cli: ["claude", "jq"], brew: [], tcc: []),
             exists: { _ in true }
         )
         XCTAssertTrue(report.missingCLIs.isEmpty)
@@ -76,13 +71,13 @@ final class PrerequisitesTests: XCTestCase {
 
     func testMissingCLIIsReported() {
         let report = Prerequisites.detect(
-            Requires(cli: ["claude", "jq", "fswatch"], brew: [], tcc: []),
-            exists: { name in name != "fswatch" }
+            Requires(cli: ["claude", "jq"], brew: [], tcc: []),
+            exists: { name in name != "jq" }
         )
-        XCTAssertEqual(report.missingCLIs, ["fswatch"])
+        XCTAssertEqual(report.missingCLIs, ["jq"])
         XCTAssertFalse(report.allCLIsPresent)
-        XCTAssertEqual(report.missingItems.map(\.name), ["fswatch"])
-        XCTAssertEqual(report.missingItems.first?.installCommand, "brew install fswatch")
+        XCTAssertEqual(report.missingItems.map(\.name), ["jq"])
+        XCTAssertEqual(report.missingItems.first?.installCommand, "brew install jq")
     }
 
     func testMissingBrewPackageIsReportedSeparatelyFromCLI() {
@@ -106,13 +101,13 @@ final class PrerequisitesTests: XCTestCase {
 
     func testRequiresWithTCCProducesTCCEntries() {
         let report = Prerequisites.detect(
-            Requires(cli: [], brew: [], tcc: ["Reminders", "Calendar"]),
+            Requires(cli: [], brew: [], tcc: ["Calendar", "Contacts"]),
             exists: { _ in true }
         )
-        XCTAssertEqual(report.tccDeepLinks.map(\.name), ["Reminders", "Calendar"])
+        XCTAssertEqual(report.tccDeepLinks.map(\.name), ["Calendar", "Contacts"])
         XCTAssertEqual(
             report.tccDeepLinks.first?.url.absoluteString,
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders"
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendar"
         )
     }
 

@@ -16,7 +16,7 @@ Your phone is across the room, locked, untouched. You say:
 
 Siri transcribes and sends. No unlock, no app open, no taps. Rapture for Mac sees the message arrive, writes `2026-05-16T14-32-08Z.txt` to a folder you picked (local, Dropbox, Drive, all just paths), and replies in the chat:
 
-> *✓ Saved: 2026-05-16T14-32-08Z.txt*
+> *✅ Saved*
 
 That's the whole transaction. The defining property: **the iPhone side is fully hands-free from a locked device.** It's the one Apple-permitted voice path that works without unlock. Shortcuts can't do it from the lock screen. The Action Button needs the phone in hand. The Notes app needs unlock.
 
@@ -31,10 +31,10 @@ That's the whole transaction. The defining property: **the iPhone side is fully 
 The app will guide you through two macOS permissions. Both are required.
 
 1. **Full Disk Access**: needed to read `~/Library/Messages/chat.db`. The app opens a sheet with an **Open System Settings** button that deep-links to the right pane. Toggle Rapture for Mac on. (If you don't see it in the list, click `+` and add it manually.) The sheet closes automatically once access is granted.
-2. **Automation → Messages**: needed for the `✓ Saved` reply. The first time the app tries to reply, you'll see a one-time pre-prompt explaining what's about to happen, then macOS shows its own permission dialog. Click **OK**.
+2. **Automation → Messages**: needed for the `✅ Saved` reply. The first time the app tries to reply, you'll see a one-time pre-prompt explaining what's about to happen, then macOS shows its own permission dialog. Click **OK**.
 3. Send yourself an iMessage from another device on the same iCloud account: *"Hey Siri, text me, this is a test."*
 4. Within about a second, a `.txt` file appears in `~/Documents/Rapture Notes/` (the default folder; you can change it under **Settings → General**).
-5. Within another second, you see `✓ Saved: <filename>.txt` in your iMessages thread on your phone. That's the audible-on-iPhone confirmation that the capture landed.
+5. Within another second, you see `✅ Saved` in your iMessages thread on your phone. That's the audible-on-iPhone confirmation that the capture landed.
 
 That's the whole product. Everything else (allowlist, reply modes, pause/resume) is in the menu-bar popover and the Settings window.
 
@@ -47,7 +47,7 @@ The folder is the entire integration surface. The captures are plain `.txt` file
 
 Starter configs for the automated path live in [`examples/`](./examples):
 
-- [`examples/claude-code/`](./examples/claude-code) — `CLAUDE.md` routing rules, with three trigger options: manual `cd && claude`, Claude Code Desktop scheduled task, or a launchd plist for headless `claude -p`
+- [`examples/claude-code/`](./examples/claude-code) — `CLAUDE.md` routing rules plus a one-line installer for a `SessionStart` hook that surfaces pending notes whenever you next open Claude Code
 - [`examples/openclaw/`](./examples/openclaw) — OpenClaw skill that watches the folder; default reply via Telegram (Rapture already owns the iMessage layer)
 - [`examples/hermes/`](./examples/hermes) — Hermes Agent skill, schedules via built-in cron, default reply via Telegram
 - [`examples/cli/`](./examples/cli) — vendor-neutral shell script that pipes each note into any LLM CLI
@@ -76,7 +76,7 @@ A short list of things you might expect but don't get; for the full rationale se
 The app asks for **Full Disk Access** and **Automation → Messages**, which are unusual permissions on macOS. That's not a corner being cut. It's the only way the product can work:
 
 - **Reading `~/Library/Messages/chat.db` requires Full Disk Access**, period. No entitlement gets a sandboxed app into that file; this is an Apple privacy guarantee, not a configuration option. Without that read, the app has nothing to capture.
-- **Sending the `✓ Saved` reply requires spawning `osascript` and controlling Messages.app**, both of which the Mac App Store sandbox forbids for arbitrary apps.
+- **Sending the `✅ Saved` reply requires spawning `osascript` and controlling Messages.app**, both of which the Mac App Store sandbox forbids for arbitrary apps.
 
 So the app ships outside the sandbox by structural necessity, which is also why it isn't (and can't be) on the Mac App Store. In exchange, the code carries no network calls, no telemetry, and only one third-party dependency. See [PRIVACY.md](./PRIVACY.md) for the full posture and how to verify it yourself with two shell commands.
 

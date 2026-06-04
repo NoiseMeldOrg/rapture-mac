@@ -33,7 +33,7 @@ When Claude Code is invoked from a folder containing this file, it picks up thes
 
 ## Media extraction (if you have extraction skills installed)
 
-Most captured notes are just a pasted link. If you have the relevant skills installed, extract the *content* (so it's searchable later) rather than just filing the link. The worker runs media notes on a stronger model (see `install-claude-watch.sh`) precisely so these skill calls are reliable.
+Most captured notes are just a pasted link. If you have the relevant skills installed, extract the *content* (so it's searchable later) rather than just filing the link.
 
 - **YouTube URL** → invoke the `extract-transcript` skill by name; save the markdown alongside your notes (e.g. a `transcripts/` folder).
 - **Other web link** → invoke `extract-webpage` (or `tool-firecrawl-scraper`).
@@ -62,5 +62,5 @@ If there are more than 20 unprocessed files (the Mac slept for a long weekend, f
 
 - Don't touch files in `processed/` or `code-tasks/`. They've already been routed.
 - Don't re-process the routed `.md` files at root (`todos.md`, `journal-*.md`, `ideas.md`, `code-tasks.md`, `reminders.md`, `uncategorized.md`); they're routing destinations, not input notes.
-- Don't generate iMessage replies. Rapture itself sent the `✓ Saved` confirmation when each file landed.
+- Don't generate iMessage replies. Rapture itself sent the `✅ Saved` confirmation when each file landed.
 - Don't write outside this folder unless a captured note explicitly tells you to.

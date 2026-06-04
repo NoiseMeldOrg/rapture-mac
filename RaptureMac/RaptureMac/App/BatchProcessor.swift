@@ -105,6 +105,7 @@ final class BatchProcessor {
     private let writer: FileWriting
     private let replier: Replier
     private let echoGuard: EchoGuard
+    private let contentDedupCache: ContentDedupCache
     private let selfHandlesProvider: @MainActor () -> Set<String>
     private let selfChatGuidProvider: @MainActor () -> String?
     private let advanceWatermark: @MainActor (Int64) -> Void
@@ -118,6 +119,7 @@ final class BatchProcessor {
         writer: FileWriting,
         replier: Replier,
         echoGuard: EchoGuard,
+        contentDedupCache: ContentDedupCache,
         selfHandlesProvider: @escaping @MainActor () -> Set<String>,
         selfChatGuidProvider: @escaping @MainActor () -> String?,
         advanceWatermark: @escaping @MainActor (Int64) -> Void
@@ -126,6 +128,7 @@ final class BatchProcessor {
         self.writer = writer
         self.replier = replier
         self.echoGuard = echoGuard
+        self.contentDedupCache = contentDedupCache
         self.selfHandlesProvider = selfHandlesProvider
         self.selfChatGuidProvider = selfChatGuidProvider
         self.advanceWatermark = advanceWatermark
@@ -198,6 +201,22 @@ final class BatchProcessor {
                     continue
                 }
 
+                // Cross-session content dedup. Catches iCloud cross-device replays
+                // that GUID dedup can't see (different GUIDs, different timestamps,
+                // identical content). The check happens here rather than in
+                // MessageFilter because it depends on cross-batch persisted state.
+                let handleForDedup = captured.event.handleId ?? ""
+                if contentDedupCache.contains(
+                    handle: handleForDedup,
+                    text: captured.decodedText,
+                    attachmentCount: captured.event.attachments.count
+                ) {
+                    Self.log.debug("content-dedup suppressed rowid=\(event.rowid)")
+                    advanceWatermark(event.rowid)
+                    outcome.droppedCount += 1
+                    continue
+                }
+
                 guard let folder = settings.outputFolder else {
                     appState.recordError("No output folder configured")
                     outcome.failureCount += 1
@@ -216,6 +235,11 @@ final class BatchProcessor {
                     appState.state.recordSuccess(at: Date())
                     advanceWatermark(event.rowid)
                     outcome.successCount += 1
+                    contentDedupCache.track(
+                        handle: handleForDedup,
+                        text: captured.decodedText,
+                        attachmentCount: captured.event.attachments.count
+                    )
                     await replier.replyForWrite(captured: captured, result: result, settings: settings)
                 case .failure(let reason):
                     Self.log.error("write failed rowid=\(event.rowid): \(reason, privacy: .public)")

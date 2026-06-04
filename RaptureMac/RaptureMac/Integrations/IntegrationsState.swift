@@ -17,7 +17,7 @@ final class IntegrationsState {
 
     /// What kind of action a button press dispatches.
     enum ActionKind: String, Sendable {
-        case install, uninstall, start, stop, restart
+        case install, uninstall
     }
 
     /// All discovered consumer cards (sorted by folder name; stable across launches).
@@ -32,10 +32,6 @@ final class IntegrationsState {
     /// Transient per-install action state, keyed by install id.
     private(set) var pendingActions: [String: ActionState] = [:]
 
-    /// Single watcher config store shared across any install that declares a
-    /// configFile. v1 only has Claude's `~/.config/rapture-mac/watch.env`.
-    let watcherConfig: WatcherConfigStore
-
     @ObservationIgnored private let runner: IntegrationRunning
     @ObservationIgnored private let scriptsRoot: URL
     @ObservationIgnored private var pollTask: Task<Void, Never>?
@@ -43,12 +39,10 @@ final class IntegrationsState {
     init(
         runner: IntegrationRunning,
         examplesRoot: URL,
-        scriptsRoot: URL,
-        watcherConfig: WatcherConfigStore
+        scriptsRoot: URL
     ) {
         self.runner = runner
         self.scriptsRoot = scriptsRoot
-        self.watcherConfig = watcherConfig
 
         do {
             self.cards = try IntegrationDiscovery.discover(
@@ -166,9 +160,6 @@ final class IntegrationsState {
         switch action {
         case .install:   return install.install
         case .uninstall: return install.uninstall
-        case .start:     return install.start
-        case .stop:      return install.stop
-        case .restart:   return install.restart
         }
     }
 }

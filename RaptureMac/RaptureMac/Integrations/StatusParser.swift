@@ -6,19 +6,6 @@ struct StatusReport: Equatable, Sendable {
         var registered: Bool = false
     }
 
-    struct Watcher: Equatable, Sendable {
-        enum LaunchdState: Equatable, Sendable {
-            case notLoaded
-            case loaded(pid: Int?, lastExit: Int?, idle: Bool)
-        }
-        var workerInstalled: Bool = false
-        var plistInstalled: Bool = false
-        var launchdState: LaunchdState = .notLoaded
-        var fswatchPid: Int?
-        var lastLogLine: String?
-        var lastErrLine: String?
-    }
-
     struct NotesFolder: Equatable, Sendable {
         var path: String?
         var source: String?
@@ -27,7 +14,6 @@ struct StatusReport: Equatable, Sendable {
     }
 
     var hook: Hook = Hook()
-    var watcher: Watcher = Watcher()
     var notesFolder: NotesFolder = NotesFolder()
 
     static let empty = StatusReport()
@@ -51,7 +37,6 @@ enum StatusParser {
             switch section {
             case .none:           break
             case .hook:           parseHook(line: line, into: &report.hook)
-            case .watcher:        parseWatcher(line: line, into: &report.watcher)
             case .notesFolder:    parseNotesFolder(line: line, into: &report.notesFolder)
             case .commands:       break
             }
@@ -62,11 +47,10 @@ enum StatusParser {
 
     // MARK: - Sections
 
-    private enum Section { case none, hook, watcher, notesFolder, commands }
+    private enum Section { case none, hook, notesFolder, commands }
 
     private nonisolated static func detectSection(line: String) -> Section? {
         if line.hasPrefix("SessionStart hook")      { return .hook }
-        if line.hasPrefix("Event-driven watcher")   { return .watcher }
         if line.hasPrefix("Notes folder:")          { return .notesFolder }
         if line.hasPrefix("Commands:")              { return .commands }
         return nil
@@ -85,51 +69,6 @@ enum StatusParser {
         } else if body.hasPrefix("Not registered") {
             hook.registered = false
         }
-    }
-
-    // MARK: - Watcher
-
-    private nonisolated static func parseWatcher(line: String, into watcher: inout StatusReport.Watcher) {
-        let body = stripMarker(line)
-
-        if body.hasPrefix("Worker script: ") {
-            watcher.workerInstalled = true
-        } else if body == "Worker script not installed" {
-            watcher.workerInstalled = false
-        } else if body.hasPrefix("Plist: ") {
-            watcher.plistInstalled = true
-        } else if body == "Plist not installed" {
-            watcher.plistInstalled = false
-        } else if body.hasPrefix("Loaded in launchd ") {
-            watcher.launchdState = parseLaunchdLoaded(body)
-        } else if body == "Not loaded in launchd" {
-            watcher.launchdState = .notLoaded
-        } else if body.hasPrefix("fswatch running: PID ") {
-            let pidString = body.replacingOccurrences(of: "fswatch running: PID ", with: "")
-            watcher.fswatchPid = Int(pidString)
-        } else if body == "fswatch not running" {
-            watcher.fswatchPid = nil
-        } else if body.hasPrefix("Last log line: ") {
-            watcher.lastLogLine = String(body.dropFirst("Last log line: ".count))
-        } else if body.hasPrefix("Last err line: ") {
-            watcher.lastErrLine = String(body.dropFirst("Last err line: ".count))
-        }
-    }
-
-    /// "Loaded in launchd (idle; last exit code: 0)"
-    /// "Loaded in launchd (PID 12345; last exit code: -9)"
-    private nonisolated static func parseLaunchdLoaded(_ body: String) -> StatusReport.Watcher.LaunchdState {
-        let pidRegex   = #/Loaded in launchd \(PID (\d+); last exit code: (-?\d+)\)/#
-        let idleRegex  = #/Loaded in launchd \(idle; last exit code: (-?\d+)\)/#
-
-        if let match = body.firstMatch(of: pidRegex) {
-            return .loaded(pid: Int(match.1), lastExit: Int(match.2), idle: false)
-        }
-        if let match = body.firstMatch(of: idleRegex) {
-            return .loaded(pid: nil, lastExit: Int(match.1), idle: true)
-        }
-        // Loaded marker present but format unrecognized — treat as loaded with unknown details
-        return .loaded(pid: nil, lastExit: nil, idle: false)
     }
 
     // MARK: - Notes folder
@@ -168,7 +107,7 @@ enum StatusParser {
 
     /// Strips leading whitespace, `✓ `, `✗ ` so individual matchers see the body only.
     /// status.sh prefixes every fact line with two spaces and a glyph; some auxiliary
-    /// lines (Last log line:, Path:, Source:, Pending:) have just the two spaces.
+    /// lines (Path:, Source:, Pending:) have just the two spaces.
     nonisolated static func stripMarker(_ line: String) -> String {
         let trimmed = line.drop(while: { $0 == " " || $0 == "\t" })
         if trimmed.hasPrefix("✓ ") { return String(trimmed.dropFirst(2)) }

@@ -12,6 +12,7 @@ final class Pipeline {
     private let sender = AppleScriptSender()
     private let notifications = NotificationDispatcher()
     private lazy var echoGuard = EchoGuard(stateStore: appState.state)
+    private lazy var contentDedupCache = ContentDedupCache(stateStore: appState.state)
     private lazy var replier = Replier(
         sender: sender,
         echoGuard: echoGuard,
@@ -113,6 +114,7 @@ final class Pipeline {
             writer: writer,
             replier: replier,
             echoGuard: echoGuard,
+            contentDedupCache: contentDedupCache,
             selfHandlesProvider: { [weak resolver] in
                 resolver?.currentHandlesSnapshot() ?? []
             },

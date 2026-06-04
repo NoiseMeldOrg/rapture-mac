@@ -203,12 +203,12 @@ final class IntegrationDiscoveryTests: XCTestCase {
 
     // MARK: - Install profiles
 
-    func testParsesFullClaudeCodeShapedManifest() throws {
+    func testParsesClaudeCodeManifestWithHookInstall() throws {
         let folder = try makeFolder("claude-code")
         try writeFile(#"""
         {
           "displayName": "Claude Code",
-          "description": "watch and triage",
+          "description": "triage",
           "installs": [
             {
               "id": "claude-hook",
@@ -218,31 +218,13 @@ final class IntegrationDiscoveryTests: XCTestCase {
               "uninstall": "Scripts/uninstall-claude-hook.sh",
               "statusKey": "hook",
               "requires": {"cli": ["claude", "jq"]}
-            },
-            {
-              "id": "claude-watch",
-              "name": "Autonomous watcher",
-              "install": "Scripts/install-claude-watch.sh",
-              "uninstall": "Scripts/uninstall-claude-watch.sh",
-              "start": "Scripts/start-watch.sh",
-              "stop": "Scripts/stop-watch.sh",
-              "restart": "Scripts/restart-watch.sh",
-              "logs": ["/tmp/x.log", "/tmp/y.log"],
-              "statusKey": "watcher",
-              "configFile": "~/.config/rapture-mac/watch.env",
-              "config": [
-                {"key": "RAPTURE_CLAUDE_WORKDIR", "label": "Workdir", "type": "folder", "default": "$HOME"},
-                {"key": "RAPTURE_MEDIA_MODEL", "label": "Media", "type": "select", "options": ["haiku", "sonnet"], "default": "sonnet"},
-                {"key": "RAPTURE_TEXT_MODEL", "label": "Text", "type": "string"}
-              ],
-              "requires": {"cli": ["claude", "jq", "fswatch"], "tcc": ["Reminders"]}
             }
           ]
         }
         """#, to: folder.appendingPathComponent("manifest.json"))
 
         let card = try XCTUnwrap(try discover().first)
-        XCTAssertEqual(card.installs.count, 2)
+        XCTAssertEqual(card.installs.count, 1)
 
         let hook = card.installs[0]
         XCTAssertEqual(hook.id, "claude-hook")
@@ -253,30 +235,10 @@ final class IntegrationDiscoveryTests: XCTestCase {
         XCTAssertEqual(hook.requires.tcc, [])
         XCTAssertTrue(hook.config.isEmpty)
         XCTAssertNil(hook.configFile)
-
-        let watcher = card.installs[1]
-        XCTAssertEqual(watcher.id, "claude-watch")
-        XCTAssertEqual(watcher.statusKey, .watcher)
-        XCTAssertEqual(watcher.start, scriptsRoot.appendingPathComponent("start-watch.sh"))
-        XCTAssertEqual(watcher.logs, [URL(fileURLWithPath: "/tmp/x.log"), URL(fileURLWithPath: "/tmp/y.log")])
-        XCTAssertEqual(watcher.config.count, 3)
-
-        XCTAssertEqual(watcher.config[0].key, "RAPTURE_CLAUDE_WORKDIR")
-        XCTAssertEqual(watcher.config[0].kind, .folder)
-        XCTAssertEqual(watcher.config[0].default, "$HOME")
-
-        XCTAssertEqual(watcher.config[1].key, "RAPTURE_MEDIA_MODEL")
-        XCTAssertEqual(watcher.config[1].kind, .select(["haiku", "sonnet"]))
-
-        XCTAssertEqual(watcher.config[2].key, "RAPTURE_TEXT_MODEL")
-        XCTAssertEqual(watcher.config[2].kind, .string)
-
-        XCTAssertEqual(watcher.requires.cli, ["claude", "jq", "fswatch"])
-        XCTAssertEqual(watcher.requires.tcc, ["Reminders"])
-
-        // configFile expands tilde
-        let expectedConfigPath = (("~/.config/rapture-mac/watch.env") as NSString).expandingTildeInPath
-        XCTAssertEqual(watcher.configFile, URL(fileURLWithPath: expectedConfigPath))
+        XCTAssertNil(hook.start)
+        XCTAssertNil(hook.stop)
+        XCTAssertNil(hook.restart)
+        XCTAssertTrue(hook.logs.isEmpty)
     }
 
     func testInstallWithoutIdOrNameIsSkipped() throws {

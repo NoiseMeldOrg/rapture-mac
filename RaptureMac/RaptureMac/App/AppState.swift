@@ -27,8 +27,7 @@ final class AppState {
         self.integrations = IntegrationsState(
             runner: runner,
             examplesRoot: Bundle.main.examplesURL,
-            scriptsRoot: Bundle.main.scriptsURL,
-            watcherConfig: WatcherConfigStore()
+            scriptsRoot: Bundle.main.scriptsURL
         )
         self.lastError = state.state.lastError
     }

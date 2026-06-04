@@ -5,6 +5,7 @@ struct PersistedState: Codable, Sendable, Equatable {
     var selfHandlesCacheTs: Date?
     var lastError: String?
     var recentSentEchoes: [EchoEntry]
+    var recentCaptureHashes: [CaptureHashEntry]
     var automationPrePromptShown: Bool
     var todayCount: Int
     var todayDate: Date?
@@ -15,6 +16,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         selfHandlesCacheTs: Date? = nil,
         lastError: String? = nil,
         recentSentEchoes: [EchoEntry] = [],
+        recentCaptureHashes: [CaptureHashEntry] = [],
         automationPrePromptShown: Bool = false,
         todayCount: Int = 0,
         todayDate: Date? = nil,
@@ -24,6 +26,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.selfHandlesCacheTs = selfHandlesCacheTs
         self.lastError = lastError
         self.recentSentEchoes = recentSentEchoes
+        self.recentCaptureHashes = recentCaptureHashes
         self.automationPrePromptShown = automationPrePromptShown
         self.todayCount = todayCount
         self.todayDate = todayDate
@@ -35,6 +38,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         case selfHandlesCacheTs
         case lastError
         case recentSentEchoes
+        case recentCaptureHashes
         case automationPrePromptShown
         case todayCount
         case todayDate
@@ -47,6 +51,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.selfHandlesCacheTs = try c.decodeIfPresent(Date.self, forKey: .selfHandlesCacheTs)
         self.lastError = try c.decodeIfPresent(String.self, forKey: .lastError)
         self.recentSentEchoes = try c.decodeIfPresent([EchoEntry].self, forKey: .recentSentEchoes) ?? []
+        self.recentCaptureHashes = try c.decodeIfPresent([CaptureHashEntry].self, forKey: .recentCaptureHashes) ?? []
         self.automationPrePromptShown = try c.decodeIfPresent(Bool.self, forKey: .automationPrePromptShown) ?? false
         self.todayCount = try c.decodeIfPresent(Int.self, forKey: .todayCount) ?? 0
         self.todayDate = try c.decodeIfPresent(Date.self, forKey: .todayDate)

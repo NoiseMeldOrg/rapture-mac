@@ -67,3 +67,7 @@ notarize/
 
 # Logs
 *.log
+
+# Coverage artifacts
+*.profraw
+*.profdata

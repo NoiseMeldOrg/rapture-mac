@@ -1,8 +1,8 @@
 # Product Roadmap
 
-> Last Updated: 2026-05-22
+> Last Updated: 2026-06-22
 > Version: 1.1.0
-> Status: v1 shipped — public release v1.0.29 live on GitHub Releases (2026-05-20)
+> Status: v1 shipped — latest public release v1.0.69 live on GitHub Releases (2026-06-22)
 
 Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/plan.md`. Effort is shaped as `XS` (1 day), `S` (2–3 days), `M` (1 week), `L` (2 weeks).
 
@@ -17,8 +17,8 @@ Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local
 **Post-v1.0.29 patches:**
 - **v1.0.48 (shipped 2026-05-22)** — menu bar icon = Rapture brand mark. Custom template image in `Assets.xcassets/MenuBarIcon.imageset/` (@1x/@2x/@3x black-on-transparent with `template-rendering-intent`). `MenuBarLabel` in `RaptureMacApp.swift` shows the brand mark when capturing normally; keeps SF Symbols (`exclamationmark.triangle.fill`, `pause.fill`) for the warning/paused states because those communicate clearly across all apps. Replaces the placeholder `text.bubble`. Auto-versioner jumped to 1.0.48 because of intervening doc/scripts commits (no v1.0.30–v1.0.47 were released).
 
-**Planned patches:**
-- **Output-folder path sidecar (planned, next release)** — on every output-folder change (including first-launch default initialization), `SettingsStore` writes the resolved absolute path to `~/Library/Application Support/Rapture for Mac/output-folder.path` (atomic `.tmp` → `rename(2)`, same pattern as `settings.json` / `state.json`). Public contract for downstream consumers (Claude Code SessionStart hook, OpenClaw / Hermes skills, custom shell scripts) so changing the folder in Settings → General is picked up automatically without consumer reconfiguration. Documented in `tech-stack.md`. `XS`
+**Post-v1.0.48 patches:**
+- **v1.0.69 (shipped 2026-06-22)** — Dropbox-style auto-relocation of the output folder + the output-folder path sidecar (now implemented). Changing the folder in Settings → General moves the existing notes tree to the new location (same-volume atomic rename; cross-volume copy-verify-delete; merge-never-clobber on collisions; source intact on failure; emptied old folder removed on success) via `AppState.setOutputFolder` → `OutputFolderMigrator`, with the capture pipeline quiesced by `CaptureGate`. `OutputFolderSidecar` writes the resolved absolute path to `~/Library/Application Support/Rapture for Mac/output-folder.path` on every change and on first-launch init — the public contract for downstream consumers (Claude Code SessionStart hook, OpenClaw / Hermes skills, custom scripts). This release also folds in the accumulated unreleased work since 1.0.64: the `ContentDedupCache` fix for iCloud cross-device replay duplicates, the `✅ Saved` / `📥 Caught up: N notes` reply-text changes, and removal of the autonomous launchd watcher. 214 tests. See [`agent-os/specs/2026-06-22-1048-output-folder-auto-relocation/`](../specs/2026-06-22-1048-output-folder-auto-relocation/). `S`
 
 ## Phase 1: Repo bootstrap (Complete)
 

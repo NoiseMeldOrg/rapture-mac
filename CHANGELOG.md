@@ -4,6 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.69] - 2026-06-22: Auto-relocating output folder
+
+Built from commit `590b0c2`. SHA-256: `3aff7f97e88f76c64230389c393959052f01fd6705c62376bfffd19eda40100d`.
+
 ### Added
 
 - **Changing the Output Folder now moves your existing notes (Dropbox-style).** Previously, picking a new folder in Settings → General only re-pointed where *new* captures landed — your existing notes were stranded in the old folder. Now the whole notes tree (including subfolders, dotfiles, `processed/`, attachment folders, and `CLAUDE.md`/routing files) moves to the new folder automatically, then the app switches to it. It's silent on success; only failures surface. All folder changes route through a single `AppState.setOutputFolder` path (`pickFolder`, drag-and-drop, and any future programmatic change), backed by a new `OutputFolderMigrator` service. Data-safety is the governing constraint: same-volume changes use an atomic per-item rename; cross-volume changes (e.g. internal disk → external `/Volumes/...`) **copy → verify → then delete** the source, never deleting before the destination is verified; collisions merge rather than clobber (`.md` config/routing files keep the destination copy, notes and everything else are disambiguated with a `<base>-<n>` suffix); and any failure leaves the source intact and the active folder unchanged. The capture pipeline is quiesced during the move via a new `CaptureGate` async mutex (the whole batch and the whole move are mutually exclusive), plus a transient `isRelocating` flag that defers new batches so they replay into the *new* folder. Degenerate cases are guarded: no-op when unchanged, refusal when the new folder is nested inside the old (or vice versa), unwritable destination, missing source, and insufficient cross-volume space.

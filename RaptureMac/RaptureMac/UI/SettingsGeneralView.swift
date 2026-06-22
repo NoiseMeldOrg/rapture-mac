@@ -45,11 +45,32 @@ struct SettingsGeneralView: View {
             )
             .onDrop(of: [.fileURL], isTargeted: $folderDropTargeted, perform: handleDrop)
 
-            Text("Captured notes land here as `.txt` files. Drop a folder above to change it.")
+            relocationStatusView
+
+            Text("Captured notes land here as `.txt` files. Drop a folder above to change it. Existing notes move to the new folder automatically.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } header: {
             Text("Notes Folder")
+        }
+    }
+
+    @ViewBuilder
+    private var relocationStatusView: some View {
+        switch appState.relocationStatus {
+        case .inProgress:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Moving notes to the new folder…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        case .failed(let message):
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.red)
+        case .idle:
+            EmptyView()
         }
     }
 
@@ -69,7 +90,7 @@ struct SettingsGeneralView: View {
         }
         NSApp.activate(ignoringOtherApps: true)
         if panel.runModal() == .OK, let url = panel.url {
-            appState.settings.update { $0.outputFolder = url }
+            Task { await appState.setOutputFolder(url) }
         }
     }
 
@@ -80,7 +101,7 @@ struct SettingsGeneralView: View {
             var isDir: ObjCBool = false
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return }
             Task { @MainActor in
-                appState.settings.update { $0.outputFolder = url }
+                await appState.setOutputFolder(url)
             }
         }
         return true

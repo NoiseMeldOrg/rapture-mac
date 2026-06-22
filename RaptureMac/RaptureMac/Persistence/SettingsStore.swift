@@ -29,6 +29,7 @@ final class SettingsStore {
             Self.log.error("Failed to create default output folder: \(error.localizedDescription, privacy: .public)")
         }
         update { $0.outputFolder = defaultFolder }
+        OutputFolderSidecar.write(defaultFolder)
     }
 
     /// Two-way binding for any property of `Settings`. Reads from the live struct,

@@ -136,13 +136,24 @@ final class BatchProcessor {
 
     @discardableResult
     func process(batch: [MessageEvent]) async -> BatchOutcome {
+        // Hold the capture gate for the whole batch so an output-folder relocation can't
+        // run while this batch is mid-write, and so the folder URL captured below can't go
+        // stale mid-batch. The relocator acquires the same gate before moving files.
+        await appState.captureGate.withLock {
+            await processLocked(batch: batch)
+        }
+    }
+
+    private func processLocked(batch: [MessageEvent]) async -> BatchOutcome {
         guard !batch.isEmpty else {
             return BatchOutcome(successCount: 0, failureCount: 0, droppedCount: 0, isCatchup: false)
         }
 
         let settings = appState.settings.settings
         let decision = Self.policy(
-            paused: settings.paused,
+            // Treat an in-flight relocation like a pause: defer the batch (watermark does
+            // not advance) so these rows replay into the new folder once the move completes.
+            paused: settings.paused || appState.isRelocating,
             wasPausedLastBatch: wasPausedLastBatch,
             isFirstNonemptyBatchSeen: isFirstNonemptyBatchSeen,
             batchSize: batch.count

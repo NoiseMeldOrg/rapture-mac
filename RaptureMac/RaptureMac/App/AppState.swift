@@ -10,14 +10,29 @@ final class AppState {
         case ok
     }
 
+    /// Transient status of an in-flight output-folder relocation. Not persisted.
+    enum RelocationStatus: Equatable {
+        case idle
+        case inProgress
+        case failed(String)
+    }
+
     var permissionState: PermissionState = .unknown
     var automationPermissionState: AutomationPermissionState = .unknown
     var lastError: String?
     var lastErrorAt: Date?
 
+    /// True while notes are being moved between folders. The capture pipeline treats this
+    /// like `paused` (defers new batches) so writes don't race the move. Transient.
+    var isRelocating = false
+    var relocationStatus: RelocationStatus = .idle
+
     let settings: SettingsStore
     let state: StateStore
     let integrations: IntegrationsState
+
+    /// Serializes capture writes against an output-folder relocation. See `CaptureGate`.
+    let captureGate = CaptureGate()
 
     init() {
         self.settings = SettingsStore()
@@ -42,5 +57,46 @@ final class AppState {
         lastError = nil
         lastErrorAt = nil
         state.update { $0.lastError = nil }
+    }
+
+    /// The single entry point for changing the output folder. Moves the existing notes tree
+    /// to the new location (Dropbox-style), then switches the active folder and updates the
+    /// downstream-consumer sidecar. Silent on success; on failure the source is left intact
+    /// and the active folder is **not** changed.
+    func setOutputFolder(_ newRaw: URL) async {
+        let new = OutputFolderMigrator.normalize(newRaw)
+        let old = settings.settings.outputFolder.map(OutputFolderMigrator.normalize)
+
+        // No-op when unchanged.
+        guard old?.path != new.path else { return }
+
+        isRelocating = true
+        relocationStatus = .inProgress
+
+        await captureGate.withLock {
+            do {
+                // Run the file moves off the main actor so a large or cross-volume copy
+                // doesn't freeze the Settings UI; the gate stays held throughout, so
+                // capture writes remain blocked until the move completes.
+                try await Task.detached(priority: .userInitiated) {
+                    let migrator = OutputFolderMigrator()
+                    if let old {
+                        try migrator.migrate(from: old, to: new)
+                    } else {
+                        try FileManager.default.createDirectory(at: new, withIntermediateDirectories: true)
+                    }
+                }.value
+                settings.update { $0.outputFolder = new }
+                OutputFolderSidecar.write(new)
+                relocationStatus = .idle
+                if lastError != nil { clearError() }
+            } catch {
+                let message = error.localizedDescription
+                relocationStatus = .failed(message)
+                recordError("Couldn't move notes: \(message)")
+            }
+        }
+
+        isRelocating = false
     }
 }

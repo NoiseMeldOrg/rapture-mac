@@ -4,6 +4,11 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Added
+
+- **Changing the Output Folder now moves your existing notes (Dropbox-style).** Previously, picking a new folder in Settings → General only re-pointed where *new* captures landed — your existing notes were stranded in the old folder. Now the whole notes tree (including subfolders, dotfiles, `processed/`, attachment folders, and `CLAUDE.md`/routing files) moves to the new folder automatically, then the app switches to it. It's silent on success; only failures surface. All folder changes route through a single `AppState.setOutputFolder` path (`pickFolder`, drag-and-drop, and any future programmatic change), backed by a new `OutputFolderMigrator` service. Data-safety is the governing constraint: same-volume changes use an atomic per-item rename; cross-volume changes (e.g. internal disk → external `/Volumes/...`) **copy → verify → then delete** the source, never deleting before the destination is verified; collisions merge rather than clobber (`.md` config/routing files keep the destination copy, notes and everything else are disambiguated with a `<base>-<n>` suffix); and any failure leaves the source intact and the active folder unchanged. The capture pipeline is quiesced during the move via a new `CaptureGate` async mutex (the whole batch and the whole move are mutually exclusive), plus a transient `isRelocating` flag that defers new batches so they replay into the *new* folder. Degenerate cases are guarded: no-op when unchanged, refusal when the new folder is nested inside the old (or vice versa), unwritable destination, missing source, and insufficient cross-volume space.
+- **`output-folder.path` sidecar is now actually written.** The documented downstream-consumer contract at `~/Library/Application Support/Rapture for Mac/output-folder.path` was previously described but never implemented. `OutputFolderSidecar` now writes the resolved absolute path atomically on every output-folder change and on first-launch default initialization, so the Claude Code SessionStart hook, OpenClaw / Hermes skills, and custom scripts can track folder changes without reading `settings.json`.
+
 ### Fixed
 
 - **iCloud cross-device replays no longer become duplicate captures.** The v1.0.29 GUID dedup only collapses identical-`message.guid` deliveries, but iCloud sync delivers the same Siri-dictated note to chat.db with a **fresh GUID and a 1–2 s timestamp offset** each time, so each delivery produced a new file plus a "Saved" reply. The reporting user was seeing 3–4 duplicate confirmations per dictation and a daily 15:16 EDT cluster of replays (root cause: a scheduled Calendar travel-time wake event reconnecting iMessage iCloud and dumping queued duplicates). A new `ContentDedupCache` keyed on `(normalized self-handle, normalized text, attachment count)` with a 7-day TTL and 500-entry FIFO cap now sits between the echo guard and the file writer in `BatchProcessor`, dropping replays silently and persisting across app restarts via `state.json`.
@@ -19,7 +24,7 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ### Tests
 
-227 → 205 (-38 net: +16 new `ContentDedupCacheTests`, -54 watcher-only tests across `WatcherConfigStoreTests` whole, plus trimmed watcher cases in `StatusPillResolutionTests`, `StatusParserTests`, `PrerequisitesTests`, `IntegrationDiscoveryTests`). All 205 remaining pass in ~0.5s.
+227 → 214 (net since last release: +16 new `ContentDedupCacheTests`, −54 watcher-only tests across `WatcherConfigStoreTests` whole plus trimmed watcher cases in `StatusPillResolutionTests`, `StatusParserTests`, `PrerequisitesTests`, `IntegrationDiscoveryTests`, then +9 new `OutputFolderMigratorTests` covering same-volume move, cross-volume copy-verify-delete, merge-with-collisions, no-op, nested-path guards, failure-leaves-source-intact, and URL/sidecar persistence). All 214 pass in ~0.5s.
 
 ## [1.0.64] - 2026-06-02: Integrations panel + rename
 

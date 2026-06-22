@@ -13,9 +13,23 @@ xcodebuild \
   clean build test
 ```
 
-You should see 73 tests pass (M1: 8 · M2: 36 · M3: 29).
+You should see 214 tests pass.
 
 **Why `/tmp/RaptureMacDerived`**: this repo is often checked out on an exFAT-formatted SSD. Building in-place causes macOS to write AppleDouble (`._*`) metadata files into the derived-data tree, which then get copied into the `.app` bundle and break `codesign`. Routing derived data to the internal APFS volume sidesteps that. The same path is used everywhere derived data appears in our scripts and docs.
+
+### Running a local build interactively
+
+To exercise a Debug build by hand (e.g. to test the output-folder relocation flow), **quit and move the installed app aside first**:
+
+```sh
+pkill -x Rapture
+mv /Applications/Rapture.app /Applications/Rapture.app.aside   # reversible
+open /tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app
+# ... test, then restore:
+pkill -x Rapture && mv /Applications/Rapture.app.aside /Applications/Rapture.app
+```
+
+**Why**: a Debug build shares the `noisemeld.RaptureMac` bundle identifier with an installed copy in `/Applications`. When both are registered, macOS LaunchServices resolves the bundle ID to the installed copy — so `open <debug>.app` (and even exec'ing the binary directly, because AppKit re-launches GUI apps through LaunchServices) silently runs the **installed** app instead of your build. Moving the installed app aside leaves your Debug build as the only registered copy. Confirm which binary is live with `ps -ax | grep Rapture.app/Contents/MacOS/Rapture`. Note that both copies read the same `~/Library/Application Support/Rapture for Mac/` (the path is keyed on the app name, not the bundle ID), so back up `settings.json` / `output-folder.path` before a test that changes them.
 
 You'll also need:
 

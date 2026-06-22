@@ -59,9 +59,8 @@ final class OutputFolderMigratorTests: XCTestCase {
         XCTAssertEqual(try read(new.appendingPathComponent("note1/photo.jpg")), "img")
         XCTAssertEqual(try read(new.appendingPathComponent("processed/2026-06/old.txt")), "done")
 
-        // Source contents are gone (the old folder itself may remain, empty).
-        let leftovers = try fm.contentsOfDirectory(at: old, includingPropertiesForKeys: nil)
-        XCTAssertTrue(leftovers.isEmpty, "source should be emptied after a same-volume move")
+        // A clean move empties the old folder, so it is removed entirely.
+        XCTAssertFalse(exists(old), "emptied old folder should be removed after a clean move")
     }
 
     // MARK: - Cross-volume copy + verify + delete (forced on one volume via strategy)
@@ -105,6 +104,11 @@ final class OutputFolderMigratorTests: XCTestCase {
         // Directory collision merges children (no overwrite of the existing one).
         XCTAssertEqual(try read(new.appendingPathComponent("processed/q.txt")), "existing-processed")
         XCTAssertEqual(try read(new.appendingPathComponent("processed/p.txt")), "incoming-processed")
+
+        // The skipped (kept-destination) CLAUDE.md remains in the old folder, so the old
+        // folder is NOT removed — we never delete a directory that still holds data.
+        XCTAssertTrue(exists(old), "old folder kept because a skipped .md still lives there")
+        XCTAssertEqual(try read(old.appendingPathComponent("CLAUDE.md")), "incoming-claude")
     }
 
     // MARK: - No-op when unchanged

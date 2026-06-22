@@ -106,6 +106,11 @@ struct OutputFolderMigrator {
             let dest = new.appendingPathComponent(item.lastPathComponent)
             try mergeItem(at: item, to: dest, useCopy: useCopy)
         }
+
+        // Move confirmed: drop the now-empty old folder. Left in place if anything remains
+        // (e.g. a `.md` whose destination copy we deliberately kept on collision), so we
+        // never remove a directory that still holds data.
+        removeIfEmpty(old)
     }
 
     // MARK: - Per-item move / merge

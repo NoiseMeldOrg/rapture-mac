@@ -123,11 +123,14 @@ The script will:
 2. `xcodebuild` a Release configuration into `/tmp/RaptureMacDerived/`.
 3. Read the auto-generated `CFBundleShortVersionString` from the built Info.plist (the `Scripts/set_git_version.sh` Run Script phase writes it from the `main` commit count).
 4. Verify the signature (`codesign --verify --deep --strict`).
-5. Build the DMG via `create-dmg`.
-6. Submit to Apple's notarization service (`xcrun notarytool submit --wait`, which blocks for ~30s–10min).
-7. Staple the notarization ticket onto the DMG.
-8. Run `spctl --assess` and `xcrun stapler validate` for final sanity.
-9. Print the DMG path, size, and SHA-256.
+5. Notarize and **staple the `.app`** — zip it, `xcrun notarytool submit --wait` (~30s–10min), then `xcrun stapler staple` the app — so first launch works even fully offline.
+6. Build the DMG via `create-dmg` from the now-stapled app.
+7. Submit the DMG to Apple's notarization service (`xcrun notarytool submit --wait`).
+8. Staple the notarization ticket onto the DMG.
+9. Run `spctl --assess` and `xcrun stapler validate` for final sanity.
+10. Print the DMG path, size, and SHA-256.
+
+Notarization runs **twice** (once for the app, once for the DMG), so a release submits two `notarytool` jobs.
 
 **First run**: when `codesign` first uses the new Developer ID Application cert, macOS will prompt to allow access to the private key in the keychain. Click **Always Allow** so subsequent runs are unattended.
 
@@ -157,7 +160,7 @@ The script will:
 
 > **Shortcut:** the `release-rapture-mac` Claude Code skill (`.claude/skills/release-rapture-mac/`) automates this entire ritual — build, notarize, changelog cut, tag, GitHub Release, and optional local install — with these gotchas baked in. Say "cut a release" in a Claude Code session on `main`.
 
-**A note on stapling:** the notarization ticket is stapled to the *DMG*, not to the `.app` inside it. After installing, `xcrun stapler validate /Applications/Rapture.app` will report no ticket — that's expected; `spctl --assess --type execute` returning `accepted / source=Notarized Developer ID` is the meaningful check (Gatekeeper validates the app's notarization online).
+**A note on stapling:** both the `.app` and the DMG are stapled — `release.sh` notarizes and staples the app *before* packaging it, then notarizes and staples the DMG. So after installing, `xcrun stapler validate /Applications/Rapture.app` succeeds and first launch works even offline. `spctl --assess --type execute` returning `accepted / source=Notarized Developer ID` remains the definitive Gatekeeper check.
 
 ## When in doubt
 

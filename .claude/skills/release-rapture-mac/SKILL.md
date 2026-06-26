@@ -31,7 +31,7 @@ Releases are notarized, Developer ID-signed DMGs attached to GitHub Releases (no
    ```sh
    ./Scripts/release.sh 2>&1 | tee /tmp/rapture-release-$VERSION.log
    ```
-   When it finishes (exit 0), read the Stage 9 summary for the authoritative `Version` and `SHA-256`. Confirm `status: Accepted`, the staple/validate lines, and `spctl … accepted`. The DMG is at `/tmp/RaptureMacDerived/Rapture-<VERSION>.dmg`.
+   When it finishes (exit 0), read the Stage 10 summary for the authoritative `Version` and `SHA-256`. The pipeline notarizes **twice** (the `.app`, then the DMG) — confirm `status: Accepted` for both, the staple/validate lines, and `spctl … accepted`. The DMG is at `/tmp/RaptureMacDerived/Rapture-<VERSION>.dmg`.
 
 3. **Cut the CHANGELOG.** Turn `## [Unreleased]` into a versioned section and leave a fresh empty `[Unreleased]` above it. Match the existing format exactly:
    ```
@@ -90,6 +90,6 @@ To leave only the installed copy, remove stray build products under `/tmp/Raptur
 
 - **Tag the build commit, not the cut commit.** The cut commit's count is one higher than the released version. Tagging HEAD after the cut yields a tag whose rebuild would produce `1.0.(NN+1)`.
 - **`gh release --target <sha>` fails** with `target_commitish is invalid` for a short SHA. Push the tag first; create the release from the tag name.
-- **The DMG is stapled; the `.app` inside is not** individually stapled. After install, `xcrun stapler validate /Applications/Rapture.app` says "no ticket" — that's expected; `spctl --assess` returning `accepted / Notarized Developer ID` is the check that matters (Gatekeeper validates notarization online).
+- **Both the `.app` and the DMG are stapled** (the app is notarized + stapled before packaging), so `xcrun stapler validate /Applications/Rapture.app` succeeds and offline first launch works. `spctl --assess` returning `accepted / Notarized Developer ID` remains the definitive check. (This is why the pipeline runs two notarization jobs.)
 - **Build on the internal APFS volume** (`/tmp/RaptureMacDerived`). The repo's external SSD generates AppleDouble (`._*`) files that get copied into the bundle and break `codesign`. `release.sh` already routes derived data there.
 - **Notarization can take up to ~10 min** and `notarytool` exits 0 even on `status: Invalid` — always confirm `status: Accepted` in the log, which `release.sh` already parses.

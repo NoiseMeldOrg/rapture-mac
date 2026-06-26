@@ -88,6 +88,10 @@ final class AppState {
                 }.value
                 settings.update { $0.outputFolder = new }
                 OutputFolderSidecar.write(new)
+                // Opt-in; no-op unless the new folder ended up empty + CLAUDE.md-less.
+                if settings.settings.seedScaffold {
+                    OutputFolderScaffold.seedIfEligible(folder: new)
+                }
                 relocationStatus = .idle
                 if lastError != nil { clearError() }
             } catch {

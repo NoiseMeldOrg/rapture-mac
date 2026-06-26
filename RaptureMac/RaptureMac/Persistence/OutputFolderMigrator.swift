@@ -219,10 +219,11 @@ struct OutputFolderMigrator {
         try fileManager.createDirectory(at: url, withIntermediateDirectories: true)
     }
 
+    /// The migrator's only directory removal. Delegates to the single guarded primitive
+    /// so an empty source folder is dropped but one that still holds data (e.g. a `.md`
+    /// kept on collision) is never removed.
     private func removeIfEmpty(_ url: URL) {
-        guard let contents = try? fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: nil, options: []),
-              contents.isEmpty else { return }
-        try? fileManager.removeItem(at: url)
+        FileSafety.removeIfEmpty(url, fileManager: fileManager)
     }
 
     static func normalize(_ url: URL) -> URL {

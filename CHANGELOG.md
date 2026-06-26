@@ -4,6 +4,22 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Added
+
+- **Opt-in starter scaffold for empty folders.** A new Settings → General toggle ("Seed a starter scaffold in empty folders", off by default) seeds a generic template `CLAUDE.md` plus empty `processed/` and `in-progress/` folders into an output folder **only when it's empty and has no `CLAUDE.md`**. So a brand-new folder — or one that came back empty — returns usable instead of bare, without ever touching a folder you already curate. Implemented in `OutputFolderScaffold` (strictly idempotent and non-destructive: the eligibility check is empty-AND-no-`CLAUDE.md`, the template carries no user-specific repo paths), wired into first-launch default init, post-relocate into an empty folder, and the toggle itself.
+
+### Changed
+
+- **DEBUG builds now use isolated data containers (developer-facing).** Debug builds read and write `~/Library/Application Support/Rapture for Mac (Debug)/` (their own `settings.json`/`state.json`/sidecar) and default to `~/Documents/Rapture Notes (Debug)/`, so development and manual relocate-testing can never read, write, or move the installed app's real settings or notes. A "(Debug)" marker in the Settings window title and a banner in General make the active build obvious. This is the **root-cause fix** for a 2026-06-22 incident in which a real notes folder lost its `CLAUDE.md`/`processed/`/`in-progress/` scaffold: the shipped relocate feature was *not* at fault — investigation confirmed every folder create/delete/move path is non-destructive and the relocate is fail-safe — but a manual test session, forced to hand-edit the *shared* production `settings.json`, deleted the real folder as collateral, after which a captured note recreated it bare via create-if-absent. Release builds are unchanged.
+
+### Fixed
+
+- **Hardened the folder-safety invariants so destructive deletion is unreachable by construction.** Directory removal is now funneled through a single guarded primitive, `FileSafety.removeIfEmpty`, which removes a directory **only** when it lists empty (dotfiles counted) and is otherwise a logged no-op. Both the migrator's source-cleanup and the writer's failed-attachment-folder cleanup route through it, so no code path can delete a directory that still holds data. Also fixed a latent upgrade risk: `Settings` now decodes leniently (`decodeIfPresent`), so adding the `seedScaffold` field can't fail to load a pre-existing `settings.json` and silently reset your output folder.
+
+### Tests
+
+- 214 → 234 (+20). New: `FileSafetyTests` (7 — empty-only removal, refuses non-empty incl. dotfile-only, no-op on missing/file), `OutputFolderScaffoldTests` (6 — seeds only empty+no-`CLAUDE.md`, idempotent, generic template), `OutputFolderSafetyTests` (5 — writer create-if-absent preserves existing contents, missing source never clobbers destination, `seedScaffold` Codable forward/backward compat), and `AppStateRelocationTests` (2 — failed relocate leaves the active folder *and* sidecar unchanged; same-folder no-op). All 234 pass in ~2.6s.
+
 ## [1.0.69] - 2026-06-22: Auto-relocating output folder
 
 Built from commit `590b0c2`. SHA-256: `3aff7f97e88f76c64230389c393959052f01fd6705c62376bfffd19eda40100d`.

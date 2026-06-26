@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsAboutView: View {
     @Environment(AppState.self) private var appState
+    @Environment(UpdaterController.self) private var updater
 
     private static let repoURL = URL(string: "https://github.com/NoiseMeldOrg/rapture-mac")!
 
@@ -39,6 +40,24 @@ struct SettingsAboutView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Updates") {
+                Toggle("Automatically check for updates", isOn: Binding(
+                    get: { updater.automaticallyChecksForUpdates },
+                    set: { updater.automaticallyChecksForUpdates = $0 }
+                ))
+                HStack {
+                    Text(lastCheckedLine)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Check for Updates…") { updater.checkForUpdates() }
+                        .disabled(!updater.canCheckForUpdates)
+                }
+                Text("Updates are downloaded from GitHub Releases over a secure connection and verified before install. No usage data is sent. Turn the toggle off for no network checks.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Diagnostics") {
                 DisclosureGroup("Show paths and last error") {
                     diagnosticsBody
@@ -53,6 +72,11 @@ struct SettingsAboutView: View {
         let short = info["CFBundleShortVersionString"] as? String ?? "?"
         let build = info["CFBundleVersion"] as? String ?? "?"
         return "v\(short) (build \(build))"
+    }
+
+    private var lastCheckedLine: String {
+        guard let date = updater.lastUpdateCheckDate else { return "Not checked yet" }
+        return "Last checked \(date.formatted(date: .abbreviated, time: .shortened))"
     }
 
     @ViewBuilder

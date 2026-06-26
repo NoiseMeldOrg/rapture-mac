@@ -9,11 +9,13 @@ struct RaptureMacApp: App {
 
     @State private var appState: AppState
     @State private var pipeline: Pipeline
+    @State private var updater: UpdaterController
 
     init() {
         let state = AppState()
         _appState = State(wrappedValue: state)
         _pipeline = State(wrappedValue: Pipeline(appState: state))
+        _updater = State(wrappedValue: UpdaterController())
     }
 
     var body: some Scene {
@@ -22,6 +24,7 @@ struct RaptureMacApp: App {
         MenuBarExtra {
             MenuBarView()
                 .environment(appState)
+                .environment(updater)
         } label: {
             MenuBarLabel(start: { await pipeline.start() })
                 .environment(appState)
@@ -41,6 +44,7 @@ struct RaptureMacApp: App {
         Window(Self.settingsWindowTitle, id: "settings") {
             SettingsView()
                 .environment(appState)
+                .environment(updater)
         }
         .windowResizability(.contentSize)
     }

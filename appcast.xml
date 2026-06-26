@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sparkle update feed for Rapture for Mac.
+  Served from https://raw.githubusercontent.com/NoiseMeldOrg/rapture-mac/main/appcast.xml
+  Each release adds a newest-first <item> immediately below the "appcast:items" marker;
+  Scripts/release.sh generates the entry (signs the DMG with EdDSA via sign_update) and it
+  is committed alongside the CHANGELOG cut. See CONTRIBUTING.md → "Publish the build".
+-->
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Rapture for Mac</title>
+    <link>https://raw.githubusercontent.com/NoiseMeldOrg/rapture-mac/main/appcast.xml</link>
+    <description>Automatic updates for Rapture for Mac.</description>
+    <language>en</language>
+    <!-- appcast:items -->
+  </channel>
+</rss>

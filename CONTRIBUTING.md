@@ -111,17 +111,19 @@ brew install create-dmg
 
 ### 4. Sparkle signing key + tools (for auto-update)
 
-Auto-updates are signed with an **EdDSA key**, separate from Apple notarization. This is a one-time setup; the private key lives in your login keychain (like the notary credentials) and must be backed up — losing it means you can't ship verifiable updates to existing installs.
+Auto-updates are signed with an **EdDSA key**, separate from Apple notarization. **This is already set up:** the project's **public** key is committed in `Scripts/set_sparkle_info.sh` (baked into every build's Info.plist as `SUPublicEDKey`), and the matching **private** key lives in the release maintainer's login keychain.
 
-1. Get Sparkle's CLI tools (`generate_keys`, `sign_update`). They ship in Sparkle's release tarball, not the Swift package — download the latest `Sparkle-*.tar.xz` from <https://github.com/sparkle-project/Sparkle/releases>, and put its `bin/` on your `PATH` (or note the path).
-2. Generate the key pair once:
-   ```sh
-   ./bin/generate_keys
-   ```
-   It stores the **private** key in your login keychain and prints the **public** key (a short base64 string).
-3. Paste that public key into `Scripts/set_sparkle_info.sh` as `PUBLIC_ED_KEY` (replacing `REPLACE_WITH_SPARKLE_EDDSA_PUBLIC_KEY`). That value is baked into every build's Info.plist as `SUPublicEDKey`, and every update must verify against it.
+To *cut a release* you need two things on your machine:
 
-Once `sign_update` is on your `PATH` and the public key is set, `Scripts/release.sh` signs each DMG and updates `appcast.xml` automatically (Stage 10). If the tool or key is missing, the release still builds — it just skips the appcast step with a warning.
+1. **Sparkle's CLI tools** (`sign_update`, `generate_keys`) — they ship in Sparkle's release tarball, not the Swift package. Download the matching `Sparkle-*.tar.xz` from <https://github.com/sparkle-project/Sparkle/releases> and put its `bin/` on your `PATH`. `release.sh` Stage 10 uses `sign_update`; if it's missing the release still builds, just skipping the appcast step with a warning.
+2. **The private key** in your login keychain. `generate_keys` created it on the original maintainer's Mac; if you're releasing from a different machine, import the backed-up private key first.
+
+**Back it up.** Losing the private key means you can never ship a verifiable update to existing installs again. Export and store it offline:
+```sh
+./bin/generate_keys -x sparkle_private_key.pem   # then move it to a password manager / offline backup
+```
+
+**Rotating the key** (new maintainer with no access to the original private key): run `generate_keys` to make a new pair, replace `PUBLIC_ED_KEY` in `Scripts/set_sparkle_info.sh`. Note that installs on the *old* key can't auto-update across the change — they need one manual re-download of the first build signed with the new key.
 
 ## Cutting a release
 

@@ -17,11 +17,13 @@ set -euo pipefail
 # --- Sparkle configuration ---
 FEED_URL="https://raw.githubusercontent.com/NoiseMeldOrg/rapture-mac/main/appcast.xml"
 
-# EdDSA public key that pairs with the private signing key used by
-# Scripts/release.sh (sign_update). Generate the pair ONCE with Sparkle's
-# `generate_keys` (stores the private key in your login keychain) and paste the
-# printed public key below. Until then it's a placeholder and updates won't verify.
-PUBLIC_ED_KEY="REPLACE_WITH_SPARKLE_EDDSA_PUBLIC_KEY"
+# EdDSA public key that pairs with the private signing key (in the release
+# maintainer's login keychain) used by Scripts/release.sh (sign_update). It is
+# baked into every build as SUPublicEDKey; updates must verify against it. To
+# rotate it, see CONTRIBUTING.md -> "First-time release setup" item 4.
+# If this is ever left as the placeholder below, the app keeps auto-update inert
+# (UpdaterController won't start the updater) rather than crashing on an invalid key.
+PUBLIC_ED_KEY="aSyKYbbZsRRd12sg7D6m4j8HZcOCojVaIaKm2O5xqNo="
 
 PLIST="${BUILT_PRODUCTS_DIR:-}/${INFOPLIST_PATH:-}"
 if [ -z "${BUILT_PRODUCTS_DIR:-}" ] || [ ! -f "$PLIST" ]; then

@@ -13,9 +13,13 @@ xcodebuild \
   clean build test
 ```
 
-You should see 214 tests pass.
+You should see 234 tests pass.
 
 **Why `/tmp/RaptureMacDerived`**: this repo is often checked out on an exFAT-formatted SSD. Building in-place causes macOS to write AppleDouble (`._*`) metadata files into the derived-data tree, which then get copied into the `.app` bundle and break `codesign`. Routing derived data to the internal APFS volume sidesteps that. The same path is used everywhere derived data appears in our scripts and docs.
+
+### Continuous integration
+
+Every PR and push to `main` runs the full XCTest suite on a macOS GitHub Actions runner (`.github/workflows/ci.yml`). It builds the Debug configuration (which ad-hoc signs, so no certificates are needed) — signing and notarization stay a maintainer-only release concern. Keep the suite green; a red check blocks merge.
 
 ### Running a local build interactively
 
@@ -29,7 +33,9 @@ open /tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app
 pkill -x Rapture && mv /Applications/Rapture.app.aside /Applications/Rapture.app
 ```
 
-**Why**: a Debug build shares the `noisemeld.RaptureMac` bundle identifier with an installed copy in `/Applications`. When both are registered, macOS LaunchServices resolves the bundle ID to the installed copy — so `open <debug>.app` (and even exec'ing the binary directly, because AppKit re-launches GUI apps through LaunchServices) silently runs the **installed** app instead of your build. Moving the installed app aside leaves your Debug build as the only registered copy. Confirm which binary is live with `ps -ax | grep Rapture.app/Contents/MacOS/Rapture`. Note that both copies read the same `~/Library/Application Support/Rapture for Mac/` (the path is keyed on the app name, not the bundle ID), so back up `settings.json` / `output-folder.path` before a test that changes them.
+**Why**: a Debug build shares the `noisemeld.RaptureMac` bundle identifier with an installed copy in `/Applications`. When both are registered, macOS LaunchServices resolves the bundle ID to the installed copy — so `open <debug>.app` (and even exec'ing the binary directly, because AppKit re-launches GUI apps through LaunchServices) can silently run the **installed** app instead of your build. Moving the installed app aside leaves your Debug build as the only registered copy. Confirm which binary is live with `ps -ax | grep Rapture.app/Contents/MacOS/Rapture`.
+
+**Data isolation (since v1.0.71)**: Debug builds use **separate data containers** — `~/Library/Application Support/Rapture for Mac (Debug)/` (its own `settings.json` / `state.json` / sidecar) and a `~/Documents/Rapture Notes (Debug)/` default — so a Debug build *never* reads, writes, or relocates the installed app's settings or notes. You no longer need to back anything up before a test that changes them, and a Debug build can run alongside the installed app safely. A "(Debug)" marker in the Settings window title and General tab confirms which build you're driving. (See `AppSupportDirectory`; this isolation is the root-cause fix from the 2026-06 data-safety hardening.)
 
 You'll also need:
 

@@ -1,0 +1,55 @@
+name: CI
+
+# Build + run the XCTest suite on every PR and on pushes to main.
+# No signing/notarization here — that's a maintainer-only release concern
+# (see Scripts/release.sh). Tests build the Debug configuration, which
+# ad-hoc signs and needs no certificates.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & Test (macOS)
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Available Xcodes (diagnostic)
+        run: ls -d /Applications/Xcode*.app 2>/dev/null || true
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Build & test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project RaptureMac/RaptureMac.xcodeproj \
+            -scheme RaptureMac \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/RaptureMac.xcresult"
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult
+          path: ${{ runner.temp }}/RaptureMac.xcresult
+          if-no-files-found: ignore

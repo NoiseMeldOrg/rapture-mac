@@ -21,7 +21,7 @@ FEED_URL="https://raw.githubusercontent.com/NoiseMeldOrg/rapture-mac/main/appcas
 # Scripts/release.sh (sign_update). Generate the pair ONCE with Sparkle's
 # `generate_keys` (stores the private key in your login keychain) and paste the
 # printed public key below. Until then it's a placeholder and updates won't verify.
-PUBLIC_ED_KEY="REPLACE_WITH_SPARKLE_EDDSA_PUBLIC_KEY"
+PUBLIC_ED_KEY="aSyKYbbZsRRd12sg7D6m4j8HZcOCojVaIaKm2O5xqNo="
 
 PLIST="${BUILT_PRODUCTS_DIR:-}/${INFOPLIST_PATH:-}"
 if [ -z "${BUILT_PRODUCTS_DIR:-}" ] || [ ! -f "$PLIST" ]; then

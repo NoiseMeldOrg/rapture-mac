@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		AAAA000000000000000A001D /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = AAAA000000000000000A001C /* GRDB */; };
+		AAAA000000000000000A0022 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = AAAA000000000000000A0021 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +45,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AAAA000000000000000A001D /* GRDB in Frameworks */,
+				AAAA000000000000000A0022 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -87,6 +89,7 @@
 				AAAA000000000000000A000D /* Resources */,
 				AAAA000000000000000A001F /* Bundle Integrations Resources */,
 				AAAA000000000000000A001E /* Auto-Version (git commit count) */,
+				AAAA000000000000000A0023 /* Configure Sparkle (Info.plist) */,
 			);
 			buildRules = (
 			);
@@ -98,6 +101,7 @@
 			name = RaptureMac;
 			packageProductDependencies = (
 				AAAA000000000000000A001C /* GRDB */,
+				AAAA000000000000000A0021 /* Sparkle */,
 			);
 			productName = RaptureMac;
 			productReference = AAAA000000000000000A0003 /* RaptureMac.app */;
@@ -156,6 +160,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				AAAA000000000000000A001B /* XCRemoteSwiftPackageReference "GRDB.swift" */,
+				AAAA000000000000000A0020 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AAAA000000000000000A0019 /* Products */;
@@ -204,6 +209,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
 			shellScript = "\"${SRCROOT}/../Scripts/set_git_version.sh\"\n";
+		};
+		AAAA000000000000000A0023 /* Configure Sparkle (Info.plist) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Configure Sparkle (Info.plist)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"${SRCROOT}/../Scripts/set_sparkle_info.sh\"\n";
 		};
 		AAAA000000000000000A001F /* Bundle Integrations Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -521,6 +545,14 @@
 				minimumVersion = 6.29.0;
 			};
 		};
+		AAAA000000000000000A0020 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -528,6 +560,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AAAA000000000000000A001B /* XCRemoteSwiftPackageReference "GRDB.swift" */;
 			productName = GRDB;
+		};
+		AAAA000000000000000A0021 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AAAA000000000000000A0020 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @Environment(AppState.self) private var appState
+    @Environment(UpdaterController.self) private var updater
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -90,6 +91,12 @@ struct MenuBarView: View {
                 rowLabel("Settings…", symbol: "gearshape")
             }
             .buttonStyle(.plain)
+
+            Button(action: { updater.checkForUpdates() }) {
+                rowLabel("Check for Updates…", symbol: "arrow.down.circle")
+            }
+            .buttonStyle(.plain)
+            .disabled(!updater.canCheckForUpdates)
 
             Divider()
                 .padding(.vertical, 2)

@@ -24,7 +24,9 @@ That's the whole transaction. The defining property: **the iPhone side is fully 
 
 1. Download the latest DMG from the [Releases page](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest).
 2. Open the DMG, drag **Rapture.app** into `/Applications`.
-3. Launch the app. There's no Dock icon. Look for the `text.bubble` glyph in the menu bar at the top of the screen.
+3. Launch the app. There's no Dock icon. Look for the Rapture glyph in the menu bar at the top of the screen.
+
+Once installed, Rapture keeps itself up to date — it checks for new releases and prompts you to install them in place (verified against an EdDSA signature and Apple's notarization first). Turn it off in **Settings → About**, or update on demand via **Check for Updates…** in the menu. It's the app's only network use; see [PRIVACY.md](./PRIVACY.md).
 
 ### First-run walkthrough
 
@@ -68,8 +70,7 @@ A short list of things you might expect but don't get; for the full rationale se
 - Built-in AI integration (vendor-neutral by design)
 - Audio capture of the original dictation (text only; the audio stays on your iPhone)
 - Mac App Store distribution (structurally impossible; see [shape.md](./agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md))
-- Auto-update
-- Analytics or telemetry (zero outbound network calls in v1)
+- Analytics or telemetry (the only outbound network call is the optional, opt-out auto-update check — see [PRIVACY.md](./PRIVACY.md))
 
 ## Why the app isn't sandboxed
 

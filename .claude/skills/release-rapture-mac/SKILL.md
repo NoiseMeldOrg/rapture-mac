@@ -31,7 +31,7 @@ Releases are notarized, Developer ID-signed DMGs attached to GitHub Releases (no
    ```sh
    ./Scripts/release.sh 2>&1 | tee /tmp/rapture-release-$VERSION.log
    ```
-   When it finishes (exit 0), read the Stage 10 summary for the authoritative `Version` and `SHA-256`. The pipeline notarizes **twice** (the `.app`, then the DMG) — confirm `status: Accepted` for both, the staple/validate lines, and `spctl … accepted`. The DMG is at `/tmp/RaptureMacDerived/Rapture-<VERSION>.dmg`.
+   When it finishes (exit 0), read the Stage 11 summary for the authoritative `Version` and `SHA-256`. The pipeline notarizes **twice** (the `.app`, then the DMG) and, at Stage 10, EdDSA-signs the DMG + updates `appcast.xml` — confirm `status: Accepted` for both notarizations, the staple/validate lines, `spctl … accepted`, and that Stage 10 reported updating the appcast (not a skip warning). The DMG is at `/tmp/RaptureMacDerived/Rapture-<VERSION>.dmg`.
 
 3. **Cut the CHANGELOG.** Turn `## [Unreleased]` into a versioned section and leave a fresh empty `[Unreleased]` above it. Match the existing format exactly:
    ```
@@ -48,13 +48,14 @@ Releases are notarized, Developer ID-signed DMGs attached to GitHub Releases (no
 
 4. **Bump the roadmap status line** in `agent-os/product/roadmap.md` (`> Status: … latest public release v1.0.NN live on GitHub Releases (YYYY-MM-DD)` and `> Last Updated:`).
 
-5. **Commit the cut** and push `main`:
+5. **Commit the cut** and push `main`. `release.sh` Stage 10 already updated `appcast.xml` (signed the DMG, appended the `<item>`) — include it so the Sparkle feed advertises the release:
    ```sh
-   git add CHANGELOG.md agent-os/product/roadmap.md
+   git add CHANGELOG.md agent-os/product/roadmap.md appcast.xml
    git commit -m "docs(changelog): cut v1.0.NN — <subtitle>" -m "<body w/ SHA-256>" \
      -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
    git push origin main
    ```
+   (If Stage 10 warned that `sign_update`/the EdDSA key was missing, `appcast.xml` is unchanged — fix the setup per CONTRIBUTING → "First-time release setup" item 4, then re-run, before users can auto-update to this version.)
 
 6. **Tag the build commit and push the tag** (NOT HEAD — see the version+tag rule):
    ```sh

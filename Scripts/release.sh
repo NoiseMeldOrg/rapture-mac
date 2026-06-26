@@ -95,7 +95,7 @@ notarize_and_check() {
 }
 
 # --- Stage 1: Sanity ---
-say "Stage 1/10: sanity checks"
+say "Stage 1/11: sanity checks"
 if [ ! -d "$REPO_ROOT/RaptureMac" ]; then
   echo "Not at repo root ($REPO_ROOT)"; exit 1
 fi
@@ -127,7 +127,7 @@ fi
 echo "OK: on main, clean tree, create-dmg installed, cert + notary profile present."
 
 # --- Stage 2: Clean + build ---
-say "Stage 2/10: clean + build (Release)"
+say "Stage 2/11: clean + build (Release)"
 run xcodebuild \
   -project "$PROJECT" \
   -scheme "$SCHEME" \
@@ -142,7 +142,7 @@ if [ "$DRY_RUN" -eq 0 ] && [ ! -d "$APP" ]; then
 fi
 
 # --- Stage 3: Read built version ---
-say "Stage 3/10: read built version"
+say "Stage 3/11: read built version"
 if [ "$DRY_RUN" -eq 1 ]; then
   VERSION="X.Y.Z"
   BUILD="NNNN"
@@ -154,10 +154,10 @@ fi
 echo "Version: $VERSION (build $BUILD)"
 
 # --- Stage 4: Verify signing ---
-say "Stage 4/10: verify codesign"
+say "Stage 4/11: verify codesign"
 run codesign --verify --deep --strict --verbose=2 "$APP"
 echo
-say "Stage 4b/10: dump signed entitlements"
+say "Stage 4b/11: dump signed entitlements"
 run codesign -d --entitlements - --xml "$APP"
 
 # --- Stage 5: Notarize + staple the .app ---
@@ -165,9 +165,9 @@ run codesign -d --entitlements - --xml "$APP"
 # Stapling requires the app to have been notarized, so zip it and submit that; the
 # stapled app is then what gets packaged into the DMG below.
 if [ "$SKIP_NOTARIZE" -eq 1 ]; then
-  say "Stage 5/10: notarize + staple .app — SKIPPED (--skip-notarize)"
+  say "Stage 5/11: notarize + staple .app — SKIPPED (--skip-notarize)"
 else
-  say "Stage 5/10: notarize + staple .app (may take 30s–10min)"
+  say "Stage 5/11: notarize + staple .app (may take 30s–10min)"
   APP_ZIP="$DERIVED/Rapture-$VERSION-app.zip"
   if [ "$DRY_RUN" -eq 0 ] && [ -f "$APP_ZIP" ]; then rm -f "$APP_ZIP"; fi
   run ditto -c -k --keepParent "$APP" "$APP_ZIP"   # notarytool needs a zip, not a bundle
@@ -177,7 +177,7 @@ else
 fi
 
 # --- Stage 6: Build DMG ---
-say "Stage 6/10: build DMG"
+say "Stage 6/11: build DMG"
 DMG="$DERIVED/Rapture-$VERSION.dmg"
 if [ "$DRY_RUN" -eq 0 ] && [ -f "$DMG" ]; then
   rm -f "$DMG"
@@ -201,25 +201,25 @@ fi
 
 # --- Stage 7: Notarize the DMG ---
 if [ "$SKIP_NOTARIZE" -eq 1 ]; then
-  say "Stage 7/10: notarize DMG — SKIPPED (--skip-notarize)"
+  say "Stage 7/11: notarize DMG — SKIPPED (--skip-notarize)"
 else
-  say "Stage 7/10: notarize DMG (may take 30s–10min)"
+  say "Stage 7/11: notarize DMG (may take 30s–10min)"
   notarize_and_check "$DMG" "$DERIVED/notarytool-dmg.log"
 fi
 
 # --- Stage 8: Staple the DMG ---
 if [ "$SKIP_NOTARIZE" -eq 1 ]; then
-  say "Stage 8/10: staple DMG — SKIPPED (--skip-notarize)"
+  say "Stage 8/11: staple DMG — SKIPPED (--skip-notarize)"
 else
-  say "Stage 8/10: staple DMG"
+  say "Stage 8/11: staple DMG"
   run xcrun stapler staple "$DMG"
 fi
 
 # --- Stage 9: Assess ---
 if [ "$SKIP_NOTARIZE" -eq 1 ]; then
-  say "Stage 9/10: stapler validate — SKIPPED (--skip-notarize)"
+  say "Stage 9/11: stapler validate — SKIPPED (--skip-notarize)"
 else
-  say "Stage 9/10: stapler validate + mount-and-assess"
+  say "Stage 9/11: stapler validate + mount-and-assess"
   run xcrun stapler validate "$DMG"
   # spctl on a DMG container directly returns "no usable signature" by design —
   # the meaningful check is on the .app inside, which Gatekeeper actually evaluates
@@ -236,8 +236,37 @@ else
   fi
 fi
 
-# --- Stage 10: Summary ---
-say "Stage 10/10: summary"
+# --- Stage 10: Appcast (Sparkle) ---
+if [ "$SKIP_NOTARIZE" -eq 1 ]; then
+  say "Stage 10/11: appcast — SKIPPED (--skip-notarize)"
+elif [ "$DRY_RUN" -eq 1 ]; then
+  say "Stage 10/11: appcast (Sparkle EdDSA sign + appcast.xml entry)"
+  printf "  [dry-run] sign_update %q, then append an <item> to appcast.xml\n" "$DMG"
+else
+  say "Stage 10/11: appcast (Sparkle EdDSA sign + appcast.xml entry)"
+  SIGN_UPDATE="$(command -v sign_update 2>/dev/null || true)"
+  if [ -z "$SIGN_UPDATE" ]; then
+    SIGN_UPDATE="$(find "$DERIVED/SourcePackages/artifacts" -name sign_update -type f 2>/dev/null | head -1 || true)"
+  fi
+  if [ -z "$SIGN_UPDATE" ]; then
+    echo "WARNING: sign_update not found; skipping appcast. Install Sparkle's tools (CONTRIBUTING -> First-time release setup), then add the entry or re-run." >&2
+  else
+    SIG_ATTRS="$("$SIGN_UPDATE" "$DMG" 2>/dev/null || true)"
+    if [ -z "$SIG_ATTRS" ]; then
+      echo "WARNING: sign_update produced no signature (EdDSA private key missing from keychain?); skipping appcast." >&2
+    else
+      DL_URL="https://github.com/NoiseMeldOrg/rapture-mac/releases/download/v$VERSION/Rapture-$VERSION.dmg"
+      LINK_URL="https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v$VERSION"
+      PUBDATE="$(date -u +'%a, %d %b %Y %H:%M:%S +0000')"
+      python3 "$REPO_ROOT/Scripts/append_appcast_item.py" \
+        "$REPO_ROOT/appcast.xml" "$VERSION" "$BUILD" "$DL_URL" "$SIG_ATTRS" "$PUBDATE" "$LINK_URL"
+      echo "appcast.xml updated for v$VERSION (commit it with the release; see CONTRIBUTING -> Publish the build)."
+    fi
+  fi
+fi
+
+# --- Stage 11: Summary ---
+say "Stage 11/11: summary"
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "Dry run complete. No artifacts produced."
   exit 0

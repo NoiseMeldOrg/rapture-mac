@@ -30,6 +30,10 @@ final class SettingsStore {
         }
         update { $0.outputFolder = defaultFolder }
         OutputFolderSidecar.write(defaultFolder)
+        // Opt-in only, and a no-op unless the freshly created folder is empty + CLAUDE.md-less.
+        if settings.seedScaffold {
+            OutputFolderScaffold.seedIfEligible(folder: defaultFolder)
+        }
     }
 
     /// Two-way binding for any property of `Settings`. Reads from the live struct,

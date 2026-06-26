@@ -29,7 +29,9 @@ final class FileWriter {
                     }
                 }
                 if copiedAttachments.isEmpty {
-                    try? FileManager.default.removeItem(at: attachmentFolderURL)
+                    // Every copy failed, so the folder we just created is empty; the
+                    // guarded primitive removes it and never an output folder with data.
+                    FileSafety.removeIfEmpty(attachmentFolderURL)
                 }
             }
 

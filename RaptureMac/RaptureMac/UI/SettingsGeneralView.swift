@@ -11,12 +11,31 @@ struct SettingsGeneralView: View {
 
     var body: some View {
         Form {
+            if AppSupportDirectory.isDebugContainer {
+                debugIsolationSection
+            }
             outputFolderSection
             launchAtLoginSection
             replyModeSection
             smsSection
         }
         .formStyle(.grouped)
+    }
+
+    // MARK: - Debug isolation marker
+
+    /// Only compiled into DEBUG builds. Makes the isolated container/default explicit so a
+    /// tester is never confused about which app's data is in play during a relocate test.
+    @ViewBuilder
+    private var debugIsolationSection: some View {
+        Section {
+            Label("Debug build — using isolated data containers", systemImage: "ladybug.fill")
+                .font(.caption)
+                .foregroundStyle(.orange)
+            Text("Settings/state live in “\(AppSupportDirectory.folderName)”; the default notes folder is sandboxed. The installed app's data is untouched.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     // MARK: - Output folder
@@ -50,9 +69,28 @@ struct SettingsGeneralView: View {
             Text("Captured notes land here as `.txt` files. Drop a folder above to change it. Existing notes move to the new folder automatically.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            Toggle("Seed a starter scaffold in empty folders", isOn: seedScaffoldBinding)
+            Text("When on, an empty folder with no `CLAUDE.md` gets a generic template `CLAUDE.md` plus `processed/` and `in-progress/`. Never touches a folder that already has content.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         } header: {
             Text("Notes Folder")
         }
+    }
+
+    /// Persists the toggle and, when switched on, seeds the *current* folder right away
+    /// if it's eligible (empty + no CLAUDE.md). Turning it off only changes the setting.
+    private var seedScaffoldBinding: Binding<Bool> {
+        Binding(
+            get: { appState.settings.settings.seedScaffold },
+            set: { newValue in
+                appState.settings.update { $0.seedScaffold = newValue }
+                if newValue, let folder = appState.settings.settings.outputFolder {
+                    OutputFolderScaffold.seedIfEligible(folder: folder)
+                }
+            }
+        )
     }
 
     @ViewBuilder

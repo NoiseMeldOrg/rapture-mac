@@ -3,6 +3,10 @@ import SwiftUI
 
 @main
 struct RaptureMacApp: App {
+    // DEBUG builds run against isolated Application Support + notes containers
+    // (see AppSupportDirectory); the title marker makes it obvious which build is driven.
+    static let settingsWindowTitle = AppSupportDirectory.isDebugContainer ? "Settings (Debug)" : "Settings"
+
     @State private var appState: AppState
     @State private var pipeline: Pipeline
 
@@ -34,7 +38,7 @@ struct RaptureMacApp: App {
         }
         .windowResizability(.contentSize)
 
-        Window("Settings", id: "settings") {
+        Window(Self.settingsWindowTitle, id: "settings") {
             SettingsView()
                 .environment(appState)
         }

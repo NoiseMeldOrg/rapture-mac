@@ -4,6 +4,15 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Changed
+
+- **Release DMGs now staple the `.app`, not just the DMG.** `Scripts/release.sh` notarizes and staples the app *before* packaging it (then notarizes + staples the DMG as before), so the installed app carries its own notarization ticket and **first launch succeeds even with no network**. Previously only the DMG was stapled, leaving the app to rely on an online Gatekeeper check at first launch.
+
+### Internal
+
+- **Continuous integration**: every PR and push to `main` now builds and runs the full XCTest suite on a macOS GitHub Actions runner (`.github/workflows/ci.yml`).
+- **Fixed `Scripts/*.sh` to be executable in git** (they were stored `100644`), so the Xcode build phases that run them work on a clean checkout — not just where the working copy happened to carry the bit. Caught by the new CI.
+
 ## [1.0.71] - 2026-06-26: Output-folder data-safety hardening
 
 Built from commit `d6bfb8b`. SHA-256: `9d2645c7740e9a67845f711aff313983b357351aea2b55553d2071cfa41dd3ce`.

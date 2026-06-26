@@ -66,8 +66,36 @@ run() {
   fi
 }
 
+# Submit one artifact (a .zip of the app, or the .dmg) to Apple's notary service and
+# fail unless it reaches "status: Accepted". notarytool exits 0 even when the result is
+# "Invalid", so we parse the log ourselves. Honors --dry-run.
+#   notarize_and_check <artifact> <log-path>
+notarize_and_check() {
+  local artifact="$1" log="$2"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf "  [dry-run] xcrun notarytool submit %q --keychain-profile %q --wait | tee %q\n" \
+      "$artifact" "$NOTARY_PROFILE" "$log"
+    return 0
+  fi
+  set +e
+  xcrun notarytool submit "$artifact" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1 | tee "$log"
+  local rc=${PIPESTATUS[0]}
+  set -e
+  if [ "$rc" -ne 0 ]; then
+    echo "ERROR: notarytool submit exited $rc (transport / auth error, not a rejection)."
+    exit 1
+  fi
+  if ! grep -q "status: Accepted" "$log"; then
+    local sid; sid="$(grep -m1 '^[[:space:]]*id:' "$log" | awk '{print $2}')"
+    echo
+    echo "ERROR: notarization of $(basename "$artifact") did not reach status: Accepted."
+    [ -n "$sid" ] && echo "  xcrun notarytool log $sid --keychain-profile $NOTARY_PROFILE"
+    exit 1
+  fi
+}
+
 # --- Stage 1: Sanity ---
-say "Stage 1/9: sanity checks"
+say "Stage 1/10: sanity checks"
 if [ ! -d "$REPO_ROOT/RaptureMac" ]; then
   echo "Not at repo root ($REPO_ROOT)"; exit 1
 fi
@@ -99,7 +127,7 @@ fi
 echo "OK: on main, clean tree, create-dmg installed, cert + notary profile present."
 
 # --- Stage 2: Clean + build ---
-say "Stage 2/9: clean + build (Release)"
+say "Stage 2/10: clean + build (Release)"
 run xcodebuild \
   -project "$PROJECT" \
   -scheme "$SCHEME" \
@@ -114,7 +142,7 @@ if [ "$DRY_RUN" -eq 0 ] && [ ! -d "$APP" ]; then
 fi
 
 # --- Stage 3: Read built version ---
-say "Stage 3/9: read built version"
+say "Stage 3/10: read built version"
 if [ "$DRY_RUN" -eq 1 ]; then
   VERSION="X.Y.Z"
   BUILD="NNNN"
@@ -126,14 +154,30 @@ fi
 echo "Version: $VERSION (build $BUILD)"
 
 # --- Stage 4: Verify signing ---
-say "Stage 4/9: verify codesign"
+say "Stage 4/10: verify codesign"
 run codesign --verify --deep --strict --verbose=2 "$APP"
 echo
-say "Stage 4b/9: dump signed entitlements"
+say "Stage 4b/10: dump signed entitlements"
 run codesign -d --entitlements - --xml "$APP"
 
-# --- Stage 5: Build DMG ---
-say "Stage 5/9: build DMG"
+# --- Stage 5: Notarize + staple the .app ---
+# Staple the *app*, not just the DMG, so first launch succeeds even fully offline.
+# Stapling requires the app to have been notarized, so zip it and submit that; the
+# stapled app is then what gets packaged into the DMG below.
+if [ "$SKIP_NOTARIZE" -eq 1 ]; then
+  say "Stage 5/10: notarize + staple .app — SKIPPED (--skip-notarize)"
+else
+  say "Stage 5/10: notarize + staple .app (may take 30s–10min)"
+  APP_ZIP="$DERIVED/Rapture-$VERSION-app.zip"
+  if [ "$DRY_RUN" -eq 0 ] && [ -f "$APP_ZIP" ]; then rm -f "$APP_ZIP"; fi
+  run ditto -c -k --keepParent "$APP" "$APP_ZIP"   # notarytool needs a zip, not a bundle
+  notarize_and_check "$APP_ZIP" "$DERIVED/notarytool-app.log"
+  run xcrun stapler staple "$APP"
+  run xcrun stapler validate "$APP"
+fi
+
+# --- Stage 6: Build DMG ---
+say "Stage 6/10: build DMG"
 DMG="$DERIVED/Rapture-$VERSION.dmg"
 if [ "$DRY_RUN" -eq 0 ] && [ -f "$DMG" ]; then
   rm -f "$DMG"
@@ -155,51 +199,27 @@ if [ "$DRY_RUN" -eq 0 ] && [ ! -f "$DMG" ]; then
   exit 1
 fi
 
-# --- Stage 6: Notarize ---
+# --- Stage 7: Notarize the DMG ---
 if [ "$SKIP_NOTARIZE" -eq 1 ]; then
-  say "Stage 6/9: notarize — SKIPPED (--skip-notarize)"
+  say "Stage 7/10: notarize DMG — SKIPPED (--skip-notarize)"
 else
-  say "Stage 6/9: notarize (may take 30s–10min)"
-  NOTARY_LOG="$DERIVED/notarytool-output.log"
-  if [ "$DRY_RUN" -eq 1 ]; then
-    printf "  [dry-run] xcrun notarytool submit %q --keychain-profile %q --wait | tee %q\n" \
-      "$DMG" "$NOTARY_PROFILE" "$NOTARY_LOG"
-  else
-    # notarytool exits 0 even when status: Invalid, so we must parse the output ourselves.
-    set +e
-    xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1 | tee "$NOTARY_LOG"
-    NOTARY_EXIT=${PIPESTATUS[0]}
-    set -e
-    if [ "$NOTARY_EXIT" -ne 0 ]; then
-      echo "ERROR: notarytool submit exited $NOTARY_EXIT (transport / auth error, not a rejection)."
-      exit 1
-    fi
-    if ! grep -q "status: Accepted" "$NOTARY_LOG"; then
-      SUBMISSION_ID="$(grep -m1 '^[[:space:]]*id:' "$NOTARY_LOG" | awk '{print $2}')"
-      echo
-      echo "ERROR: notarization did not reach status: Accepted."
-      if [ -n "$SUBMISSION_ID" ]; then
-        echo "Fetch the rejection details with:"
-        echo "  xcrun notarytool log $SUBMISSION_ID --keychain-profile $NOTARY_PROFILE"
-      fi
-      exit 1
-    fi
-  fi
+  say "Stage 7/10: notarize DMG (may take 30s–10min)"
+  notarize_and_check "$DMG" "$DERIVED/notarytool-dmg.log"
 fi
 
-# --- Stage 7: Staple ---
+# --- Stage 8: Staple the DMG ---
 if [ "$SKIP_NOTARIZE" -eq 1 ]; then
-  say "Stage 7/9: staple — SKIPPED (--skip-notarize)"
+  say "Stage 8/10: staple DMG — SKIPPED (--skip-notarize)"
 else
-  say "Stage 7/9: staple"
+  say "Stage 8/10: staple DMG"
   run xcrun stapler staple "$DMG"
 fi
 
-# --- Stage 8: Assess ---
+# --- Stage 9: Assess ---
 if [ "$SKIP_NOTARIZE" -eq 1 ]; then
-  say "Stage 8/9: stapler validate — SKIPPED (--skip-notarize)"
+  say "Stage 9/10: stapler validate — SKIPPED (--skip-notarize)"
 else
-  say "Stage 8/9: stapler validate + mount-and-assess"
+  say "Stage 9/10: stapler validate + mount-and-assess"
   run xcrun stapler validate "$DMG"
   # spctl on a DMG container directly returns "no usable signature" by design —
   # the meaningful check is on the .app inside, which Gatekeeper actually evaluates
@@ -216,8 +236,8 @@ else
   fi
 fi
 
-# --- Stage 9: Summary ---
-say "Stage 9/9: summary"
+# --- Stage 10: Summary ---
+say "Stage 10/10: summary"
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "Dry run complete. No artifacts produced."
   exit 0

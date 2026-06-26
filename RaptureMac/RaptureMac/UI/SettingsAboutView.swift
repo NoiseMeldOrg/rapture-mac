@@ -41,21 +41,27 @@ struct SettingsAboutView: View {
             }
 
             Section("Updates") {
-                Toggle("Automatically check for updates", isOn: Binding(
-                    get: { updater.automaticallyChecksForUpdates },
-                    set: { updater.automaticallyChecksForUpdates = $0 }
-                ))
-                HStack {
-                    Text(lastCheckedLine)
+                if updater.isConfigured {
+                    Toggle("Automatically check for updates", isOn: Binding(
+                        get: { updater.automaticallyChecksForUpdates },
+                        set: { updater.automaticallyChecksForUpdates = $0 }
+                    ))
+                    HStack {
+                        Text(lastCheckedLine)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Check for Updates…") { updater.checkForUpdates() }
+                            .disabled(!updater.canCheckForUpdates)
+                    }
+                    Text("Updates are downloaded from GitHub Releases over a secure connection and verified before install. No usage data is sent. Turn the toggle off for no network checks.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Check for Updates…") { updater.checkForUpdates() }
-                        .disabled(!updater.canCheckForUpdates)
+                } else {
+                    Text("Auto-update isn't configured in this build (no signing key). Released builds update automatically.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                Text("Updates are downloaded from GitHub Releases over a secure connection and verified before install. No usage data is sent. Turn the toggle off for no network checks.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             Section("Diagnostics") {

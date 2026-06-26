@@ -16,18 +16,33 @@ final class UpdaterController {
     @ObservationIgnored private let controller: SPUStandardUpdaterController
     @ObservationIgnored private var cancellable: AnyCancellable?
 
-    /// True when a manual check is allowed (false while one is already running).
+    /// True when a manual check is allowed (false while one is already running, or when
+    /// the updater is inert because no real EdDSA key is configured — see below).
     private(set) var canCheckForUpdates = false
 
+    /// Placeholder written by `Scripts/set_sparkle_info.sh` until a maintainer generates the
+    /// real key. Sparkle treats an invalid/missing `SUPublicEDKey` as a **fatal** error the
+    /// moment the updater starts, which would crash the app for any build made before the key
+    /// is set (CI, a fresh clone). So we only start the updater once a real key is embedded;
+    /// until then auto-update stays inert (you couldn't verify an update without the key anyway).
+    private static let keyPlaceholder = "REPLACE_WITH_SPARKLE_EDDSA_PUBLIC_KEY"
+
+    /// Whether a usable EdDSA public key is baked into this build.
+    let isConfigured: Bool
+
     init() {
-        // startingUpdater: true begins Sparkle's scheduled checks immediately; they only
-        // actually fire if the user's automatic-check preference is on (default on, set via
-        // SUEnableAutomaticChecks in Info.plist and toggleable in Settings → About).
+        let key = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String ?? ""
+        isConfigured = !key.isEmpty && key != Self.keyPlaceholder
+
+        // startingUpdater begins Sparkle's scheduled checks immediately; they only actually
+        // fire if the user's automatic-check preference is on (default on via
+        // SUEnableAutomaticChecks, toggleable in Settings → About).
         controller = SPUStandardUpdaterController(
-            startingUpdater: true,
+            startingUpdater: isConfigured,
             updaterDelegate: nil,
             userDriverDelegate: nil
         )
+        guard isConfigured else { return }
         cancellable = controller.updater.publisher(for: \.canCheckForUpdates)
             .receive(on: RunLoop.main)
             .sink { [weak self] value in self?.canCheckForUpdates = value }
@@ -35,17 +50,18 @@ final class UpdaterController {
 
     /// Show the standard "Checking for updates…" flow (and the update prompt if one exists).
     func checkForUpdates() {
+        guard isConfigured else { return }
         controller.updater.checkForUpdates()
     }
 
     /// Whether Sparkle checks for updates on its own schedule. Persisted by Sparkle.
     var automaticallyChecksForUpdates: Bool {
-        get { controller.updater.automaticallyChecksForUpdates }
-        set { controller.updater.automaticallyChecksForUpdates = newValue }
+        get { isConfigured ? controller.updater.automaticallyChecksForUpdates : false }
+        set { if isConfigured { controller.updater.automaticallyChecksForUpdates = newValue } }
     }
 
     /// When Sparkle last checked the appcast, for display in the About tab.
     var lastUpdateCheckDate: Date? {
-        controller.updater.lastUpdateCheckDate
+        isConfigured ? controller.updater.lastUpdateCheckDate : nil
     }
 }

@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.71] - 2026-06-26: Output-folder data-safety hardening
+
+Built from commit `d6bfb8b`. SHA-256: `9d2645c7740e9a67845f711aff313983b357351aea2b55553d2071cfa41dd3ce`.
+
+Originated from an incident report — a notes folder lost its `CLAUDE.md` + `processed/` + `in-progress/` scaffold and came back bare. Investigation cleared the shipped relocate feature: every folder create/delete/move path is non-destructive and the relocate is fail-safe. The real cause was a manual relocate-test session in which debug and release builds **shared one Application Support container**, forcing a hand-edit of the production `settings.json` that deleted the real folder as collateral. This release isolates debug builds, makes destructive deletion unreachable by construction, adds an opt-in scaffold, and proves the invariants. See [`agent-os/specs/2026-06-26-0916-output-folder-data-safety-hardening/`](./agent-os/specs/2026-06-26-0916-output-folder-data-safety-hardening/).
+
 ### Added
 
 - **Opt-in starter scaffold for empty folders.** A new Settings → General toggle ("Seed a starter scaffold in empty folders", off by default) seeds a generic template `CLAUDE.md` plus empty `processed/` and `in-progress/` folders into an output folder **only when it's empty and has no `CLAUDE.md`**. So a brand-new folder — or one that came back empty — returns usable instead of bare, without ever touching a folder you already curate. Implemented in `OutputFolderScaffold` (strictly idempotent and non-destructive: the eligibility check is empty-AND-no-`CLAUDE.md`, the template carries no user-specific repo paths), wired into first-launch default init, post-relocate into an empty folder, and the toggle itself.

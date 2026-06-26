@@ -130,7 +130,28 @@ The script will:
 - `--dry-run`: print every shell command without executing. Use this to verify env before doing a real build.
 - `--skip-notarize`: build and DMG-package locally without submitting. Useful for verifying signing changes without burning a notarytool round-trip.
 
-After a successful run, attach the DMG to a GitHub Release tagged with `v<VERSION>` matching what the script printed.
+### Publish the build
+
+`Scripts/release.sh` stops at a built, notarized DMG — it does not touch git or GitHub. After a successful run, publish it:
+
+1. **Cut the CHANGELOG.** Turn `## [Unreleased]` into `## [<VERSION>] - <date>: <subtitle>`, add the `` Built from commit `<short-sha>`. SHA-256: `<sha>`. `` line (the script printed both), and leave a fresh empty `[Unreleased]` above it.
+2. **Bump the roadmap status line** in `agent-os/product/roadmap.md`.
+3. **Commit** `docs(changelog): cut v<VERSION> — <subtitle>` and push `main`.
+4. **Tag the *build* commit, not HEAD.** The version is the `main` commit count *at build time*, so the build commit is HEAD **before** the changelog-cut commit. Tag that commit and push the tag:
+   ```sh
+   git tag v<VERSION> <build-commit>   # the commit you built from, not the cut commit
+   git push origin v<VERSION>
+   ```
+   (`gh release create --target <short-sha>` is rejected with `target_commitish is invalid`; pushing the tag first avoids it.)
+5. **Create the release** from the tag with the DMG attached:
+   ```sh
+   gh release create v<VERSION> --title "Rapture <VERSION> — <subtitle>" \
+     --notes "<notes from CHANGELOG>" /tmp/RaptureMacDerived/Rapture-<VERSION>.dmg
+   ```
+
+> **Shortcut:** the `release-rapture-mac` Claude Code skill (`.claude/skills/release-rapture-mac/`) automates this entire ritual — build, notarize, changelog cut, tag, GitHub Release, and optional local install — with these gotchas baked in. Say "cut a release" in a Claude Code session on `main`.
+
+**A note on stapling:** the notarization ticket is stapled to the *DMG*, not to the `.app` inside it. After installing, `xcrun stapler validate /Applications/Rapture.app` will report no ticket — that's expected; `spctl --assess --type execute` returning `accepted / source=Notarized Developer ID` is the meaningful check (Gatekeeper validates the app's notarization online).
 
 ## When in doubt
 

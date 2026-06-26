@@ -4,6 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Added
+
+- **In-app automatic updates (Sparkle).** Rapture can now check for, download, and install new releases itself instead of you re-downloading the DMG by hand. Background checks are on by default and prompt you when a new version exists; there's also a "Check for Updates…" item in the menu and an "Automatically check for updates" toggle in Settings → About. Updates are fetched from GitHub, verified against an EdDSA signature **and** Apple's notarization before installing, and the updater sends no usage data (anonymous system-profiling is disabled). This is the app's first and only networking — see the rewritten [PRIVACY.md](./PRIVACY.md). **Note:** this update itself must be installed manually (your current version has no updater yet); every release after it updates in place.
+
 ### Changed
 
 - **Release DMGs now staple the `.app`, not just the DMG.** `Scripts/release.sh` notarizes and staples the app *before* packaging it (then notarizes + staples the DMG as before), so the installed app carries its own notarization ticket and **first launch succeeds even with no network**. Previously only the DMG was stapled, leaving the app to rely on an online Gatekeeper check at first launch.

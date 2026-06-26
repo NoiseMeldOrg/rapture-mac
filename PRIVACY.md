@@ -14,12 +14,23 @@ Both files are plain JSON. You can `cat` them and see exactly what's in there.
 
 ## What we collect about you
 
-**Nothing.** No telemetry. No analytics. No crash reporter. No usage pings. No update checks. No "anonymous" data collection. There is no backend, and nothing for us to receive even if we wanted it.
+**Nothing.** No telemetry. No analytics. No crash reporter. No usage pings. No "anonymous" data collection. There is no backend, and nothing for us to receive even if we wanted it.
 
-You can confirm this two ways:
+The **one** outbound connection the app can make is the optional **auto-update** check, and it collects nothing about you either — it only *reads* public files from GitHub and sends no identifiers, no system profile, and no usage data. It is on by default but fully opt-out; turn it off and the app makes no network connections at all. Details in "Auto-update" below.
 
-1. **Grep the source.** `grep -RnE "URLSession|URLRequest|NWConnection|NWListener" RaptureMac/RaptureMac/` returns zero results. There is no networking code in the app.
-2. **Check the signed entitlements.** Run `codesign -d --entitlements - /Applications/Rapture.app`. You'll see exactly two: `app-sandbox = false` and `automation.apple-events = true`. There are no `com.apple.security.network.*` entitlements, which means macOS itself would block any network attempt the app made, even one snuck in by a malicious dependency.
+You can confirm the no-collection posture:
+
+1. **Grep the source.** Outside the Sparkle updater there is no networking — `grep -RnE "URLSession|URLRequest|NWConnection|NWListener" RaptureMac/RaptureMac/` returns zero results. The only network access in the whole app is Sparkle's update check.
+2. **Look for an endpoint.** The single address the app ever contacts is the public update feed (and the GitHub `.dmg` you choose to install). There is no analytics or tracking endpoint anywhere to find, signed-entitlements or otherwise.
+
+## Auto-update
+
+Rapture can keep itself current using [Sparkle](https://sparkle-project.org), the standard open-source macOS updater. This is the only part of the app that uses the network.
+
+- **What it fetches:** the update feed at `https://raw.githubusercontent.com/NoiseMeldOrg/rapture-mac/main/appcast.xml`, and — only if you click **Install** — the new `.dmg` from this repo's GitHub Releases. Both are public files; fetching them tells GitHub roughly what loading the release page in a browser would (your IP, around when). Nothing about your captures, settings, or usage is involved.
+- **What it sends about you:** nothing. Sparkle's optional anonymous system-profiling is disabled (`SUEnableSystemProfiling = NO`) — no identifiers, no OS/hardware profile, no usage data.
+- **Integrity:** every update must pass an **EdDSA signature** check against a public key baked into the app **and** Apple's notarization before it can install. A tampered, unsigned, or downgraded download is rejected.
+- **Your off switch:** **Settings → About → "Automatically check for updates."** On by default. Turn it off and the app makes **no** network connections on its own — you can still check manually, or ignore updates entirely and re-download from GitHub yourself.
 
 ## Permissions the app asks for
 
@@ -39,9 +50,10 @@ We do **not** read your contacts, your phone's name, your other databases (Healt
 
 ## Third-party dependencies
 
-One:
+Two:
 
-- **[GRDB.swift](https://github.com/groue/GRDB.swift)**: a Swift wrapper around SQLite, pinned at version 6.29.3 in `Package.resolved`. Used read-only against `chat.db`. GRDB itself has zero network code.
+- **[GRDB.swift](https://github.com/groue/GRDB.swift)**: a Swift wrapper around SQLite, pinned in `Package.resolved`. Used read-only against `chat.db`. GRDB itself has zero network code.
+- **[Sparkle](https://github.com/sparkle-project/Sparkle)**: the standard open-source macOS updater. It is the only networked component, and only for the auto-update feature described above (fetch the appcast, download a release you choose to install, verify its signature). It sends no usage data; its anonymous system-profiling is disabled.
 
 That's the entire third-party surface. No analytics SDK, no crash reporter, no logger that phones home, no AI/LLM SDK.
 

@@ -109,6 +109,20 @@ Should list past submissions (empty list on first run is fine; it confirms the p
 brew install create-dmg
 ```
 
+### 4. Sparkle signing key + tools (for auto-update)
+
+Auto-updates are signed with an **EdDSA key**, separate from Apple notarization. This is a one-time setup; the private key lives in your login keychain (like the notary credentials) and must be backed up — losing it means you can't ship verifiable updates to existing installs.
+
+1. Get Sparkle's CLI tools (`generate_keys`, `sign_update`). They ship in Sparkle's release tarball, not the Swift package — download the latest `Sparkle-*.tar.xz` from <https://github.com/sparkle-project/Sparkle/releases>, and put its `bin/` on your `PATH` (or note the path).
+2. Generate the key pair once:
+   ```sh
+   ./bin/generate_keys
+   ```
+   It stores the **private** key in your login keychain and prints the **public** key (a short base64 string).
+3. Paste that public key into `Scripts/set_sparkle_info.sh` as `PUBLIC_ED_KEY` (replacing `REPLACE_WITH_SPARKLE_EDDSA_PUBLIC_KEY`). That value is baked into every build's Info.plist as `SUPublicEDKey`, and every update must verify against it.
+
+Once `sign_update` is on your `PATH` and the public key is set, `Scripts/release.sh` signs each DMG and updates `appcast.xml` automatically (Stage 10). If the tool or key is missing, the release still builds — it just skips the appcast step with a warning.
+
 ## Cutting a release
 
 ```sh
@@ -145,7 +159,7 @@ Notarization runs **twice** (once for the app, once for the DMG), so a release s
 
 1. **Cut the CHANGELOG.** Turn `## [Unreleased]` into `## [<VERSION>] - <date>: <subtitle>`, add the `` Built from commit `<short-sha>`. SHA-256: `<sha>`. `` line (the script printed both), and leave a fresh empty `[Unreleased]` above it.
 2. **Bump the roadmap status line** in `agent-os/product/roadmap.md`.
-3. **Commit** `docs(changelog): cut v<VERSION> — <subtitle>` and push `main`.
+3. **Commit** `docs(changelog): cut v<VERSION> — <subtitle>` and push `main`. **Include `appcast.xml`** in this commit — `release.sh` Stage 10 added the new `<item>` to it, and it must land on `main` so the Sparkle feed (served from raw `main`) advertises the release. The `<enclosure>` URL points at the GitHub Release asset you create in step 5, so committing it before/with the release is correct — the file goes live the moment the release exists.
 4. **Tag the *build* commit, not HEAD.** The version is the `main` commit count *at build time*, so the build commit is HEAD **before** the changelog-cut commit. Tag that commit and push the tag:
    ```sh
    git tag v<VERSION> <build-commit>   # the commit you built from, not the cut commit

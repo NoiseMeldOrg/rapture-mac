@@ -44,59 +44,74 @@ final class IntegrationRunner: IntegrationRunning {
         env: [String: String],
         loginPath: String
     ) async throws -> RunResult {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<RunResult, Error>) in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.arguments = [scriptURL.path]
-            process.environment = mergeEnv(loginPath: loginPath, overlay: env)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = [scriptURL.path]
+        process.environment = mergeEnv(loginPath: loginPath, overlay: env)
 
-            let stdoutPipe = Pipe()
-            let stderrPipe = Pipe()
-            process.standardOutput = stdoutPipe
-            process.standardError = stderrPipe
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
 
-            // Two accumulators drained concurrently via readabilityHandler on
-            // each pipe's background queue. Avoids the classic pipe-buffer
-            // deadlock on scripts with >64KB of output to either stream.
-            let outBuffer = Accumulator()
-            let errBuffer = Accumulator()
+        // Three pieces of work must all finish before we have a result: draining each pipe
+        // to EOF, and learning the exit code. We gather them with a DispatchGroup.
+        //
+        // The exit code comes from `terminationHandler`, NOT `process.waitUntilExit()`.
+        // waitUntilExit() spins the *calling* thread's runloop waiting for the termination
+        // event, but Foundation delivers that event on its own management thread — so calling
+        // it from a GCD worker (no serviced runloop) hangs intermittently under load. That
+        // exact hang reddened CI: ~1 spawn in ~120 wedged for the full test-timeout. The
+        // terminationHandler fires reliably on Foundation's side once the child is reaped, so
+        // nothing waits on a foreign thread. Draining the pipes with independent full reads
+        // (rather than racing a readabilityHandler against a terminationHandler that also
+        // reads, as an earlier version did) is what keeps the *output* capture reliable, and
+        // avoids the >64KB pipe-buffer deadlock.
+        let queue = DispatchQueue(label: "noisemeld.RaptureMac.IntegrationRunner.read", attributes: .concurrent)
+        let group = DispatchGroup()
+        let outBox = DataBox()
+        let errBox = DataBox()
+        let statusBox = ExitStatusBox()
 
-            stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
-                let chunk = handle.availableData
-                if !chunk.isEmpty { outBuffer.append(chunk) }
-            }
-            stderrPipe.fileHandleForReading.readabilityHandler = { handle in
-                let chunk = handle.availableData
-                if !chunk.isEmpty { errBuffer.append(chunk) }
-            }
+        // Register all three group members BEFORE run(), so a child that exits instantly can't
+        // empty the group (firing notify early) before the readers are in it.
+        group.enter()
+        process.terminationHandler = { p in
+            statusBox.code = p.terminationStatus
+            p.terminationHandler = nil
+            group.leave()
+        }
+        queue.async(group: group) {
+            outBox.data = (try? stdoutPipe.fileHandleForReading.readToEnd()) ?? Data()
+            try? stdoutPipe.fileHandleForReading.close()
+        }
+        queue.async(group: group) {
+            errBox.data = (try? stderrPipe.fileHandleForReading.readToEnd()) ?? Data()
+            try? stderrPipe.fileHandleForReading.close()
+        }
 
-            process.terminationHandler = { p in
-                // Detach handlers and drain any final buffered bytes.
-                stdoutPipe.fileHandleForReading.readabilityHandler = nil
-                stderrPipe.fileHandleForReading.readabilityHandler = nil
-                if let remaining = try? stdoutPipe.fileHandleForReading.readToEnd() {
-                    outBuffer.append(remaining)
-                }
-                if let remaining = try? stderrPipe.fileHandleForReading.readToEnd() {
-                    errBuffer.append(remaining)
-                }
+        do {
+            try process.run()
+        } catch {
+            // The child never launched, so terminationHandler won't fire. Balance its
+            // group.enter() and close the write ends so the two readers see EOF and finish.
+            process.terminationHandler = nil
+            group.leave()
+            try? stdoutPipe.fileHandleForWriting.close()
+            try? stderrPipe.fileHandleForWriting.close()
+            log.error("Failed to spawn \(scriptURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
 
-                let result = RunResult(
-                    exitCode: p.terminationStatus,
-                    stdout: String(data: outBuffer.snapshot(), encoding: .utf8) ?? "",
-                    stderr: String(data: errBuffer.snapshot(), encoding: .utf8) ?? ""
-                )
-                continuation.resume(returning: result)
-            }
-
-            do {
-                try process.run()
-            } catch {
-                stdoutPipe.fileHandleForReading.readabilityHandler = nil
-                stderrPipe.fileHandleForReading.readabilityHandler = nil
-                process.terminationHandler = nil
-                log.error("Failed to spawn \(scriptURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                continuation.resume(throwing: error)
+        return await withCheckedContinuation { continuation in
+            // Fires once both pipes hit EOF and the child has been reaped; the group orders
+            // those writes happens-before this read, so the boxes are safe to read here.
+            group.notify(queue: queue) {
+                continuation.resume(returning: RunResult(
+                    exitCode: statusBox.code,
+                    stdout: String(decoding: outBox.data, as: UTF8.self),
+                    stderr: String(decoding: errBox.data, as: UTF8.self)
+                ))
             }
         }
     }
@@ -114,24 +129,19 @@ final class IntegrationRunner: IntegrationRunning {
     }
 }
 
-/// Lock-protected Data accumulator used by IntegrationRunner's pipe readabilityHandlers,
-/// which fire on a background dispatch queue and need a Sendable accumulator that's safe
-/// across the producer (handler) → consumer (terminationHandler) handoff.
-private final class Accumulator: @unchecked Sendable {
-    private let lock = NSLock()
-    private var data = Data()
+/// Minimal box handing a pipe's captured bytes from the background read closure to the
+/// completion closure. Access is serialized by the `DispatchGroup` (each box is written by
+/// exactly one read closure and read only after `group.notify`), so `@unchecked` is safe.
+private final class DataBox: @unchecked Sendable {
+    var data = Data()
+}
 
-    func append(_ chunk: Data) {
-        lock.lock()
-        data.append(chunk)
-        lock.unlock()
-    }
-
-    func snapshot() -> Data {
-        lock.lock()
-        defer { lock.unlock() }
-        return data
-    }
+/// Box handing the child's exit code from `terminationHandler` to the completion closure.
+/// Written exactly once (in the handler, before its `group.leave()`) and read only after
+/// `group.notify`, so the group's ordering makes `@unchecked` safe. The `-1` default is a
+/// never-observed placeholder: on the success path the handler always runs before notify.
+private final class ExitStatusBox: @unchecked Sendable {
+    var code: Int32 = -1
 }
 
 /// One-shot helper that runs `/bin/zsh -ilc 'echo $PATH'` to capture the user's
@@ -145,6 +155,13 @@ enum LoginShellPath {
     /// `/usr/bin:/bin`). Never throws — login-shell discovery should be best-
     /// effort, not blocking app launch.
     nonisolated static func capture() -> String {
+        // Skip the interactive-shell spawn in the XCTest host. `/bin/zsh -ilc` sources the
+        // user's .zshrc/.zprofile; when shell init touches a TCC-protected resource the test
+        // runner gets prompted and the suite stalls (this is also why there's no LoginShellPath
+        // unit test). The fallback PATH is fine for tests — IntegrationRunnerTests construct
+        // their own runner with an explicit loginPath. See ProcessInfo.isRunningXCTests.
+        if ProcessInfo.processInfo.isRunningXCTests { return fallback() }
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
         process.arguments = ["-ilc", "echo $PATH"]

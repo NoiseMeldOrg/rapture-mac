@@ -89,6 +89,7 @@ Searched against the v1 phase plan. Some are installed globally (workflow tools 
 - **No Mac App Store in v1.** Sandboxing would require entirely different permission flows and would block AppleScript control of Messages.app. Distribute via signed + notarized DMG.
 - **No analytics in v1.** Add PostHog (mirroring iOS) only if there's a real reason.
 - **Full Disk Access is the primary friction point.** Polling `~/Library/Messages/chat.db` requires FDA. The onboarding UX has to make this painless.
+- **Tests run inside the app.** The XCTest bundle is hosted in `Rapture.app`, so the app's `@main` startup runs during `xcodebuild test`. Any launch-time side effect that hits the network, spawns a shell, or touches a TCC-protected resource destabilizes the headless test host — notably opening `chat.db` raises the FDA prompt, which can surface as an intermittent `Restarting after unexpected exit` (looks like a flaky-test crash but is the TCC prompt). Gate all such startup machinery behind `ProcessInfo.processInfo.isRunningXCTests` (`RuntimeEnvironment.swift`). See CONTRIBUTING.md → "Architecture and code style."
 
 ## `_build_plan/`
 

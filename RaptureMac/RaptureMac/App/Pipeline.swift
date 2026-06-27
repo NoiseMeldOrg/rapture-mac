@@ -35,6 +35,11 @@ final class Pipeline {
     }
 
     func start() async {
+        // The unit-test bundle is hosted inside Rapture.app, so this runs during
+        // `xcodebuild test`. Never start the live capture pipeline there: opening chat.db
+        // raises a Full Disk Access TCC prompt that disrupts the headless test host
+        // (xcodebuild logs "Restarting after unexpected exit"). See ProcessInfo.isRunningXCTests.
+        guard !ProcessInfo.processInfo.isRunningXCTests else { return }
         guard !started else { return }
         started = true
         appState.settings.ensureDefaultOutputFolder()

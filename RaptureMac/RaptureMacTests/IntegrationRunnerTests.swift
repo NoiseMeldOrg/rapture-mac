@@ -176,8 +176,12 @@ final class IntegrationRunnerTests: XCTestCase {
     // — the `-i` flag makes zsh interactive, which sources the user's .zshrc /
     // .zprofile. When the test runner (xctest, not Terminal.app) does that and the
     // shell init touches a TCC-protected resource, macOS prompts the runner for
-    // permission — and the test stalls waiting for human dismissal. The function
-    // is exercised manually at app launch and has a documented fallback path
+    // permission — and the test stalls waiting for human dismissal. For that reason
+    // capture() now early-returns its fallback PATH under XCTest (see
+    // ProcessInfo.isRunningXCTests), so the spawn never happens in the test host at
+    // all — including the implicit call from AppState.init(), which runs because the
+    // test bundle is hosted inside Rapture.app. The function is exercised manually at
+    // app launch and has a documented fallback path
     // (ProcessInfo.processInfo.environment["PATH"] → "/usr/bin:/bin"), so the
     // production code is covered without a test that destabilizes the suite.
 }

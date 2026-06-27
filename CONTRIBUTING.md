@@ -116,7 +116,7 @@ Auto-updates are signed with an **EdDSA key**, separate from Apple notarization.
 
 To *cut a release* you need two things on your machine:
 
-1. **Sparkle's CLI tools** (`sign_update`, `generate_keys`) — they ship in Sparkle's release tarball, not the Swift package. Download the matching `Sparkle-*.tar.xz` from <https://github.com/sparkle-project/Sparkle/releases> and put its `bin/` on your `PATH`. `release.sh` Stage 10 uses `sign_update`; if it's missing the release still builds, just skipping the appcast step with a warning.
+1. **Sparkle's CLI tools** (`sign_update`, `generate_keys`) — they ship in Sparkle's release tarball, not the Swift package. Download the matching `Sparkle-*.tar.xz` from <https://github.com/sparkle-project/Sparkle/releases> and put its `bin/` on your `PATH`. Install them to a **stable** location (e.g. `cp .../bin/{sign_update,generate_keys} ~/.local/bin/`), **not** `/tmp` — a `/tmp` copy is cleared on reboot, so a later release silently skips the appcast step. `release.sh` Stage 10 uses `sign_update`; if it's missing the release still builds, just skipping the appcast step with a warning — which means **no auto-update path for that version**, so verify `which sign_update` before cutting.
 2. **The private key** in your login keychain. `generate_keys` created it on the original maintainer's Mac; if you're releasing from a different machine, import the backed-up private key first.
 
 **Back it up.** Losing the private key means you can never ship a verifiable update to existing installs again. Export and store it offline:

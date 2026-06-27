@@ -11,6 +11,9 @@ Releases are notarized, Developer ID-signed DMGs attached to GitHub Releases (no
 
 - On `main`, working tree clean, `git pull` done.
 - One-time setup present: `Developer ID Application` cert for team `P8PLTH44DF`, `notarytool` keychain profile `rapture-mac-notary`, and `create-dmg` (`brew install create-dmg`). See `CONTRIBUTING.md → "First-time release setup"`.
+- **Sparkle signing is wired up (auto-update — required since v1.0.78).** `Scripts/release.sh` Stage 10 EdDSA-signs the DMG and appends the `appcast.xml` entry; if it can't, the release ships with **no auto-update path** for that version. Verify both halves before building:
+  - `which sign_update` resolves. The Sparkle CLI tools (`sign_update`, `generate_keys`) ship in the Sparkle release tarball, **not** the Swift package, and must live on a **stable** `PATH` dir — installing them only under `/tmp` is the trap (it's cleared on reboot, so a release that worked last week silently skips Stage 10). Install to `~/.local/bin` (already on `PATH`): `cp /tmp/sparkle-tools/bin/{sign_update,generate_keys} ~/.local/bin/` (or re-download `Sparkle-*.tar.xz` from <https://github.com/sparkle-project/Sparkle/releases> if `/tmp` was cleared).
+  - The **private EdDSA key is in the login keychain** and matches the committed public key: `generate_keys -p` must print the `SUPublicEDKey` from `Scripts/set_sparkle_info.sh` (`aSyKYbbZsRRd12sg7D6m4j8HZcOCojVaIaKm2O5xqNo=`). If releasing from another Mac, import the backed-up key first (`generate_keys -f <file>`). See `CONTRIBUTING.md → "First-time release setup" item 4` for backup/rotation.
 - The `CHANGELOG.md` `[Unreleased]` section already describes what's shipping. If it's empty or stale, stop and write it (with the user) before building — the release notes are sourced from it.
 
 ## The version + tag rule — read this before tagging

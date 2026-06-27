@@ -88,6 +88,8 @@ hdiutil detach "$MP"
 spctl --assess --type execute --verbose=2 /Applications/Rapture.app   # expect: accepted, Notarized Developer ID
 open /Applications/Rapture.app
 ```
+**Expect a Full Disk Access re-grant + a restart prompt on first launch of the replaced app.** Replacing the bundle can drop the previous build's FDA grant in TCC, so the new build re-runs onboarding asking you to enable Full Disk Access. After you enable it, the app prompts to **quit and reopen** — a *running* process doesn't pick up a newly-granted FDA permission until it relaunches, so this restart is required, not optional. Approve it (don't dismiss); capture won't work until you do. (Whether a *Sparkle auto-update* preserves the FDA grant — vs. re-prompting like a manual replace — depends on TCC honoring the stable Developer ID designated requirement across the in-place swap; verify it the first time you ship an update, since re-prompting on every update would be a real UX regression.)
+
 To leave only the installed copy, remove stray build products under `/tmp/RaptureMacDerived`, `/tmp/rapture-dd-*`, and the Mac app's Xcode `DerivedData/RaptureMac-*` folder. **Do not** delete the `…Debug-iphonesimulator/Rapture.app` under `DerivedData/Rapture-*` — that's the separate **iOS** app (`noisemeld.Rapture`), a different product.
 
 ## Gotchas (each has bitten a real release)

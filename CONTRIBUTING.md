@@ -134,18 +134,22 @@ git pull
 ./Scripts/release.sh
 ```
 
+**Stay at the keyboard while it runs.** Signing touches the keychain several times (Stage 3b re-signs each Sparkle helper + the framework + app; Stage 10's `sign_update` uses the EdDSA key), so macOS may prompt to **unlock the keychain (login/Mac password)** and/or to **allow `codesign`/`sign_update` to use a key** — and the run *blocks* on each prompt. Click **Always Allow** so later signing calls in the same run don't re-prompt. To avoid the password prompt entirely, `security unlock-keychain` before starting.
+
 The script will:
 
 1. Sanity-check (on `main`, clean tree, cert + notary profile + `create-dmg` present).
 2. `xcodebuild` a Release configuration into `/tmp/RaptureMacDerived/`.
 3. Read the auto-generated `CFBundleShortVersionString` from the built Info.plist (the `Scripts/set_git_version.sh` Run Script phase writes it from the `main` commit count).
+3b. **Re-sign Sparkle's nested helpers** (`Updater.app`, `Autoupdate`, the Downloader/Installer XPC services) inside-out with the Developer ID identity + hardened runtime + a secure timestamp, then re-seal the framework and app. Sparkle ships them ad-hoc-signed and Xcode doesn't re-sign that nested code, so without this the notary rejects the app ("not signed with a valid Developer ID certificate" / "no secure timestamp") even though `codesign --verify --deep` passes locally. This bit v1.0.79.
 4. Verify the signature (`codesign --verify --deep --strict`).
 5. Notarize and **staple the `.app`** — zip it, `xcrun notarytool submit --wait` (~30s–10min), then `xcrun stapler staple` the app — so first launch works even fully offline.
 6. Build the DMG via `create-dmg` from the now-stapled app.
 7. Submit the DMG to Apple's notarization service (`xcrun notarytool submit --wait`).
 8. Staple the notarization ticket onto the DMG.
 9. Run `spctl --assess` and `xcrun stapler validate` for final sanity.
-10. Print the DMG path, size, and SHA-256.
+10. **EdDSA-sign the DMG and append the `appcast.xml` entry** (`sign_update`) — the Sparkle feed that lets installed copies auto-update. Skipped with a warning if `sign_update` isn't on `PATH`.
+11. Print the DMG path, size, and SHA-256.
 
 Notarization runs **twice** (once for the app, once for the DMG), so a release submits two `notarytool` jobs.
 

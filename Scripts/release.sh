@@ -153,6 +153,38 @@ else
 fi
 echo "Version: $VERSION (build $BUILD)"
 
+# --- Stage 3b: re-sign Sparkle's nested helpers ---
+# Sparkle ships its helper executables (Updater.app, Autoupdate, the Downloader/Installer
+# XPC services) ad-hoc-signed. Xcode embeds the framework but does NOT re-sign that nested
+# code, so they reach the notary as `Signature=adhoc, TeamIdentifier=not set` with no secure
+# timestamp — and notarization rejects the whole app ("not signed with a valid Developer ID
+# certificate" / "signature does not include a secure timestamp"). `codesign --verify --deep`
+# passes locally because it checks neither of those, which is why this only shows up at the
+# notary. Re-sign inside-out with our Developer ID + hardened runtime + a secure timestamp,
+# preserving each component's own entitlements, then re-seal the framework and the app.
+SPARKLE_FW="$APP/Contents/Frameworks/Sparkle.framework"
+if [ -d "$SPARKLE_FW" ]; then
+  say "Stage 3b/11: re-sign Sparkle nested helpers (Developer ID + runtime + timestamp)"
+  for comp in \
+    "Versions/B/XPCServices/Downloader.xpc" \
+    "Versions/B/XPCServices/Installer.xpc" \
+    "Versions/B/Autoupdate" \
+    "Versions/B/Updater.app"; do
+    if [ -e "$SPARKLE_FW/$comp" ]; then
+      run codesign --force --options runtime --timestamp \
+        --preserve-metadata=entitlements \
+        --sign "$SIGN_IDENTITY" "$SPARKLE_FW/$comp"
+    fi
+  done
+  # Re-seal the framework, then the app (nested changes invalidate the outer seals).
+  run codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$SPARKLE_FW"
+  run codesign --force --options runtime --timestamp \
+    --preserve-metadata=entitlements \
+    --sign "$SIGN_IDENTITY" "$APP"
+else
+  echo "Note: no Sparkle.framework embedded; skipping nested-helper re-sign."
+fi
+
 # --- Stage 4: Verify signing ---
 say "Stage 4/11: verify codesign"
 run codesign --verify --deep --strict --verbose=2 "$APP"

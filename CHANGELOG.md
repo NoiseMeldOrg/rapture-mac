@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.80] - 2026-06-27: In-app auto-update (Sparkle)
+
+Built from commit `b1c03a7`. SHA-256: `138cd6daaa2c17dedc36ecca172cb012497c7e545eff25e3bac9835b5a5af449`.
+
+Rapture's first self-updating release. From here on it checks GitHub for new versions and installs them in place — but **this one must be installed manually** (your current version has no updater yet). The release also folds in the test-suite/CI stabilization and the release-pipeline signing fixes that bringing Sparkle live surfaced.
+
 ### Added
 
 - **In-app automatic updates (Sparkle).** Rapture can now check for, download, and install new releases itself instead of you re-downloading the DMG by hand. Background checks are on by default and prompt you when a new version exists; there's also a "Check for Updates…" item in the menu and an "Automatically check for updates" toggle in Settings → About. Updates are fetched from GitHub, verified against an EdDSA signature **and** Apple's notarization before installing, and the updater sends no usage data (anonymous system-profiling is disabled). This is the app's first and only networking — see the rewritten [PRIVACY.md](./PRIVACY.md). **Note:** this update itself must be installed manually (your current version has no updater yet); every release after it updates in place.
@@ -14,6 +20,7 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ### Internal
 
+- **Release pipeline now re-signs Sparkle's nested helpers.** The first Sparkle-enabled build was rejected by Apple's notary: Sparkle ships `Updater.app`, `Autoupdate`, and the Downloader/Installer XPC services ad-hoc-signed, and Xcode embeds the framework without re-signing that nested code (so they reach the notary with no Developer ID and no secure timestamp — `codesign --verify --deep` passes locally because it checks neither). `Scripts/release.sh` Stage 3b now re-signs them inside-out with the Developer ID identity + hardened runtime + a secure timestamp before notarization. The `release-rapture-mac` skill + CONTRIBUTING also now require `sign_update` on a stable `PATH` (not `/tmp`) before cutting, so the appcast step can't silently skip.
 - **Fixed flaky `IntegrationRunnerTests` that reddened CI.** Three subprocess/test-host problems, surfaced once Sparkle's EdDSA key made the updater live and the suite was stress-run: (1) `IntegrationRunner.runScript` no longer calls `process.waitUntilExit()` on a GCD worker thread — that spins a runloop the termination event is never delivered to, so ~1 spawn in ~120 hung for the full test-timeout; the exit code now comes from the `terminationHandler`, which Foundation fires reliably. (2) Output capture drains both pipes to EOF via a `DispatchGroup` (independent full reads) instead of racing a `readabilityHandler` against the `terminationHandler`, which could drop captured output on a loaded machine. (3) The app's launch-time machinery no longer runs inside the XCTest host: the test bundle is hosted in `Rapture.app`, so `@main` startup runs during `xcodebuild test` — and opening `chat.db` there raised a Full Disk Access prompt that intermittently killed the host (`Restarting after unexpected exit`). `Pipeline.start()`, `LoginShellPath.capture()`, and `UpdaterController` are now gated behind `ProcessInfo.isRunningXCTests` (`RuntimeEnvironment.swift`). No production behavior changes — only the subprocess plumbing and test host are affected.
 - **Continuous integration**: every PR and push to `main` now builds and runs the full XCTest suite on a macOS GitHub Actions runner (`.github/workflows/ci.yml`).
 - **Fixed `Scripts/*.sh` to be executable in git** (they were stored `100644`), so the Xcode build phases that run them work on a clean checkout — not just where the working copy happened to carry the bit. Caught by the new CI.

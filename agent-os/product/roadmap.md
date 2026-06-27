@@ -1,8 +1,8 @@
 # Product Roadmap
 
-> Last Updated: 2026-06-26
+> Last Updated: 2026-06-27
 > Version: 1.1.0
-> Status: v1 shipped — latest public release v1.0.71 live on GitHub Releases (2026-06-26)
+> Status: v1 shipped — latest public release v1.0.80 live on GitHub Releases (2026-06-27); first Sparkle auto-update release
 
 Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/plan.md`. Effort is shaped as `XS` (1 day), `S` (2–3 days), `M` (1 week), `L` (2 weeks).
 

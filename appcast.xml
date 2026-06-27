@@ -13,5 +13,14 @@
     <description>Automatic updates for Rapture for Mac.</description>
     <language>en</language>
     <!-- appcast:items -->
+    <item>
+      <title>1.0.80</title>
+      <pubDate>Sat, 27 Jun 2026 04:02:18 +0000</pubDate>
+      <sparkle:version>1000080</sparkle:version>
+      <sparkle:shortVersionString>1.0.80</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <link>https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.80</link>
+      <enclosure url="https://github.com/NoiseMeldOrg/rapture-mac/releases/download/v1.0.80/Rapture-1.0.80.dmg" type="application/octet-stream" sparkle:edSignature="AeSAgQWi6ZDdK+3Rn401azmKgGaUAE8AgNV/pJdyVyj05fzMsAWWgx7MtmTVQSbLVbuAIQXcQdVdRkaCPDtICg==" length="3751475" />
+    </item>
   </channel>
 </rss>

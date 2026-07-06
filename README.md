@@ -4,7 +4,7 @@
 [![Release](https://img.shields.io/github/v/release/NoiseMeldOrg/rapture-mac?display_name=tag&sort=semver)](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest)
 [![Network: zero outbound](https://img.shields.io/badge/network-zero%20outbound-success)](./PRIVACY.md)
 
-A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Turns Siri-dictated iMessages into timestamped `.txt` files in a folder of your choice, so voice-captured thoughts land where any AI assistant (Claude, ChatGPT, Gemini, a local Llama) can read them.
+A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Files your voice captures as timestamped `.txt` files in a folder of your choice, so voice-captured thoughts land where any AI assistant (Claude, ChatGPT, Gemini, a local Llama) can read them. Notes arrive two ways: Siri-dictated iMessages, and captures the Rapture iPhone app sends through your own iCloud.
 
 **Apache-2.0. Local-only. Vendor-neutral. The folder is the only integration surface.**
 
@@ -20,6 +20,8 @@ Siri transcribes and sends. No unlock, no app open, no taps. Rapture for Mac see
 
 That's the whole transaction. The defining property: **the iPhone side is fully hands-free from a locked device.** It's the one Apple-permitted voice path that works without unlock. Shortcuts can't do it from the lock screen. The Action Button needs the phone in hand. The Notes app needs unlock.
 
+The second path starts in the Rapture iPhone app. Turn on the **Rapture Mac** destination there and every capture you make in the app is handed to your own iCloud. Your Mac files it into the same folder the next time it is awake and syncing. No pairing, no server, no manual steps. See [Capture from the Rapture iPhone app](#capture-from-the-rapture-iphone-app).
+
 ## Install
 
 1. Download the latest DMG from the [Releases page](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest).
@@ -30,7 +32,7 @@ Once installed, Rapture keeps itself up to date — it checks for new releases a
 
 ### First-run walkthrough
 
-The app will guide you through two macOS permissions. Both are required.
+The app will guide you through two macOS permissions. Both are needed for iMessage capture; captures from the Rapture iPhone app work without either, so relayed notes file even while this walkthrough is still pending.
 
 1. **Full Disk Access**: needed to read `~/Library/Messages/chat.db`. The app opens a sheet with an **Open System Settings** button that deep-links to the right pane. Toggle Rapture for Mac on. (If you don't see it in the list, click `+` and add it manually.) The sheet closes automatically once access is granted.
 2. **Automation → Messages**: needed for the `✅ Saved` reply. The first time the app tries to reply, you'll see a one-time pre-prompt explaining what's about to happen, then macOS shows its own permission dialog. Click **OK**.
@@ -39,6 +41,24 @@ The app will guide you through two macOS permissions. Both are required.
 5. Within another second, you see `✅ Saved` in your iMessages thread on your phone. That's the audible-on-iPhone confirmation that the capture landed.
 
 That's the whole product. Everything else (allowlist, reply modes, pause/resume) is in the menu-bar popover and the Settings window.
+
+## Capture from the Rapture iPhone app
+
+If you use the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app, your Mac can file those captures too:
+
+1. In the iPhone app, open **Settings → Destinations → Rapture Mac** and turn it on.
+2. Make sure both devices are signed into the same Apple account with iCloud Drive enabled.
+3. Capture a note. It is handed to your iCloud and lands in your Rapture Notes folder the next time this Mac is awake and syncing.
+
+How it works: the iPhone writes each capture into a hidden relay folder inside Rapture's own iCloud container (on the Mac, `~/Library/Mobile Documents/iCloud~noisemeld~Rapture/Relay/`). macOS syncs that folder down; this app watches the synced copy, files each arrival, and deletes the relay copy. An empty relay means everything has been delivered. The app adds no network code for any of this. It reads a local folder; the operating system moves the bytes. Relay captures transit your own iCloud, the same way iMessage captures already transit Apple's iMessage infrastructure. See [PRIVACY.md](./PRIVACY.md).
+
+Worth knowing:
+
+- **No Full Disk Access needed** for this source. FDA is only for reading your Messages history.
+- **Note text arrives by default.** The audio recording rides along when you turn on the **Audio File** toggle in the iPhone app's Rapture Mac settings.
+- **No "Saved" reply** for these captures; there is no chat thread to reply into. The menu-bar today count is the arrival confirmation.
+- **The Mac-side toggle** lives in **Settings → General → iPhone App**, on by default. It's a no-op until the relay folder first appears.
+- **One watching Mac per iCloud account.** Several Macs on the same account would race to file the same arrivals. Documented limitation, not supported in v1.
 
 ## Using your captures
 
@@ -58,7 +78,7 @@ Pick whichever agent you already use. Rapture doesn't care.
 
 ## v1 scope
 
-- **Local mode only.** Polls `~/Library/Messages/chat.db` once per second, decodes message text (including the binary `attributedBody` blob that iOS 16+ uses for Siri-dictated messages), filters to your self-chat plus a user-managed allowlist, writes one `.txt` per message (with attachments in a sibling folder), and replies via AppleScript through Messages.app.
+- **Two capture sources, no server.** The iMessage source polls `~/Library/Messages/chat.db` once per second, decodes message text (including the binary `attributedBody` blob that iOS 16+ uses for Siri-dictated messages), filters to your self-chat plus a user-managed allowlist, writes one `.txt` per message (with attachments in a sibling folder), and replies via AppleScript through Messages.app. The relay source watches the synced iCloud relay folder and files whatever the Rapture iPhone app sent.
 - **No cloud mode in v1.** A future v1.1 adds a Sendblue path via VPS relay. An on-Mac webhook listener would die whenever the Mac sleeps, so we won't ship one.
 
 ### Out of scope
@@ -68,7 +88,7 @@ A short list of things you might expect but don't get; for the full rationale se
 - Group chat capture
 - In-app browsing / search / preview (the folder *is* the UI; use Finder, Spotlight, ripgrep, or your AI assistant)
 - Built-in AI integration (vendor-neutral by design)
-- Audio capture of the original dictation (text only; the audio stays on your iPhone)
+- Audio capture of Siri-dictated iMessages (text only; that audio stays on your iPhone). Captures sent from the Rapture iPhone app *can* include the audio file when you turn that on in the iOS app.
 - Mac App Store distribution (structurally impossible; see [shape.md](./agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md))
 - Analytics or telemetry (the only outbound network call is the optional, opt-out auto-update check — see [PRIVACY.md](./PRIVACY.md))
 

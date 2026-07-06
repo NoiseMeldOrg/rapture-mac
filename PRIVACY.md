@@ -12,6 +12,12 @@ Rapture for Mac is built so this section can be honestly short.
 
 Both files are plain JSON. You can `cat` them and see exactly what's in there.
 
+## Notes from the Rapture iPhone app
+
+If you enable the **Rapture Mac** destination in the Rapture iOS app, your iPhone hands each capture to your own iCloud, inside a relay folder in Rapture's app container. macOS syncs that folder to your Mac like any other iCloud Drive content. This app watches the synced local copy (`~/Library/Mobile Documents/iCloud~noisemeld~Rapture/Relay/`), files each arrival into your notes folder, and deletes the relay copy.
+
+In transit these captures are ordinary iCloud data moving between your devices, the same way this app's iMessage captures already transit Apple's iMessage infrastructure. Apple handles the transport; we have no visibility into it. No NoiseMeld server is involved, and the Mac app makes no network connections to do this: it reads a folder on your disk and the operating system moves the bytes. The grep check below covers this path too.
+
 ## What we collect about you
 
 **Nothing.** No telemetry. No analytics. No crash reporter. No usage pings. No "anonymous" data collection. There is no backend, and nothing for us to receive even if we wanted it.
@@ -39,6 +45,7 @@ Rapture can keep itself current using [Sparkle](https://sparkle-project.org), th
 | Full Disk Access | Required to read `~/Library/Messages/chat.db`, which is the only place macOS stores iMessage history. | Anything in your home folder. We use exactly one file: `chat.db` (read-only). |
 | Automation → Messages | Required to send the `✓ Saved` reply in your iMessage thread via `osascript`. | We can ask Messages.app to send one specific outgoing reply per capture. |
 | Output folder | The folder you picked for captures. | Just that folder. We don't write anywhere else. |
+| iCloud relay folder | Watched so captures sent from the Rapture iPhone app can be filed. | Only Rapture's own iCloud container. Reading it needs no permission grant, and Full Disk Access is not involved. |
 
 If any of these become uncomfortable, revoke them in **System Settings → Privacy & Security**. The app will surface a permission-needed prompt and stop capturing until you re-grant.
 
@@ -46,7 +53,9 @@ If any of these become uncomfortable, revoke them in **System Settings → Priva
 
 Just the fields needed to filter and decode each message: `ROWID`, `guid`, `text`, `attributedBody`, `date`, `is_from_me`, `cache_has_attachments`, `service`, `handle.id` (the sender's phone or email), `chat.guid`, `chat.style`. For attachments: `filename`, `mime_type`, `transfer_name`.
 
-We do **not** read your contacts, your phone's name, your other databases (HealthKit, Photos, etc.), your keychain, your browser history, your iCloud Drive, or anything outside the chat.db file. The Full Disk Access grant gives us the *capability* to do so; the code does not.
+We do **not** read your contacts, your phone's name, your other databases (HealthKit, Photos, etc.), your keychain, your browser history, or anything outside the chat.db file. The Full Disk Access grant gives us the *capability* to do so; the code does not.
+
+From your iCloud Drive we read exactly one folder: Rapture's own relay folder described above, containing only the `.txt` and `.m4a` files the Rapture iPhone app wrote for this Mac to file. Nothing else in your iCloud Drive is opened.
 
 ## Third-party dependencies
 

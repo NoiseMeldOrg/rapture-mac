@@ -40,9 +40,12 @@ final class AppState {
     /// Serializes capture writes against an output-folder relocation. See `CaptureGate`.
     let captureGate = CaptureGate()
 
-    init() {
-        self.settings = SettingsStore()
-        self.state = StateStore()
+    /// - Parameter supportDirectory: overrides where settings.json/state.json
+    ///   live. Tests pass a temp directory so they never touch the dev
+    ///   machine's live container; the app passes nil (app-support container).
+    init(supportDirectory: URL? = nil) {
+        self.settings = SettingsStore(directory: supportDirectory)
+        self.state = StateStore(directory: supportDirectory)
         let loginPath = LoginShellPath.capture()
         let runner = IntegrationRunner(loginPath: loginPath)
         self.integrations = IntegrationsState(

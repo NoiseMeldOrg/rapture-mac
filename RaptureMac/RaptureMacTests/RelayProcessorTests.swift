@@ -3,9 +3,10 @@ import XCTest
 
 /// Drives the relay filing pipeline end-to-end against temp relay/output dirs.
 ///
-/// `AppState`/`StateStore` persist to the app-support container (the DEBUG-isolated
-/// one under test), so setUp/tearDown snapshot and restore those files to avoid
-/// disturbing local dev state (same pattern as `AppStateRelocationTests`).
+/// `AppState` gets a temp `supportDirectory`, so settings.json/state.json are
+/// fully isolated from the dev machine's live container — tests neither read
+/// real relay-ledger state (milestone 4 dogfood finding: real filings broke
+/// ledger-emptiness assertions) nor write to it.
 @MainActor
 final class RelayProcessorTests: XCTestCase {
 
@@ -13,7 +14,7 @@ final class RelayProcessorTests: XCTestCase {
     private var root: URL!
     private var relay: URL!
     private var output: URL!
-    private var snapshots: [URL: Data?] = [:]
+    private var support: URL!
 
     private let baseName = "2026-07-06T15-14-42Z Grocery Ideas"
     private var txtName: String { baseName + ".txt" }
@@ -23,23 +24,12 @@ final class RelayProcessorTests: XCTestCase {
         root = fm.temporaryDirectory.appendingPathComponent("relay-proc-\(UUID().uuidString)", isDirectory: true)
         relay = root.appendingPathComponent("Relay", isDirectory: true)
         output = root.appendingPathComponent("Notes", isDirectory: true)
+        support = root.appendingPathComponent("Support", isDirectory: true)
         try fm.createDirectory(at: relay, withIntermediateDirectories: true)
         try fm.createDirectory(at: output, withIntermediateDirectories: true)
-
-        for name in ["settings.json", "state.json", "output-folder.path"] {
-            let url = try AppSupportDirectory.url().appendingPathComponent(name)
-            snapshots[url] = fm.fileExists(atPath: url.path) ? try Data(contentsOf: url) : Optional<Data>.none
-        }
     }
 
     override func tearDownWithError() throws {
-        for (url, data) in snapshots {
-            if let data {
-                try data.write(to: url)
-            } else if fm.fileExists(atPath: url.path) {
-                try fm.removeItem(at: url)
-            }
-        }
         if let root, fm.fileExists(atPath: root.path) {
             try fm.removeItem(at: root)
         }
@@ -66,7 +56,7 @@ final class RelayProcessorTests: XCTestCase {
     }
 
     private func makeAppState() -> AppState {
-        let appState = AppState()
+        let appState = AppState(supportDirectory: support)
         appState.settings.update {
             $0.outputFolder = output
             $0.paused = false

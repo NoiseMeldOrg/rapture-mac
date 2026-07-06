@@ -11,8 +11,14 @@ final class SettingsStore {
 
     private(set) var settings: Settings
 
-    init() {
-        self.settings = Self.load() ?? Settings()
+    /// When set, settings.json lives in this directory instead of the
+    /// app-support container. Tests inject a temp directory so they can never
+    /// read or write a dev machine's live settings (see StateStore.directory).
+    @ObservationIgnored private let directory: URL?
+
+    init(directory: URL? = nil) {
+        self.directory = directory
+        self.settings = Self.load(from: directory) ?? Settings()
     }
 
     func update(_ mutate: (inout Settings) -> Void) {
@@ -45,13 +51,17 @@ final class SettingsStore {
         )
     }
 
-    private static func fileURL() throws -> URL {
-        try AppSupportDirectory.url().appendingPathComponent(fileName)
+    private static func fileURL(in directory: URL?) throws -> URL {
+        if let directory {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            return directory.appendingPathComponent(fileName)
+        }
+        return try AppSupportDirectory.url().appendingPathComponent(fileName)
     }
 
-    private static func load() -> Settings? {
+    private static func load(from directory: URL?) -> Settings? {
         do {
-            let url = try fileURL()
+            let url = try fileURL(in: directory)
             guard let data = try AtomicFile.read(url) else { return nil }
             return try JSONDecoder().decode(Settings.self, from: data)
         } catch {
@@ -66,7 +76,7 @@ final class SettingsStore {
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(settings)
-            let url = try Self.fileURL()
+            let url = try Self.fileURL(in: directory)
             try AtomicFile.write(data, to: url)
         } catch {
             Self.log.error("Failed to save settings: \(error.localizedDescription, privacy: .public)")

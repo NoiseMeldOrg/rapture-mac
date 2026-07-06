@@ -10,8 +10,15 @@ final class StateStore {
 
     private(set) var state: PersistedState
 
-    init() {
-        self.state = Self.load() ?? PersistedState()
+    /// When set, state.json lives in this directory instead of the app-support
+    /// container. Tests inject a temp directory so they can never read a dev
+    /// machine's live ledger (milestone 4 dogfood finding: real relay filings
+    /// in the debug container broke ledger-emptiness assertions).
+    @ObservationIgnored private let directory: URL?
+
+    init(directory: URL? = nil) {
+        self.directory = directory
+        self.state = Self.load(from: directory) ?? PersistedState()
     }
 
     func update(_ mutate: (inout PersistedState) -> Void) {
@@ -35,13 +42,17 @@ final class StateStore {
         }
     }
 
-    private static func fileURL() throws -> URL {
-        try AppSupportDirectory.url().appendingPathComponent(fileName)
+    private static func fileURL(in directory: URL?) throws -> URL {
+        if let directory {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            return directory.appendingPathComponent(fileName)
+        }
+        return try AppSupportDirectory.url().appendingPathComponent(fileName)
     }
 
-    private static func load() -> PersistedState? {
+    private static func load(from directory: URL?) -> PersistedState? {
         do {
-            let url = try fileURL()
+            let url = try fileURL(in: directory)
             guard let data = try AtomicFile.read(url) else { return nil }
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
@@ -58,7 +69,7 @@ final class StateStore {
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(state)
-            let url = try Self.fileURL()
+            let url = try Self.fileURL(in: directory)
             try AtomicFile.write(data, to: url)
         } catch {
             Self.log.error("Failed to save state: \(error.localizedDescription, privacy: .public)")

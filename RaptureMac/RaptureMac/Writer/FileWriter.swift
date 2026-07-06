@@ -53,7 +53,9 @@ final class FileWriter {
         return formatter.string(from: date).replacingOccurrences(of: ":", with: "-")
     }
 
-    private nonisolated static func uniqueDestination(in folder: URL, baseName: String) -> (URL, String) {
+    // Internal (not private): `RelayFiler` reuses the same collision walk and
+    // Attachments-footer conventions so both capture sources file identically.
+    nonisolated static func uniqueDestination(in folder: URL, baseName: String) -> (URL, String) {
         var candidate = baseName
         var suffix = 1
         while true {
@@ -69,7 +71,7 @@ final class FileWriter {
         }
     }
 
-    private nonisolated static func composeBody(text: String, copiedAttachments: [(folder: String, filename: String)]) -> String {
+    nonisolated static func composeBody(text: String, copiedAttachments: [(folder: String, filename: String)]) -> String {
         guard !copiedAttachments.isEmpty else { return text }
         let lines = copiedAttachments.map { "- \($0.folder)/\($0.filename)" }
         let separator = text.isEmpty ? "" : "\n\n"

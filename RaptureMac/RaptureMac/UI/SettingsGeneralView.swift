@@ -18,6 +18,7 @@ struct SettingsGeneralView: View {
             launchAtLoginSection
             replyModeSection
             smsSection
+            relaySection
         }
         .formStyle(.grouped)
     }
@@ -208,6 +209,38 @@ struct SettingsGeneralView: View {
                 .foregroundStyle(.secondary)
         } header: {
             Text("SMS")
+        }
+    }
+
+    // MARK: - Relay (Rapture iPhone app)
+
+    @ViewBuilder
+    private var relaySection: some View {
+        Section {
+            Toggle("File notes sent from the Rapture iPhone app", isOn: appState.settings.binding(for: \.relayEnabled))
+            Text(relayStatusDescription)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if let error = appState.relayLastError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        } header: {
+            Text("iPhone App")
+        }
+    }
+
+    private var relayStatusDescription: String {
+        switch appState.relayStatus {
+        case .off:
+            return "Relay capture is off. Notes sent from the iPhone app will wait in iCloud until you turn this back on."
+        case .waitingForFolder:
+            return "No relay folder yet. It appears automatically after the first note is sent from your iPhone."
+        case .watching:
+            return "Watching the iCloud relay folder. New notes are filed into your notes folder and removed from the relay."
+        case .waitingForDownload(let count):
+            return "Waiting for iCloud to download \(count) \(count == 1 ? "item" : "items")."
         }
     }
 }

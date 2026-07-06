@@ -27,6 +27,12 @@ final class AppState {
     var isRelocating = false
     var relocationStatus: RelocationStatus = .idle
 
+    /// Transient status of the relay capture source (see `RelayWatcher`). Not persisted.
+    var relayStatus: RelayStatus = .off
+    /// Last relay filing error. Kept separate from `relayStatus` so a per-tick status
+    /// post can never clobber an error the user hasn't seen yet. Transient.
+    var relayLastError: String?
+
     let settings: SettingsStore
     let state: StateStore
     let integrations: IntegrationsState

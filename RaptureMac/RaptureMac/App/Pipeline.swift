@@ -28,6 +28,9 @@ final class Pipeline {
     private var batchProcessor: BatchProcessor?
     private var fdaPollTask: Task<Void, Never>?
     private var consumerTask: Task<Void, Never>?
+    private var relayWatcher: RelayWatcher?
+    private var relayProcessor: RelayProcessor?
+    private var relayConsumerTask: Task<Void, Never>?
     private var started = false
 
     init(appState: AppState) {
@@ -43,23 +46,60 @@ final class Pipeline {
         guard !started else { return }
         started = true
         appState.settings.ensureDefaultOutputFolder()
+        // Relay capture needs no chat.db, so it starts before (and independent of)
+        // the FDA-gated iMessage path: relayed notes still file while FDA is pending.
+        startRelay()
         await attemptStart()
     }
 
     func stop() {
         fdaPollTask?.cancel()
         consumerTask?.cancel()
+        relayConsumerTask?.cancel()
         watcher?.stop()
+        relayWatcher?.stop()
         resolver?.stop()
         selfChatResolver?.stop()
         fdaPollTask = nil
         consumerTask = nil
+        relayConsumerTask = nil
         watcher = nil
+        relayWatcher = nil
+        relayProcessor = nil
         resolver = nil
         selfChatResolver = nil
         batchProcessor = nil
         dbPool = nil
         started = false
+    }
+
+    private func startRelay() {
+        let processor = RelayProcessor(
+            appState: appState,
+            filer: RelayFiler(),
+            ledger: RelayFiledLedger(stateStore: appState.state)
+        )
+        relayProcessor = processor
+
+        let relayWatcher = RelayWatcher(folder: RelayWatcher.defaultRelayFolder)
+        self.relayWatcher = relayWatcher
+
+        let appState = self.appState
+        let stream = relayWatcher.batches(
+            enabledProvider: {
+                await MainActor.run { appState.settings.settings.relayEnabled }
+            },
+            onStatus: { status in
+                await MainActor.run { appState.relayStatus = status }
+            }
+        )
+
+        relayConsumerTask = Task { [weak self] in
+            for await batch in stream {
+                guard let self else { break }
+                await self.relayProcessor?.process(batch: batch)
+            }
+        }
     }
 
     private func attemptStart() async {

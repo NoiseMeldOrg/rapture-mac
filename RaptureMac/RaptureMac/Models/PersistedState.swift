@@ -10,6 +10,7 @@ struct PersistedState: Codable, Sendable, Equatable {
     var todayCount: Int
     var todayDate: Date?
     var lastCaptureAt: Date?
+    var relayFiledRecords: [RelayFiledEntry]
 
     init(
         chatDbWatermark: Int64 = 0,
@@ -20,7 +21,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         automationPrePromptShown: Bool = false,
         todayCount: Int = 0,
         todayDate: Date? = nil,
-        lastCaptureAt: Date? = nil
+        lastCaptureAt: Date? = nil,
+        relayFiledRecords: [RelayFiledEntry] = []
     ) {
         self.chatDbWatermark = chatDbWatermark
         self.selfHandlesCacheTs = selfHandlesCacheTs
@@ -31,6 +33,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.todayCount = todayCount
         self.todayDate = todayDate
         self.lastCaptureAt = lastCaptureAt
+        self.relayFiledRecords = relayFiledRecords
     }
 
     enum CodingKeys: String, CodingKey {
@@ -43,6 +46,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         case todayCount
         case todayDate
         case lastCaptureAt
+        case relayFiledRecords
     }
 
     init(from decoder: Decoder) throws {
@@ -56,6 +60,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.todayCount = try c.decodeIfPresent(Int.self, forKey: .todayCount) ?? 0
         self.todayDate = try c.decodeIfPresent(Date.self, forKey: .todayDate)
         self.lastCaptureAt = try c.decodeIfPresent(Date.self, forKey: .lastCaptureAt)
+        self.relayFiledRecords = try c.decodeIfPresent([RelayFiledEntry].self, forKey: .relayFiledRecords) ?? []
     }
 
     /// Returns todayCount when `todayDate` falls on the same calendar day as `now`; 0 otherwise.

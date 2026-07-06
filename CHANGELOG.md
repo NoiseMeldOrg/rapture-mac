@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.88] - 2026-07-06: Rapture iPhone app capture source
+
+Built from commit `7b3fc02`. SHA-256: `6814354498b32a665e03a2a029c432002661e40c1a70a3dda7ab00167df95ad7`.
+
+The Mac half of the Rapture Mac destination: notes captured in the Rapture iOS app now deliver themselves to your Mac through your own iCloud, with no pairing, no server, and no new networking in this app.
+
 ### Added
 
 - **Second capture source: notes sent from the Rapture iPhone app.** Rapture now watches the iCloud relay folder the Rapture iOS app delivers into (`~/Library/Mobile Documents/iCloud~noisemeld~Rapture/Relay/`) and files each arrival into your notes folder with the same naming, collision, and attachment conventions as iMessage captures. Voice-note audio (`.m4a`) lands in the standard attachments sibling folder with the usual `Attachments:` footer; the note text itself is filed verbatim. Relay copies are removed after successful filing, filing is duplicate-safe across app restarts and iCloud re-syncs (a persisted filed-ledger in `state.json`), catch-up after sleep is automatic, and arrivals count into the menu-bar today count. Pause defers relay filing exactly like iMessage capture. A new **Settings → General → "iPhone App"** section has the on/off toggle (on by default), a plain-language status line (folder found, waiting for iCloud downloads), and the last filing error. This source needs **no Full Disk Access** and adds **zero networking** — the watcher reads a local folder that macOS syncs, and the [PRIVACY.md](./PRIVACY.md) grep claim (`URLSession|URLRequest|NWConnection|NWListener` → zero results outside Sparkle) was re-verified. Enable the "Rapture Mac" destination in the iOS app to start delivering; until then the watcher is a silent no-op.

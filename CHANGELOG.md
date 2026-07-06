@@ -4,6 +4,15 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Added
+
+- **Second capture source: notes sent from the Rapture iPhone app.** Rapture now watches the iCloud relay folder the Rapture iOS app delivers into (`~/Library/Mobile Documents/iCloud~noisemeld~Rapture/Relay/`) and files each arrival into your notes folder with the same naming, collision, and attachment conventions as iMessage captures. Voice-note audio (`.m4a`) lands in the standard attachments sibling folder with the usual `Attachments:` footer; the note text itself is filed verbatim. Relay copies are removed after successful filing, filing is duplicate-safe across app restarts and iCloud re-syncs (a persisted filed-ledger in `state.json`), catch-up after sleep is automatic, and arrivals count into the menu-bar today count. Pause defers relay filing exactly like iMessage capture. A new **Settings → General → "iPhone App"** section has the on/off toggle (on by default), a plain-language status line (folder found, waiting for iCloud downloads), and the last filing error. This source needs **no Full Disk Access** and adds **zero networking** — the watcher reads a local folder that macOS syncs, and the [PRIVACY.md](./PRIVACY.md) grep claim (`URLSession|URLRequest|NWConnection|NWListener` → zero results outside Sparkle) was re-verified. Enable the "Rapture Mac" destination in the iOS app to start delivering; until then the watcher is a silent no-op.
+
+### Internal
+
+- Debug builds watch a separate `Relay (Debug)/` folder (and keep their isolated data containers), so a development build can never race the installed app over real relay files.
+- 34 new tests covering the scan planner (pairing grace, iCloud placeholder handling, orphan-audio recovery), the filed-ledger dedup, verbatim filing + collisions, processor crash-window ordering (file → record → delete), failure backoff, and settings/state decode round-trips. Suite at 279 tests.
+
 ## [1.0.80] - 2026-06-27: In-app auto-update (Sparkle)
 
 Built from commit `b1c03a7`. SHA-256: `138cd6daaa2c17dedc36ecca172cb012497c7e545eff25e3bac9835b5a5af449`.

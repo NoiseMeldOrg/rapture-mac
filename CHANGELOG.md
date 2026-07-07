@@ -4,6 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Internal
+
+- **Tests isolated from the dev machine's live data container.** `SettingsStore`, `StateStore`, and `AppState` accept an injected support directory; `RelayProcessorTests` now runs against per-test temp directories instead of the real (debug-container) `state.json`. Surfaced by the rapture-mac-destination end-to-end dogfood (2026-07-06): the first real relay filings landed in `relayFiledRecords` and broke a ledger-emptiness assertion — the old snapshot/restore protected dev state from the tests, but not the tests from dev state. Test infrastructure only; no behavior change.
+
 ## [1.0.88] - 2026-07-06: Rapture iPhone app capture source
 
 Built from commit `7b3fc02`. SHA-256: `6814354498b32a665e03a2a029c432002661e40c1a70a3dda7ab00167df95ad7`.

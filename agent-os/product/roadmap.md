@@ -20,6 +20,11 @@ Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local
 **Post-v1.0.48 patches:**
 - **v1.0.69 (shipped 2026-06-22)** — Dropbox-style auto-relocation of the output folder + the output-folder path sidecar (now implemented). Changing the folder in Settings → General moves the existing notes tree to the new location (same-volume atomic rename; cross-volume copy-verify-delete; merge-never-clobber on collisions; source intact on failure; emptied old folder removed on success) via `AppState.setOutputFolder` → `OutputFolderMigrator`, with the capture pipeline quiesced by `CaptureGate`. `OutputFolderSidecar` writes the resolved absolute path to `~/Library/Application Support/Rapture for Mac/output-folder.path` on every change and on first-launch init — the public contract for downstream consumers (Claude Code SessionStart hook, OpenClaw / Hermes skills, custom scripts). This release also folds in the accumulated unreleased work since 1.0.64: the `ContentDedupCache` fix for iCloud cross-device replay duplicates, the `✅ Saved` / `📥 Caught up: N notes` reply-text changes, and removal of the autonomous launchd watcher. 214 tests. See [`agent-os/specs/2026-06-22-1048-output-folder-auto-relocation/`](../specs/2026-06-22-1048-output-folder-auto-relocation/). `S`
 
+**Post-v1.0.69 releases:**
+- **v1.0.80 (shipped 2026-06-27)** — Sparkle in-app auto-update (first self-updating release), app + DMG both notarized and stapled, release pipeline re-signs Sparkle's nested helpers, CI on GitHub Actions. See CHANGELOG 1.0.80.
+- **v1.0.88 (shipped 2026-07-06)** — **second capture source: notes sent from the Rapture iOS app.** `RelayWatcher` polls the synced iCloud relay folder (`~/Library/Mobile Documents/iCloud~noisemeld~Rapture/Relay/`, 5s snapshot scans, placeholder-download nudging, txt/m4a pairing with orphan-audio recovery); `RelayProcessor` files arrivals under `CaptureGate` in file → ledger → delete-relay-copy order, duplicate-safe across restarts and iCloud re-syncs (`RelayFiledLedger` in state.json, 90d TTL). Same filing conventions as iMessage captures (relay basename kept verbatim, attachments sibling folder + footer); arrivals feed the shared today count; pause/relocation defer identically. Settings → General → "iPhone App" toggle (on by default) + status. Needs no FDA; adds zero networking (PRIVACY grep re-verified). Debug builds watch `Relay (Debug)/`. 279 tests. Milestones 1–4 (iOS destination → Mac watcher → website/docs → e2e dogfood) documented in `rapture-ios/_build_plan/rapture-mac-destination/`. `M`
+- **Dogfood validation (2026-07-06, post-v1.0.88)** — end-to-end on real hardware (iPhone 12 + Mac mini, real Siri captures, real iCloud): Sparkle 1.0.83→1.0.88 update preserved FDA and cold catch-up filed a 4-hour-old pending relay file within one poll; happy path, audio pairing, Mac-asleep wake catch-up, iCloud-signed-out failure/retry, and coexistence with the visible iCloud Drive destination all passed; iCloud transit 5–30s (v1.1 LAN accelerator judged not warranted). One Mac-side finding, fixed: `RelayProcessorTests` read the dev machine's live debug container; `SettingsStore`/`StateStore`/`AppState` now accept an injected directory and the suite runs on per-test temp dirs (commit `98d3f6a`, test-infrastructure only, no release needed). Full log: `rapture-ios/_build_plan/rapture-mac-destination/milestones/4-e2e-dogfood/milestone-log.md`.
+
 ## Phase 1: Repo bootstrap (Complete)
 
 1. [x] gh repo created — `NoiseMeldOrg/rapture-mac` (private). `XS`
@@ -98,7 +103,7 @@ Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local
 32. [ ] Cloud mode via VPS relay — Sendblue → user's hetzner VPS → push to Mac. Transport TBD (APNs silent push vs Mac long-poll vs WebSocket). Replaces the on-Mac webhook design from the original plan. `L`
 33. [ ] Group chat support — `chat_style == 43` with optional `requireMention` regex. `S`
 34. [ ] Contacts framework integration — resolve names in allowlist UI. `XS`
-35. [ ] Auto-update — Sparkle. `S`
+35. [x] Auto-update — Sparkle. Shipped early in v1.0.80 (2026-06-27). `S`
 
 ---
 

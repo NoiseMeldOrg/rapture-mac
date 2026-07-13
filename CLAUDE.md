@@ -93,6 +93,9 @@ Searched against the v1 phase plan. Some are installed globally (workflow tools 
 
 ## `_build_plan/`
 
-The `_build_plan/` folder contains the initial PRD (HTML + Markdown) and per-milestone prompts used to scaffold this codebase during its initial build-out phase. These files are **not functional** — no code, configuration, or runtime logic in this codebase should import, reference, or depend on anything inside `_build_plan/`.
+The `_build_plan/` folder contains PRDs and per-milestone prompts used to scaffold build-outs. These files are **not functional** — no code, configuration, or runtime logic in this codebase should import, reference, or depend on anything inside `_build_plan/`.
 
-The folder is **preserved as a historical record** of how v1 was shaped (not deleted after build-out). For durable architectural decisions that evolve with the codebase, refer to `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` (plan, shape, references) — those are the source of truth; `_build_plan/` is the frozen build-out snapshot.
+The folder is **preserved as a historical record** (not deleted after build-out). For durable architectural decisions that evolve with the codebase, refer to `agent-os/specs/` and `agent-os/product/` — those are the source of truth; `_build_plan/` is the frozen build-out snapshot.
+
+- **Root (`prd.{md,html}`, `milestones/`)** — the v1 initial build-out (2026-05-19). Durable truth: `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/`.
+- **`triage-engine/`** — the built-in triage engine build-out (PRD 2026-07-13; 5 milestones: core → destination resilience → Reminders/Calendar handoff → AI triage → link enrichment + docs story). Note: this feature deliberately reverses two mission.md commitments (no built-in AI; no in-app categorizing) in favor of output neutrality — milestone 5 updates `mission.md`/`CONTEXT.md`/README/PRIVACY and backports durable decisions to a dated `agent-os/specs/` folder.

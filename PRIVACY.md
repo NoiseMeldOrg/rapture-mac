@@ -46,6 +46,8 @@ Rapture can keep itself current using [Sparkle](https://sparkle-project.org), th
 | Automation → Messages | Required to send the `✓ Saved` reply in your iMessage thread via `osascript`. | We can ask Messages.app to send one specific outgoing reply per capture. |
 | Output folder | The folder you picked for captures. | Just that folder. We don't write anywhere else. |
 | iCloud relay folder | Watched so captures sent from the Rapture iPhone app can be filed. | Only Rapture's own iCloud container. Reading it needs no permission grant, and Full Disk Access is not involved. |
+| Reminders *(optional)* | Requested only when you turn on **Settings → General → Reminders handoff**. Creates a Reminder when a capture clearly says "remind me to…". | Your Reminders lists (names shown in the target picker). The app only ever *creates* reminders you dictated; it doesn't read, edit, or complete existing ones. Off by default. |
+| Calendars *(optional)* | Requested only when you turn on **Settings → General → Calendar handoff**. Creates a 1-hour event when a capture states an appointment with a date and time. | Your calendars (names shown in the target picker). The app only ever *creates* events you dictated; it doesn't read, edit, or delete existing ones. Off by default. |
 
 If any of these become uncomfortable, revoke them in **System Settings → Privacy & Security**. The app will surface a permission-needed prompt and stop capturing until you re-grant.
 

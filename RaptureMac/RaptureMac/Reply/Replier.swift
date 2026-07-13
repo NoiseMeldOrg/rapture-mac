@@ -30,15 +30,23 @@ final class Replier {
         self.prePromptHandler = prePromptHandler
     }
 
-    /// Per-message reply gated by reply mode and isCatchup.
-    func replyForWrite(captured: CapturedMessage, result: WriteResult, settings: Settings) async {
+    /// Per-message reply gated by reply mode and isCatchup. `handoff` suffixes
+    /// the success confirmation when a Reminders/Calendar item was created.
+    func replyForWrite(
+        captured: CapturedMessage,
+        result: WriteResult,
+        settings: Settings,
+        handoff: HandoffOutcome = .none
+    ) async {
         guard !captured.isCatchup else { return }
         guard let chatGuid = captured.event.chatGuid else {
             Self.log.debug("Skipping reply: no chatGuid")
             return
         }
 
-        guard let text = Self.composeReplyText(replyMode: settings.replyMode, outcome: result.outcome) else {
+        guard let text = Self.composeReplyText(
+            replyMode: settings.replyMode, outcome: result.outcome, handoff: handoff
+        ) else {
             return
         }
         await sendChat(chatGuid: chatGuid, text: text)
@@ -82,19 +90,34 @@ final class Replier {
         case notification
     }
 
-    nonisolated static func composeReplyText(replyMode: ReplyMode, outcome: WriteResult.Outcome) -> String? {
+    nonisolated static func composeReplyText(
+        replyMode: ReplyMode,
+        outcome: WriteResult.Outcome,
+        handoff: HandoffOutcome = .none
+    ) -> String? {
         switch (replyMode, outcome) {
         case (.off, _):
             return nil
         case (.errorsOnly, .success):
             return nil
         case (.all, .success):
-            return "✅ Saved"
+            return "✅ Saved" + Self.handoffSuffix(handoff)
         case (_, .failure(let reason)):
             return "✗ \(reason)"
         case (_, .unavailable):
             // Momentary: the caller spools the capture and sends the queued reply.
             return nil
+        }
+    }
+
+    /// The small confirmation suffix when a handoff fired alongside the filing
+    /// (iMessage-sourced captures only; relay and spool paths reply nothing).
+    nonisolated static func handoffSuffix(_ handoff: HandoffOutcome) -> String {
+        switch (handoff.reminderCreated, handoff.eventCreated) {
+        case (false, false): return ""
+        case (true, false): return " · Reminder created"
+        case (false, true): return " · Event created"
+        case (true, true): return " · Reminder + event created"
         }
     }
 

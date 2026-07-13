@@ -28,6 +28,9 @@ final class TriageProcessor {
     private let appState: AppState
     private let ledger: TriageLedger
     private let destinationGuard: DestinationGuard
+    /// Reminders/Calendar handoff, fired once per freshly-triaged note (never
+    /// on ledger-hit ghost drains). Silent — hand-drops have no reply path.
+    private let handoff: (any HandoffProcessing)?
     private let clock: @Sendable () -> Date
     /// Test override; nil means "read the CURRENT zone at each use", matching the
     /// writers (a system time-zone change mid-run must not date backlog notes with
@@ -41,12 +44,14 @@ final class TriageProcessor {
         appState: AppState,
         ledger: TriageLedger,
         destinationGuard: DestinationGuard = DestinationGuard(),
+        handoff: (any HandoffProcessing)? = nil,
         clock: @escaping @Sendable () -> Date = { Date() },
         timeZone: TimeZone? = nil
     ) {
         self.appState = appState
         self.ledger = ledger
         self.destinationGuard = destinationGuard
+        self.handoff = handoff
         self.clock = clock
         self.timeZoneOverride = timeZone
     }
@@ -210,6 +215,12 @@ final class TriageProcessor {
             lastFailureAt[name] = nil
             clearTriageError()
             Self.log.info("triaged \(name, privacy: .public) → \(mdURL.lastPathComponent, privacy: .public)")
+            if let handoff {
+                // Footer-stripped body (attachment links aren't prose); capturedAt
+                // is the capture's own stamp — a backlog note saying "tomorrow"
+                // anchors to when it was dictated, not to this drain.
+                _ = await handoff.process(text: bodyText, capturedAt: capturedAt)
+            }
         } catch {
             fail(name: name, reason: "Couldn't triage \(name): \(error.localizedDescription)")
         }

@@ -92,7 +92,8 @@ enum TitleDeriver {
 
     // MARK: - Helpers
 
-    nonisolated private static func truncateAtWordBoundary(_ text: String, limit: Int) -> String {
+    /// Internal (not private): `HandoffDetector` reuses the same cap rule.
+    nonisolated static func truncateAtWordBoundary(_ text: String, limit: Int) -> String {
         let hardCut = String(text.prefix(limit))
         if let lastSpace = hardCut.lastIndex(of: " ") {
             return String(hardCut[..<lastSpace]).trimmingCharacters(in: .whitespaces)

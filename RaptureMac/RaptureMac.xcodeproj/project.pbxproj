@@ -411,7 +411,9 @@
 				INFOPLIST_KEY_CFBundleName = "Rapture";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Rapture creates a calendar event when a capture states an appointment with a date and time \U2014 only while Calendar handoff is enabled in Settings.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright \U00a9 NoiseMeld. Apache-2.0 licensed.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Rapture creates a reminder when a capture says \U201cremind me to\U2026\U201d \U2014 only while Reminders handoff is enabled in Settings.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -447,7 +449,9 @@
 				INFOPLIST_KEY_CFBundleName = "Rapture";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Rapture creates a calendar event when a capture states an appointment with a date and time \U2014 only while Calendar handoff is enabled in Settings.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright \U00a9 NoiseMeld. Apache-2.0 licensed.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Rapture creates a reminder when a capture says \U201cremind me to\U2026\U201d \U2014 only while Reminders handoff is enabled in Settings.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

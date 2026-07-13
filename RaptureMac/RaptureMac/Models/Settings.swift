@@ -21,6 +21,17 @@ struct Settings: Codable, Sendable, Equatable {
     /// without lenient decoding here: an unknown value throws and would reset every
     /// setting to defaults.
     var triageMode: TriageMode
+    /// When on, an unambiguous "remind me to…"-style dictation additionally creates an
+    /// Apple Reminder (the note always files regardless). Off by default; enabling it
+    /// drives the Reminders TCC request from Settings.
+    var remindersHandoffEnabled: Bool
+    /// When on, a stated appointment with date+time additionally creates a 1-hour
+    /// Calendar event. Off by default; enabling it drives the Calendars TCC request.
+    var calendarHandoffEnabled: Bool
+    /// `calendarIdentifier` of the Reminders list receiving handoffs; nil = system default.
+    var remindersListID: String?
+    /// `calendarIdentifier` of the calendar receiving handoffs; nil = system default.
+    var calendarID: String?
 
     init(
         outputFolder: URL? = nil,
@@ -31,7 +42,11 @@ struct Settings: Codable, Sendable, Equatable {
         replyMode: ReplyMode = .all,
         seedScaffold: Bool = false,
         relayEnabled: Bool = true,
-        triageMode: TriageMode = .full
+        triageMode: TriageMode = .full,
+        remindersHandoffEnabled: Bool = false,
+        calendarHandoffEnabled: Bool = false,
+        remindersListID: String? = nil,
+        calendarID: String? = nil
     ) {
         self.outputFolder = outputFolder
         self.allowedHandles = allowedHandles
@@ -42,10 +57,15 @@ struct Settings: Codable, Sendable, Equatable {
         self.seedScaffold = seedScaffold
         self.relayEnabled = relayEnabled
         self.triageMode = triageMode
+        self.remindersHandoffEnabled = remindersHandoffEnabled
+        self.calendarHandoffEnabled = calendarHandoffEnabled
+        self.remindersListID = remindersListID
+        self.calendarID = calendarID
     }
 
     enum CodingKeys: String, CodingKey {
         case outputFolder, allowedHandles, allowSMS, launchAtLogin, paused, replyMode, seedScaffold, relayEnabled, triageMode
+        case remindersHandoffEnabled, calendarHandoffEnabled, remindersListID, calendarID
     }
 
     init(from decoder: Decoder) throws {
@@ -67,5 +87,11 @@ struct Settings: Codable, Sendable, Equatable {
         // silently reset EVERY setting to defaults via SettingsStore's nil fallback.
         let triageModeRaw = try c.decodeIfPresent(String.self, forKey: .triageMode)
         triageMode = triageModeRaw.flatMap(TriageMode.init(rawValue:)) ?? .full
+        // Absent in pre-existing settings.json → both handoffs off (explicit opt-in;
+        // enabling drives the TCC request from Settings, never from the pipeline).
+        remindersHandoffEnabled = try c.decodeIfPresent(Bool.self, forKey: .remindersHandoffEnabled) ?? false
+        calendarHandoffEnabled = try c.decodeIfPresent(Bool.self, forKey: .calendarHandoffEnabled) ?? false
+        remindersListID = try c.decodeIfPresent(String.self, forKey: .remindersListID)
+        calendarID = try c.decodeIfPresent(String.self, forKey: .calendarID)
     }
 }

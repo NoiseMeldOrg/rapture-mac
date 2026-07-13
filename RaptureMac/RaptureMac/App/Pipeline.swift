@@ -16,6 +16,14 @@ final class Pipeline {
     private lazy var triageLedger = TriageLedger(stateStore: appState.state)
     private lazy var spoolStore = SpoolStore(stateStore: appState.state)
     private lazy var spoolFiledLedger = SpoolFiledLedger(stateStore: appState.state)
+    private lazy var handoffLedger = HandoffLedger(stateStore: appState.state)
+    // One shared manager across all four filing seams, so the one-shot
+    // revoked-grant reporting and the dedup ledger see every capture.
+    private lazy var handoffManager = HandoffManager(
+        appState: appState,
+        client: appState.eventKit,
+        ledger: handoffLedger
+    )
     private lazy var replier = Replier(
         sender: sender,
         echoGuard: echoGuard,
@@ -98,7 +106,8 @@ final class Pipeline {
             appState: appState,
             filer: RelayFiler(),
             ledger: RelayFiledLedger(stateStore: appState.state),
-            triageLedger: triageLedger
+            triageLedger: triageLedger,
+            handoff: handoffManager
         )
         relayProcessor = processor
 
@@ -124,7 +133,7 @@ final class Pipeline {
     }
 
     private func startTriage() {
-        let processor = TriageProcessor(appState: appState, ledger: triageLedger)
+        let processor = TriageProcessor(appState: appState, ledger: triageLedger, handoff: handoffManager)
         triageProcessor = processor
 
         let triageWatcher = TriageWatcher()
@@ -162,7 +171,8 @@ final class Pipeline {
             appState: appState,
             spool: spoolStore,
             flusher: SpoolFlusher(),
-            ledger: spoolFiledLedger
+            ledger: spoolFiledLedger,
+            handoff: handoffManager
         )
         destinationMonitor = monitor
         monitor.start()
@@ -227,6 +237,7 @@ final class Pipeline {
             echoGuard: echoGuard,
             contentDedupCache: contentDedupCache,
             spool: spoolStore,
+            handoff: handoffManager,
             selfHandlesProvider: { [weak resolver] in
                 resolver?.currentHandlesSnapshot() ?? []
             },

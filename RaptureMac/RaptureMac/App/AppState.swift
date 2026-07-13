@@ -49,9 +49,19 @@ final class AppState {
     /// is absent. Set by `RelayProcessor`, folded into `queuedCaptureCount`.
     var relayPendingOffline = 0
 
+    /// Last Reminders/Calendar handoff error (create failure or revoked grant).
+    /// Rendered in the Settings handoff section only — a handoff failure never
+    /// touches the menu-bar error surface, because the note itself filed fine.
+    var handoffLastError: String?
+
     let settings: SettingsStore
     let state: StateStore
     let integrations: IntegrationsState
+
+    /// The EventKit seam shared by the Settings UI (toggles/pickers) and the
+    /// pipeline's `HandoffManager`. Constructing the production client is inert
+    /// (no `EKEventStore` until a method runs); tests inject a fake.
+    let eventKit: any EventKitClient
 
     /// Serializes capture writes against an output-folder relocation. See `CaptureGate`.
     let captureGate = CaptureGate()
@@ -62,10 +72,15 @@ final class AppState {
     /// - Parameter supportDirectory: overrides where settings.json/state.json
     ///   live. Tests pass a temp directory so they never touch the dev
     ///   machine's live container; the app passes nil (app-support container).
-    init(supportDirectory: URL? = nil, destinationGuard: DestinationGuard = DestinationGuard()) {
+    init(
+        supportDirectory: URL? = nil,
+        destinationGuard: DestinationGuard = DestinationGuard(),
+        eventKit: (any EventKitClient)? = nil
+    ) {
         self.settings = SettingsStore(directory: supportDirectory)
         self.state = StateStore(directory: supportDirectory)
         self.destinationGuard = destinationGuard
+        self.eventKit = eventKit ?? SystemEventKitClient()
         let loginPath = LoginShellPath.capture()
         let runner = IntegrationRunner(loginPath: loginPath)
         self.integrations = IntegrationsState(

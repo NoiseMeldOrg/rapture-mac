@@ -18,6 +18,7 @@ struct PersistedState: Codable, Sendable, Equatable {
     /// break both `SpoolFiledLedger` identity and same-second flush ordering.
     var spoolNextSeq: Int
     var spoolFiledRecords: [SpoolFiledEntry]
+    var handoffRecords: [HandoffEntry]
 
     init(
         chatDbWatermark: Int64 = 0,
@@ -33,7 +34,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         triagedRecords: [TriagedEntry] = [],
         triageIntroShown: Bool = false,
         spoolNextSeq: Int = 1,
-        spoolFiledRecords: [SpoolFiledEntry] = []
+        spoolFiledRecords: [SpoolFiledEntry] = [],
+        handoffRecords: [HandoffEntry] = []
     ) {
         self.chatDbWatermark = chatDbWatermark
         self.selfHandlesCacheTs = selfHandlesCacheTs
@@ -49,6 +51,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.triageIntroShown = triageIntroShown
         self.spoolNextSeq = spoolNextSeq
         self.spoolFiledRecords = spoolFiledRecords
+        self.handoffRecords = handoffRecords
     }
 
     enum CodingKeys: String, CodingKey {
@@ -66,6 +69,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         case triageIntroShown
         case spoolNextSeq
         case spoolFiledRecords
+        case handoffRecords
     }
 
     init(from decoder: Decoder) throws {
@@ -84,6 +88,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.triageIntroShown = try c.decodeIfPresent(Bool.self, forKey: .triageIntroShown) ?? false
         self.spoolNextSeq = try c.decodeIfPresent(Int.self, forKey: .spoolNextSeq) ?? 1
         self.spoolFiledRecords = try c.decodeIfPresent([SpoolFiledEntry].self, forKey: .spoolFiledRecords) ?? []
+        self.handoffRecords = try c.decodeIfPresent([HandoffEntry].self, forKey: .handoffRecords) ?? []
     }
 
     /// Returns todayCount when `todayDate` falls on the same calendar day as `now`; 0 otherwise.

@@ -108,6 +108,11 @@ final class BatchProcessor {
     private let contentDedupCache: ContentDedupCache
     private let spool: SpoolStore
     private let destinationGuard: DestinationGuard
+    /// Reminders/Calendar handoff, fired on the direct-write success path only.
+    /// A spooled capture hands off at flush time (`DestinationMonitor`) — the
+    /// note isn't filed yet when it spools. Optional so existing tests and
+    /// callers without handoff are unchanged.
+    private let handoff: (any HandoffProcessing)?
     private let selfHandlesProvider: @MainActor () -> Set<String>
     private let selfChatGuidProvider: @MainActor () -> String?
     private let advanceWatermark: @MainActor (Int64) -> Void
@@ -124,6 +129,7 @@ final class BatchProcessor {
         contentDedupCache: ContentDedupCache,
         spool: SpoolStore,
         destinationGuard: DestinationGuard = DestinationGuard(),
+        handoff: (any HandoffProcessing)? = nil,
         selfHandlesProvider: @escaping @MainActor () -> Set<String>,
         selfChatGuidProvider: @escaping @MainActor () -> String?,
         advanceWatermark: @escaping @MainActor (Int64) -> Void
@@ -135,6 +141,7 @@ final class BatchProcessor {
         self.contentDedupCache = contentDedupCache
         self.spool = spool
         self.destinationGuard = destinationGuard
+        self.handoff = handoff
         self.selfHandlesProvider = selfHandlesProvider
         self.selfChatGuidProvider = selfChatGuidProvider
         self.advanceWatermark = advanceWatermark
@@ -267,7 +274,18 @@ final class BatchProcessor {
                         text: captured.decodedText,
                         attachmentCount: captured.event.attachments.count
                     )
-                    await replier.replyForWrite(captured: captured, result: result, settings: settings)
+                    // Handoff after the note durably filed, before the reply so
+                    // the outcome can suffix the confirmation.
+                    var handoffOutcome = HandoffOutcome.none
+                    if let handoff {
+                        handoffOutcome = await handoff.process(
+                            text: captured.decodedText,
+                            capturedAt: captured.event.dateUTC
+                        )
+                    }
+                    await replier.replyForWrite(
+                        captured: captured, result: result, settings: settings, handoff: handoffOutcome
+                    )
                 case .failure(let reason):
                     if destinationGuard.check(folder) == .volumeAbsent {
                         // The unplug raced the write: the failure IS the absence.

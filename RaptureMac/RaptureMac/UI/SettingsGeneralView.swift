@@ -20,6 +20,7 @@ struct SettingsGeneralView: View {
             replyModeSection
             smsSection
             relaySection
+            HandoffSettingsSection()
         }
         .formStyle(.grouped)
     }

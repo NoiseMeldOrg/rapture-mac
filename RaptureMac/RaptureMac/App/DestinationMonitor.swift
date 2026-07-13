@@ -28,6 +28,12 @@ final class DestinationMonitor {
     private let flusher: any SpoolFiling
     private let ledger: SpoolFiledLedger
     private let destinationGuard: DestinationGuard
+    /// Reminders/Calendar handoff: a capture spooled offline hands off HERE, at
+    /// flush success — the only seam where it durably files. The crash-resume
+    /// ledger-hit path never re-fires; the HandoffLedger fingerprint is the
+    /// second guard for the file→record crash window. Silent (the queued reply
+    /// already went out at spool time).
+    private let handoff: (any HandoffProcessing)?
     private let clock: @Sendable () -> Date
 
     private var pollTask: Task<Void, Never>?
@@ -39,6 +45,7 @@ final class DestinationMonitor {
         flusher: any SpoolFiling,
         ledger: SpoolFiledLedger,
         destinationGuard: DestinationGuard = DestinationGuard(),
+        handoff: (any HandoffProcessing)? = nil,
         clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.appState = appState
@@ -46,6 +53,7 @@ final class DestinationMonitor {
         self.flusher = flusher
         self.ledger = ledger
         self.destinationGuard = destinationGuard
+        self.handoff = handoff
         self.clock = clock
     }
 
@@ -110,10 +118,20 @@ final class DestinationMonitor {
                 case .success(let url):
                     // Record before remove: closes the crash window (see ledger).
                     ledger.record(itemName: item.name)
+                    // Read the capture text before the item directory is removed.
+                    let handoffText: String? = handoff != nil
+                        ? (try? Data(contentsOf: item.captureTextURL)).map { String(decoding: $0, as: UTF8.self) }
+                        : nil
                     spool.remove(item)
                     lastFlushFailureAt = nil
                     if !result.failedAttachments.isEmpty {
                         appState.recordError("Some attachments missing for \(url.lastPathComponent)")
+                    }
+                    if let handoff, let handoffText {
+                        // capturedAt comes verbatim from the item's metadata —
+                        // possibly days old; dates anchor to it, and the manager
+                        // skips events whose start has already passed.
+                        _ = await handoff.process(text: handoffText, capturedAt: item.metadata.capturedAt)
                     }
                     // No recordSuccess: the capture counted at spool time.
                     Self.log.info("flushed \(item.name, privacy: .public) → \(url.lastPathComponent, privacy: .public)")

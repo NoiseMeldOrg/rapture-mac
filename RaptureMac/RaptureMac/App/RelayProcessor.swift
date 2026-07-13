@@ -30,6 +30,10 @@ final class RelayProcessor {
     private let ledger: RelayFiledLedger
     private let triageLedger: TriageLedger
     private let destinationGuard: DestinationGuard
+    /// Reminders/Calendar handoff, fired once per freshly-filed note. Silent —
+    /// relay captures have no reply path (PRD). Optional so existing tests are
+    /// unchanged.
+    private let handoff: (any HandoffProcessing)?
     private let clock: @Sendable () -> Date
 
     private var lastFailureAt: [String: Date] = [:]
@@ -41,6 +45,7 @@ final class RelayProcessor {
         ledger: RelayFiledLedger,
         triageLedger: TriageLedger,
         destinationGuard: DestinationGuard = DestinationGuard(),
+        handoff: (any HandoffProcessing)? = nil,
         clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.appState = appState
@@ -48,6 +53,7 @@ final class RelayProcessor {
         self.ledger = ledger
         self.triageLedger = triageLedger
         self.destinationGuard = destinationGuard
+        self.handoff = handoff
         self.clock = clock
     }
 
@@ -127,12 +133,14 @@ final class RelayProcessor {
         case .success(let url):
             Self.log.info("filed relay note \(url.lastPathComponent, privacy: .public)")
             let audioCopied = candidate.audioURL != nil && result.failedAttachments.isEmpty
+            // One read serves both the triage-ledger hash and the handoff text;
+            // the relay copy still exists here (deleted below).
+            let relayData = (handoff != nil || mode == .full) ? try? Data(contentsOf: candidate.txtURL) : nil
             // Record before delete: closes the crash window (see type comment).
             if mode == .full {
-                // The relay copy still exists here (deleted below), so its bytes are
-                // hashable. The triage entry's mdRelativePath is what lets a
-                // late-arriving orphan audio land next to this note.
-                let hash = (try? Data(contentsOf: candidate.txtURL)).map(TriageLedger.hash(of:)) ?? ""
+                // The triage entry's mdRelativePath is what lets a late-arriving
+                // orphan audio land next to this note.
+                let hash = relayData.map(TriageLedger.hash(of:)) ?? ""
                 triageLedger.record(
                     sourceFilename: name,
                     contentHash: hash,
@@ -149,6 +157,16 @@ final class RelayProcessor {
             }
             // A failed audio copy keeps the .m4a in the relay; the orphan path
             // retries it once its txt is gone.
+            if let handoff, let relayData {
+                // Dates parse relative to the capture's own timestamp (the relay
+                // filename stamp), not filing time — an offline backlog that
+                // says "tomorrow" means the day after it was dictated.
+                let capturedAt = RelayWatcher.parseRelayTimestamp(name) ?? clock()
+                _ = await handoff.process(
+                    text: String(decoding: relayData, as: UTF8.self),
+                    capturedAt: capturedAt
+                )
+            }
             appState.state.recordSuccess(at: clock())
             lastFailureAt[name] = nil
             if !result.failedAttachments.isEmpty {

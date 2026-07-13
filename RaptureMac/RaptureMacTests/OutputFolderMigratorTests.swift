@@ -81,25 +81,32 @@ final class OutputFolderMigratorTests: XCTestCase {
 
     // MARK: - Merge with collisions
 
-    func testMergeKeepsDestinationMarkdownAndDisambiguatesNotes() throws {
+    func testMergeKeepsDestinationClaudeMdAndDisambiguatesNotes() throws {
         let old = try makeDir("old")
         try write("incoming-claude", to: old.appendingPathComponent("CLAUDE.md"))
         try write("incoming-note", to: old.appendingPathComponent("note.txt"))
+        try write("incoming-md-note", to: old.appendingPathComponent("Notes/2026-07-10 Groceries.md"))
         try write("incoming-processed", to: old.appendingPathComponent("processed/p.txt"))
 
         let new = try makeDir("new")
         try write("existing-claude", to: new.appendingPathComponent("CLAUDE.md"))
         try write("existing-note", to: new.appendingPathComponent("note.txt"))
+        try write("existing-md-note", to: new.appendingPathComponent("Notes/2026-07-10 Groceries.md"))
         try write("existing-processed", to: new.appendingPathComponent("processed/q.txt"))
 
         try migrator.migrate(from: old, to: new, strategy: .move)
 
-        // .md collision keeps the destination copy.
+        // CLAUDE.md collision keeps the destination copy.
         XCTAssertEqual(try read(new.appendingPathComponent("CLAUDE.md")), "existing-claude")
 
         // Note collision: destination preserved, incoming disambiguated — both survive.
         XCTAssertEqual(try read(new.appendingPathComponent("note.txt")), "existing-note")
         XCTAssertEqual(try read(new.appendingPathComponent("note-1.txt")), "incoming-note")
+
+        // Ordinary .md files are *notes*, not config: a colliding triaged note must
+        // disambiguate like any note, never be silently stranded in the old folder.
+        XCTAssertEqual(try read(new.appendingPathComponent("Notes/2026-07-10 Groceries.md")), "existing-md-note")
+        XCTAssertEqual(try read(new.appendingPathComponent("Notes/2026-07-10 Groceries-1.md")), "incoming-md-note")
 
         // Directory collision merges children (no overwrite of the existing one).
         XCTAssertEqual(try read(new.appendingPathComponent("processed/q.txt")), "existing-processed")
@@ -107,7 +114,7 @@ final class OutputFolderMigratorTests: XCTestCase {
 
         // The skipped (kept-destination) CLAUDE.md remains in the old folder, so the old
         // folder is NOT removed — we never delete a directory that still holds data.
-        XCTAssertTrue(exists(old), "old folder kept because a skipped .md still lives there")
+        XCTAssertTrue(exists(old), "old folder kept because a skipped CLAUDE.md still lives there")
         XCTAssertEqual(try read(old.appendingPathComponent("CLAUDE.md")), "incoming-claude")
     }
 

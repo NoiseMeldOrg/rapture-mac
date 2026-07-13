@@ -143,7 +143,7 @@ struct OutputFolderMigrator {
             return
         }
 
-        // File collides with an existing `.md` config/routing file: keep the destination.
+        // File collides with an existing CLAUDE.md config file: keep the destination.
         if !sourceIsDir.boolValue, !destIsDir.boolValue, Self.isPreserveOnCollision(dest) {
             Self.log.info("kept existing \(dest.lastPathComponent, privacy: .public); skipped incoming copy")
             return
@@ -194,10 +194,13 @@ struct OutputFolderMigrator {
 
     // MARK: - Helpers
 
-    /// `.md` files (CLAUDE.md and routing notes) are config the user curates in the
-    /// destination; on collision we keep the destination copy rather than overwrite it.
+    /// `CLAUDE.md` is config the user curates in the destination; on collision we keep
+    /// the destination copy rather than overwrite it. Deliberately narrow: with built-in
+    /// triage, ordinary `.md` files are *notes*, and preserving any colliding `.md` would
+    /// silently strand a captured note in the old folder. Notes take the `-<n>`
+    /// disambiguation path instead.
     static func isPreserveOnCollision(_ url: URL) -> Bool {
-        url.pathExtension.lowercased() == "md"
+        url.lastPathComponent.lowercased() == "claude.md"
     }
 
     /// Free path next to `dest` using the `<base>-<n>` scheme (mirrors `FileWriter.uniqueDestination`).

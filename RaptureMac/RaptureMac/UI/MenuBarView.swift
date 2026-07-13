@@ -16,6 +16,7 @@ struct MenuBarView: View {
 
         VStack(alignment: .leading, spacing: 10) {
             statusBlock(status: status)
+            triageIntroNotice
             Divider()
             actions(status: status)
         }
@@ -35,6 +36,43 @@ struct MenuBarView: View {
             secondaryLine
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            if case .triaging(let done, let total) = appState.triageStatus {
+                Text("Triaging notes… \(done) of \(total)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// One-time "what changed" notice for updaters: captures now file as Markdown.
+    /// Dismissal persists via `triageIntroShown`, so it never reappears.
+    @ViewBuilder
+    private var triageIntroNotice: some View {
+        if !appState.state.state.triageIntroShown {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "sparkles")
+                    .frame(width: 16)
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("New: captures now file as Markdown notes")
+                        .font(.caption)
+                    Text("Sorted into Notes/ and Links/. If you ran your own scripts against raw .txt files, retire them — or switch back in Settings → Triage.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Button {
+                    appState.state.update { $0.triageIntroShown = true }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss")
+            }
+            .padding(.top, 2)
         }
     }
 

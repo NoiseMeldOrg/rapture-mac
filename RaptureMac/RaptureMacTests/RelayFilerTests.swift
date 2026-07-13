@@ -49,7 +49,7 @@ final class RelayFilerTests: XCTestCase {
         let body = "# Grocery Ideas\n\nMilk and eggs"
         let candidate = try makeCandidate(body: body)
 
-        let result = await filer.file(candidate, to: output)
+        let result = await filer.file(candidate, to: output, mode: .raw)
 
         XCTAssertTrue(result.isSuccess)
         let filed = output.appendingPathComponent(txtName)
@@ -61,7 +61,7 @@ final class RelayFilerTests: XCTestCase {
         let body = "# Grocery Ideas\n\nMilk and eggs"
         let candidate = try makeCandidate(body: body, withAudio: true)
 
-        let result = await filer.file(candidate, to: output)
+        let result = await filer.file(candidate, to: output, mode: .raw)
 
         XCTAssertTrue(result.isSuccess)
         XCTAssertTrue(result.failedAttachments.isEmpty)
@@ -78,7 +78,7 @@ final class RelayFilerTests: XCTestCase {
         try "already here".write(to: output.appendingPathComponent(txtName), atomically: true, encoding: .utf8)
         let candidate = try makeCandidate(body: "new body")
 
-        let result = await filer.file(candidate, to: output)
+        let result = await filer.file(candidate, to: output, mode: .raw)
 
         XCTAssertTrue(result.isSuccess)
         XCTAssertEqual(try String(contentsOf: output.appendingPathComponent(txtName), encoding: .utf8), "already here",
@@ -90,7 +90,7 @@ final class RelayFilerTests: XCTestCase {
         try fm.createDirectory(at: output.appendingPathComponent(baseName, isDirectory: true), withIntermediateDirectories: true)
         let candidate = try makeCandidate(body: "new body")
 
-        let result = await filer.file(candidate, to: output)
+        let result = await filer.file(candidate, to: output, mode: .raw)
 
         XCTAssertTrue(result.isSuccess)
         XCTAssertEqual(try String(contentsOf: output.appendingPathComponent(baseName + "-1.txt"), encoding: .utf8), "new body")
@@ -106,7 +106,7 @@ final class RelayFilerTests: XCTestCase {
             baseName: "never-existed"
         )
 
-        let result = await filer.file(candidate, to: output)
+        let result = await filer.file(candidate, to: output, mode: .raw)
 
         guard case .failure = result.outcome else {
             return XCTFail("expected failure for an unreadable relay txt")
@@ -119,7 +119,7 @@ final class RelayFilerTests: XCTestCase {
         let missingAudio = relay.appendingPathComponent(m4aName) // never written
         let candidate = RelayCandidate(txtURL: txtURL, audioURL: missingAudio, relayFilename: txtName, baseName: baseName)
 
-        let result = await filer.file(candidate, to: output)
+        let result = await filer.file(candidate, to: output, mode: .raw)
 
         XCTAssertTrue(result.isSuccess, "the note text still files when its audio can't be copied")
         XCTAssertEqual(result.failedAttachments, [missingAudio.path])
@@ -135,7 +135,7 @@ final class RelayFilerTests: XCTestCase {
         try "content".write(to: txtURL, atomically: true, encoding: .utf8)
         let candidate = RelayCandidate(txtURL: txtURL, audioURL: nil, relayFilename: name, baseName: "not a contract name")
 
-        let result = await filer.file(candidate, to: output)
+        let result = await filer.file(candidate, to: output, mode: .raw)
 
         XCTAssertTrue(result.isSuccess)
         XCTAssertEqual(try String(contentsOf: output.appendingPathComponent(name), encoding: .utf8), "content")
@@ -149,7 +149,7 @@ final class RelayFilerTests: XCTestCase {
         // The common case: the note already filed text-only.
         try "note".write(to: output.appendingPathComponent(txtName), atomically: true, encoding: .utf8)
 
-        let result = await filer.fileOrphanAudio(at: audioURL, to: output)
+        let result = await filer.fileOrphanAudio(at: audioURL, to: output, preferredDirectory: nil)
 
         XCTAssertTrue(result.isSuccess)
         let expected = output.appendingPathComponent(baseName, isDirectory: true).appendingPathComponent(m4aName)
@@ -166,7 +166,7 @@ final class RelayFilerTests: XCTestCase {
         try fm.createDirectory(at: existingDir, withIntermediateDirectories: true)
         try "occupied".write(to: existingDir.appendingPathComponent("something.jpg"), atomically: true, encoding: .utf8)
 
-        let result = await filer.fileOrphanAudio(at: audioURL, to: output)
+        let result = await filer.fileOrphanAudio(at: audioURL, to: output, preferredDirectory: nil)
 
         XCTAssertTrue(result.isSuccess)
         let walked = output.appendingPathComponent(baseName + "-1", isDirectory: true).appendingPathComponent(m4aName)
@@ -174,7 +174,7 @@ final class RelayFilerTests: XCTestCase {
     }
 
     func testOrphanAudioMissingSourceFails() async {
-        let result = await filer.fileOrphanAudio(at: relay.appendingPathComponent("gone.m4a"), to: output)
+        let result = await filer.fileOrphanAudio(at: relay.appendingPathComponent("gone.m4a"), to: output, preferredDirectory: nil)
         guard case .failure = result.outcome else {
             return XCTFail("expected failure for a missing orphan source")
         }

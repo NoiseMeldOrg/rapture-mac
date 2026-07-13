@@ -44,23 +44,29 @@ final class RelayProcessorTests: XCTestCase {
         private(set) var fileCalls: [RelayCandidate] = []
         private(set) var orphanCalls: [URL] = []
 
-        func file(_ candidate: RelayCandidate, to folder: URL) async -> WriteResult {
+        func file(_ candidate: RelayCandidate, to folder: URL, mode: TriageMode) async -> WriteResult {
             fileCalls.append(candidate)
             return result
         }
 
-        func fileOrphanAudio(at url: URL, to folder: URL) async -> WriteResult {
+        func fileOrphanAudio(at url: URL, to folder: URL, preferredDirectory: URL?) async -> WriteResult {
             orphanCalls.append(url)
+            preferredDirectories.append(preferredDirectory)
             return orphanResult
         }
+
+        private(set) var preferredDirectories: [URL?] = []
     }
 
-    private func makeAppState() -> AppState {
+    /// Existing behavior tests pin the pre-triage (.raw) semantics; triage-specific
+    /// processor behavior is covered in `RelayProcessorTriageTests`.
+    private func makeAppState(triageMode: TriageMode = .raw) -> AppState {
         let appState = AppState(supportDirectory: support)
         appState.settings.update {
             $0.outputFolder = output
             $0.paused = false
             $0.relayEnabled = true
+            $0.triageMode = triageMode
         }
         return appState
     }
@@ -74,6 +80,7 @@ final class RelayProcessorTests: XCTestCase {
             appState: appState,
             filer: filer,
             ledger: RelayFiledLedger(stateStore: appState.state),
+            triageLedger: TriageLedger(stateStore: appState.state),
             clock: { now }
         )
     }

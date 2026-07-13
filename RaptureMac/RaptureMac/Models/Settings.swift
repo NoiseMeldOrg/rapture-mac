@@ -15,6 +15,12 @@ struct Settings: Codable, Sendable, Equatable {
     /// and files arrivals into the output folder. On by default: it is a no-op until the
     /// folder exists, and enabling the destination on the iPhone is the real opt-in.
     var relayEnabled: Bool
+    /// How captures are filed: `.full` (Markdown capture contract, classified into
+    /// subfolders — the product default, including for updaters) or `.raw` (plain `.txt`
+    /// at the root, the pre-triage behavior). Never add raw values to `TriageMode`
+    /// without lenient decoding here: an unknown value throws and would reset every
+    /// setting to defaults.
+    var triageMode: TriageMode
 
     init(
         outputFolder: URL? = nil,
@@ -24,7 +30,8 @@ struct Settings: Codable, Sendable, Equatable {
         paused: Bool = false,
         replyMode: ReplyMode = .all,
         seedScaffold: Bool = false,
-        relayEnabled: Bool = true
+        relayEnabled: Bool = true,
+        triageMode: TriageMode = .full
     ) {
         self.outputFolder = outputFolder
         self.allowedHandles = allowedHandles
@@ -34,10 +41,11 @@ struct Settings: Codable, Sendable, Equatable {
         self.replyMode = replyMode
         self.seedScaffold = seedScaffold
         self.relayEnabled = relayEnabled
+        self.triageMode = triageMode
     }
 
     enum CodingKeys: String, CodingKey {
-        case outputFolder, allowedHandles, allowSMS, launchAtLogin, paused, replyMode, seedScaffold, relayEnabled
+        case outputFolder, allowedHandles, allowSMS, launchAtLogin, paused, replyMode, seedScaffold, relayEnabled, triageMode
     }
 
     init(from decoder: Decoder) throws {
@@ -52,5 +60,12 @@ struct Settings: Codable, Sendable, Equatable {
         seedScaffold = try c.decodeIfPresent(Bool.self, forKey: .seedScaffold) ?? false
         // Absent in pre-existing settings.json → default on (relay capture is opt-out).
         relayEnabled = try c.decodeIfPresent(Bool.self, forKey: .relayEnabled) ?? true
+        // Absent in pre-existing settings.json → full triage: updaters get the new
+        // default too (locked product decision); .raw is the explicit escape hatch.
+        // Decoded via raw String so an unknown value (newer build's case, hand-edit,
+        // corruption) degrades to .full instead of throwing — a throw here would
+        // silently reset EVERY setting to defaults via SettingsStore's nil fallback.
+        let triageModeRaw = try c.decodeIfPresent(String.self, forKey: .triageMode)
+        triageMode = triageModeRaw.flatMap(TriageMode.init(rawValue:)) ?? .full
     }
 }

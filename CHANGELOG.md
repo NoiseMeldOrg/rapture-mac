@@ -4,9 +4,22 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Added
+
+- **Built-in triage: captures now file as Markdown notes.** Every capture (iMessage and Rapture iPhone app) becomes a Markdown note with a small YAML header — `captured` (the UTC instant), `source` (`rapture-mac` / `rapture-ios`), `type` (`voice-note` / `youtube-link` / `article-link`), and `raw_media` (the URL, for link captures) — written once, directly into a classified subfolder: bare links into `Links/`, everything else into `Notes/`. Filenames are human: the local capture date plus a title from the first words (`2026-07-13 Rent is due on the 5th.md`); relay notes keep the title the iPhone derived. Classification is deterministic string-matching — **no AI, no network, nothing leaves your Mac** — and the verbatim transcription is never discarded. Attachments keep the sibling-folder convention with the footer upgraded to Markdown links.
+- **The folder root is now an inbox.** Any `.txt` that appears at the root of your notes folder — hand-dropped, delivered by a sync engine from another device, or left over from before this release — is converted the same way within seconds. The accumulated backlog drains automatically on launch, oldest first, with progress in the menu bar. Conversion is duplicate-safe across restarts and iCloud re-syncs (a persisted triage ledger in `state.json`), and the original `.txt` is deleted only after its full content is durably inside the new note — if the note is later deleted and the `.txt` re-dropped, it re-triages instead of being drained.
+- **Raw mode escape hatch.** Prefer the old behavior? **Settings → Triage → "Raw text files, no triage"** restores exact pre-triage filing (timestamped `.txt` at the root, no subfolders, nothing converted) for new arrivals. Triage is on by default for everyone, including updaters — a one-time menu-bar notice explains the change and points anyone running their own scripts against raw `.txt` files at the escape hatch.
+- **Late relay audio now lands next to its note.** When a relay note files text-only (audio still syncing) and the `.m4a` arrives minutes later, the orphan-audio recovery now places it in that note's own attachment folder instead of a disconnected folder at the root, using the triage ledger's record of where the note landed.
+
+### Changed
+
+- **Folder relocation no longer preserves colliding `.md` files silently.** Only `CLAUDE.md` keeps its kept-on-collision special case; ordinary `.md` files are notes now, so a collision during relocation disambiguates with a `-1` suffix like any note — nothing gets stranded in the old folder.
+- README and PRIVACY updated to describe the Markdown output, the deterministic no-AI/no-network triage posture, and the raw-mode escape hatch.
+
 ### Internal
 
 - **Tests isolated from the dev machine's live data container.** `SettingsStore`, `StateStore`, and `AppState` accept an injected support directory; `RelayProcessorTests` now runs against per-test temp directories instead of the real (debug-container) `state.json`. Surfaced by the rapture-mac-destination end-to-end dogfood (2026-07-06): the first real relay filings landed in `relayFiledRecords` and broke a ledger-emptiness assertion — the old snapshot/restore protected dev state from the tests, but not the tests from dev state. Test infrastructure only; no behavior change.
+- The triage engine follows the house patterns end to end: a `RelayWatcher`-style 5s poll + pure scan planner on the destination root (root-only, files-only, `.txt`-only — triage outputs can never be re-selected), per-file capture-gate acquisition so a big backlog drain interleaves with live captures, `RelayProcessor`-style failure backoff and oversize caps, and a `TriagedEntry` ledger (TTL 90d, cap 500) with lenient decode. 98 new tests; suite at 377, 0 host restarts.
 
 ## [1.0.88] - 2026-07-06: Rapture iPhone app capture source
 

@@ -28,6 +28,7 @@ final class RelayProcessor {
     private let appState: AppState
     private let filer: any RelayFiling
     private let ledger: RelayFiledLedger
+    private let triageLedger: TriageLedger
     private let clock: @Sendable () -> Date
 
     private var lastFailureAt: [String: Date] = [:]
@@ -37,11 +38,13 @@ final class RelayProcessor {
         appState: AppState,
         filer: any RelayFiling,
         ledger: RelayFiledLedger,
+        triageLedger: TriageLedger,
         clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.appState = appState
         self.filer = filer
         self.ledger = ledger
+        self.triageLedger = triageLedger
         self.clock = clock
     }
 
@@ -70,15 +73,16 @@ final class RelayProcessor {
             return
         }
 
+        let mode = settings.triageMode
         for candidate in batch.candidates {
-            await processCandidate(candidate, folder: folder)
+            await processCandidate(candidate, folder: folder, mode: mode)
         }
         for orphanURL in batch.orphanAudio {
             await processOrphanAudio(orphanURL, folder: folder)
         }
     }
 
-    private func processCandidate(_ candidate: RelayCandidate, folder: URL) async {
+    private func processCandidate(_ candidate: RelayCandidate, folder: URL, mode: TriageMode) async {
         let name = candidate.relayFilename
 
         // Already filed (restart or iCloud re-sync): drain the relay, never re-file.
@@ -104,12 +108,23 @@ final class RelayProcessor {
         // device withdrew it); the next scan reflects reality.
         guard FileManager.default.fileExists(atPath: candidate.txtURL.path) else { return }
 
-        let result = await filer.file(candidate, to: folder)
+        let result = await filer.file(candidate, to: folder, mode: mode)
         switch result.outcome {
         case .success(let url):
             Self.log.info("filed relay note \(url.lastPathComponent, privacy: .public)")
             let audioCopied = candidate.audioURL != nil && result.failedAttachments.isEmpty
             // Record before delete: closes the crash window (see type comment).
+            if mode == .full {
+                // The relay copy still exists here (deleted below), so its bytes are
+                // hashable. The triage entry's mdRelativePath is what lets a
+                // late-arriving orphan audio land next to this note.
+                let hash = (try? Data(contentsOf: candidate.txtURL)).map(TriageLedger.hash(of:)) ?? ""
+                triageLedger.record(
+                    sourceFilename: name,
+                    contentHash: hash,
+                    mdRelativePath: CaptureContract.relativePath(of: url, in: folder)
+                )
+            }
             ledger.record(relayFilename: name)
             if audioCopied, let audioURL = candidate.audioURL {
                 ledger.record(relayFilename: audioURL.lastPathComponent)
@@ -144,7 +159,22 @@ final class RelayProcessor {
         guard Self.shouldAttempt(name: name, lastFailureAt: lastFailureAt, now: clock()) else { return }
         guard FileManager.default.fileExists(atPath: url.path) else { return }
 
-        let result = await filer.fileOrphanAudio(at: url, to: folder)
+        // When the paired note was triage-filed, its ledger entry records where it
+        // landed; the audio then goes into that note's own attachment folder instead
+        // of a disconnected root folder. Looked up regardless of the current mode —
+        // the note may have filed before a mode flip. Only honored while the note
+        // still exists: audio for a note the user deleted must not resurrect its
+        // folder, and falls back to the legacy root placement instead.
+        var preferredDirectory: URL?
+        let pairedTxt = RelayWatcher.pairedTxtName(forAudio: name)
+        if let entry = triageLedger.entry(sourceFilename: pairedTxt) {
+            let noteURL = folder.appendingPathComponent(entry.mdRelativePath)
+            if FileManager.default.fileExists(atPath: noteURL.path) {
+                preferredDirectory = noteURL.deletingPathExtension()
+            }
+        }
+
+        let result = await filer.fileOrphanAudio(at: url, to: folder, preferredDirectory: preferredDirectory)
         switch result.outcome {
         case .success(let destination):
             Self.log.info("filed orphan relay audio into \(destination.deletingLastPathComponent().lastPathComponent, privacy: .public)/")

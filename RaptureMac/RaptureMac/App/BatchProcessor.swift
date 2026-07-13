@@ -10,7 +10,7 @@ struct BatchOutcome: Equatable {
 }
 
 protocol FileWriting: Sendable {
-    func write(_ captured: CapturedMessage, to folder: URL) async -> WriteResult
+    func write(_ captured: CapturedMessage, to folder: URL, mode: TriageMode) async -> WriteResult
 }
 
 extension FileWriter: FileWriting {}
@@ -234,7 +234,7 @@ final class BatchProcessor {
                     continue
                 }
 
-                let result = await writer.write(captured, to: folder)
+                let result = await writer.write(captured, to: folder, mode: settings.triageMode)
                 switch result.outcome {
                 case .success(let url):
                     Self.log.info("wrote \(url.lastPathComponent, privacy: .public) (rowid=\(event.rowid))")

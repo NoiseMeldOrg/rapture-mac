@@ -3,12 +3,18 @@ import OSLog
 
 /// Centralized, guarded filesystem primitives for output-folder safety.
 ///
-/// The output folder holds the user's only copy of their notes, so the single
-/// dangerous operation — removing a directory — is funneled through here. No other
-/// path in the app deletes the output folder or a subfolder of it; the migrator's
-/// cleanup and the writer's attachment-folder cleanup both go through
-/// `removeIfEmpty`, which makes "delete a directory that still holds data"
-/// unreachable by construction.
+/// The output folder holds the user's only copy of their notes, so the dangerous
+/// directory operation — removal — is funneled through here. No path in the app
+/// deletes the output folder or a subfolder of it except via `removeIfEmpty`,
+/// which makes "delete a directory that still holds data" unreachable by
+/// construction.
+///
+/// One narrow *file* deletion exists outside this funnel: `TriageProcessor`
+/// removes a root `.txt` capture, and only after its full content was durably
+/// written into a Markdown note verified present in the same operation (a ledger
+/// hit likewise drains its source only while the recorded note still exists).
+/// That invariant — never delete what hasn't been preserved — is the triage
+/// engine's version of this file's guarantee.
 enum FileSafety {
     static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "FileSafety")
 

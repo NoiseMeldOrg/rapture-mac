@@ -55,7 +55,8 @@ final class OutputFolderSafetyTests: XCTestCase {
 
         let result = await FileWriter().write(
             CapturedMessage(event: event(text: "hello"), decodedText: "hello", isCatchup: false),
-            to: folder
+            to: folder,
+            mode: .full
         )
 
         if case .failure(let reason) = result.outcome {
@@ -73,7 +74,8 @@ final class OutputFolderSafetyTests: XCTestCase {
 
         _ = await FileWriter().write(
             CapturedMessage(event: event(text: "new note"), decodedText: "new note", isCatchup: false),
-            to: folder
+            to: folder,
+            mode: .full
         )
 
         XCTAssertEqual(try String(contentsOf: folder.appendingPathComponent("CLAUDE.md"), encoding: .utf8),

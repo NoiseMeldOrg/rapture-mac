@@ -4,7 +4,7 @@
 [![Release](https://img.shields.io/github/v/release/NoiseMeldOrg/rapture-mac?display_name=tag&sort=semver)](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest)
 [![Network: zero outbound](https://img.shields.io/badge/network-zero%20outbound-success)](./PRIVACY.md)
 
-A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Files your voice captures as timestamped `.txt` files in a folder of your choice, so voice-captured thoughts land where any AI assistant (Claude, ChatGPT, Gemini, a local Llama) can read them. Notes arrive two ways: Siri-dictated iMessages, and captures the Rapture iPhone app sends through your own iCloud.
+A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Files your voice captures as Markdown notes — titled, dated, and sorted into `Notes/` and `Links/` — in a folder of your choice, so voice-captured thoughts land where any AI assistant (Claude, ChatGPT, Gemini, a local Llama) can read them. Notes arrive two ways: Siri-dictated iMessages, and captures the Rapture iPhone app sends through your own iCloud. (Prefer raw timestamped `.txt` files? Flip **Settings → Triage** to raw mode.)
 
 **Apache-2.0. Local-only. Vendor-neutral. The folder is the only integration surface.**
 
@@ -14,7 +14,7 @@ Your phone is across the room, locked, untouched. You say:
 
 > *"Hey Siri, send a text to me saying rent is due on the 5th."*
 
-Siri transcribes and sends. No unlock, no app open, no taps. Rapture for Mac sees the message arrive, writes `2026-05-16T14-32-08Z.txt` to a folder you picked (local, Dropbox, Drive, all just paths), and replies in the chat:
+Siri transcribes and sends. No unlock, no app open, no taps. Rapture for Mac sees the message arrive, writes `Notes/2026-05-16 Rent is due on the 5th.md` to a folder you picked (local, Dropbox, Drive, all just paths), and replies in the chat:
 
 > *✅ Saved*
 
@@ -37,7 +37,7 @@ The app will guide you through two macOS permissions. Both are needed for iMessa
 1. **Full Disk Access**: needed to read `~/Library/Messages/chat.db`. The app opens a sheet with an **Open System Settings** button that deep-links to the right pane. Toggle Rapture for Mac on. (If you don't see it in the list, click `+` and add it manually.) The sheet closes automatically once access is granted.
 2. **Automation → Messages**: needed for the `✅ Saved` reply. The first time the app tries to reply, you'll see a one-time pre-prompt explaining what's about to happen, then macOS shows its own permission dialog. Click **OK**.
 3. Send yourself an iMessage from another device on the same iCloud account: *"Hey Siri, text me, this is a test."*
-4. Within about a second, a `.txt` file appears in `~/Documents/Rapture Notes/` (the default folder; you can change it under **Settings → General**).
+4. Within about a second, a Markdown note appears under `~/Documents/Rapture Notes/Notes/` (the default folder; you can change it under **Settings → General**).
 5. Within another second, you see `✅ Saved` in your iMessages thread on your phone. That's the audible-on-iPhone confirmation that the capture landed.
 
 That's the whole product. Everything else (allowlist, reply modes, pause/resume) is in the menu-bar popover and the Settings window.
@@ -62,7 +62,7 @@ Worth knowing:
 
 ## Using your captures
 
-The folder is the entire integration surface. The captures are plain `.txt` files. You can:
+The folder is the entire integration surface. The captures are plain Markdown files with a small YAML header (`captured`, `source`, `type`, `raw_media`) — or raw `.txt` files if you choose raw mode in **Settings → Triage**. You can:
 
 - **Use them manually** when you're back at your computer. Open the folder, triage by hand, file what matters.
 - **Hand them off to an AI agent or assistant** to read and process automatically, according to your own rules.
@@ -78,7 +78,7 @@ Pick whichever agent you already use. Rapture doesn't care.
 
 ## v1 scope
 
-- **Two capture sources, no server.** The iMessage source polls `~/Library/Messages/chat.db` once per second, decodes message text (including the binary `attributedBody` blob that iOS 16+ uses for Siri-dictated messages), filters to your self-chat plus a user-managed allowlist, writes one `.txt` per message (with attachments in a sibling folder), and replies via AppleScript through Messages.app. The relay source watches the synced iCloud relay folder and files whatever the Rapture iPhone app sent.
+- **Two capture sources, no server.** The iMessage source polls `~/Library/Messages/chat.db` once per second, decodes message text (including the binary `attributedBody` blob that iOS 16+ uses for Siri-dictated messages), filters to your self-chat plus a user-managed allowlist, writes one Markdown note per message (with attachments in a sibling folder), and replies via AppleScript through Messages.app. The relay source watches the synced iCloud relay folder and files whatever the Rapture iPhone app sent. The built-in triage engine also converts any `.txt` dropped at the folder root — including notes captured before triage existed. Classification is deterministic (no AI, no network): bare links file into `Links/`, everything else into `Notes/`.
 - **No cloud mode in v1.** A future v1.1 adds a Sendblue path via VPS relay. An on-Mac webhook listener would die whenever the Mac sleeps, so we won't ship one.
 
 ### Out of scope

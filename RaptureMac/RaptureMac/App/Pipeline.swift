@@ -13,6 +13,7 @@ final class Pipeline {
     private let notifications = NotificationDispatcher()
     private lazy var echoGuard = EchoGuard(stateStore: appState.state)
     private lazy var contentDedupCache = ContentDedupCache(stateStore: appState.state)
+    private lazy var triageLedger = TriageLedger(stateStore: appState.state)
     private lazy var replier = Replier(
         sender: sender,
         echoGuard: echoGuard,
@@ -31,6 +32,9 @@ final class Pipeline {
     private var relayWatcher: RelayWatcher?
     private var relayProcessor: RelayProcessor?
     private var relayConsumerTask: Task<Void, Never>?
+    private var triageWatcher: TriageWatcher?
+    private var triageProcessor: TriageProcessor?
+    private var triageConsumerTask: Task<Void, Never>?
     private var started = false
 
     init(appState: AppState) {
@@ -49,6 +53,9 @@ final class Pipeline {
         // Relay capture needs no chat.db, so it starts before (and independent of)
         // the FDA-gated iMessage path: relayed notes still file while FDA is pending.
         startRelay()
+        // Triage likewise needs no FDA: the backlog drains and external arrivals
+        // convert even while iMessage capture is still waiting on permission.
+        startTriage()
         await attemptStart()
     }
 
@@ -56,16 +63,21 @@ final class Pipeline {
         fdaPollTask?.cancel()
         consumerTask?.cancel()
         relayConsumerTask?.cancel()
+        triageConsumerTask?.cancel()
         watcher?.stop()
         relayWatcher?.stop()
+        triageWatcher?.stop()
         resolver?.stop()
         selfChatResolver?.stop()
         fdaPollTask = nil
         consumerTask = nil
         relayConsumerTask = nil
+        triageConsumerTask = nil
         watcher = nil
         relayWatcher = nil
         relayProcessor = nil
+        triageWatcher = nil
+        triageProcessor = nil
         resolver = nil
         selfChatResolver = nil
         batchProcessor = nil
@@ -77,7 +89,8 @@ final class Pipeline {
         let processor = RelayProcessor(
             appState: appState,
             filer: RelayFiler(),
-            ledger: RelayFiledLedger(stateStore: appState.state)
+            ledger: RelayFiledLedger(stateStore: appState.state),
+            triageLedger: triageLedger
         )
         relayProcessor = processor
 
@@ -98,6 +111,40 @@ final class Pipeline {
             for await batch in stream {
                 guard let self else { break }
                 await self.relayProcessor?.process(batch: batch)
+            }
+        }
+    }
+
+    private func startTriage() {
+        let processor = TriageProcessor(appState: appState, ledger: triageLedger)
+        triageProcessor = processor
+
+        let triageWatcher = TriageWatcher()
+        self.triageWatcher = triageWatcher
+
+        let appState = self.appState
+        let stream = triageWatcher.batches(
+            folderProvider: {
+                await MainActor.run { appState.settings.settings.outputFolder }
+            },
+            modeProvider: {
+                await MainActor.run { appState.settings.settings.triageMode }
+            },
+            onStatus: { status in
+                await MainActor.run {
+                    // A poll-tick status must not clobber an in-flight drain display;
+                    // only a mode flip to raw (.off) may interrupt it — the user needs
+                    // to see that the engine stopped.
+                    if case .triaging = appState.triageStatus, status != .off { return }
+                    appState.triageStatus = status
+                }
+            }
+        )
+
+        triageConsumerTask = Task { [weak self] in
+            for await batch in stream {
+                guard let self else { break }
+                await self.triageProcessor?.process(batch: batch)
             }
         }
     }

@@ -33,6 +33,11 @@ final class AppState {
     /// post can never clobber an error the user hasn't seen yet. Transient.
     var relayLastError: String?
 
+    /// Transient status of the triage engine (see `TriageWatcher`/`TriageProcessor`).
+    var triageStatus: TriageStatus = .off
+    /// Last triage error. Same separation rationale as `relayLastError`. Transient.
+    var triageLastError: String?
+
     let settings: SettingsStore
     let state: StateStore
     let integrations: IntegrationsState

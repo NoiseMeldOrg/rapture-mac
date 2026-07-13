@@ -6,7 +6,7 @@ Rapture for Mac is built so this section can be honestly short.
 
 **Everything.** Captured messages, their attachments, the app's settings, the app's runtime state. None of it leaves your computer.
 
-- Captured `.txt` files go into the folder *you* picked (default `~/Documents/Rapture Notes/`). They're plain text. You own them. You can move, delete, encrypt, or sync them wherever you want.
+- Captured notes go into the folder *you* picked (default `~/Documents/Rapture Notes/`) as plain Markdown files with a small metadata header — or raw `.txt` files if you choose raw mode in **Settings → Triage**. Either way they're plain text. You own them. You can move, delete, encrypt, or sync them wherever you want. All triage (classification, titling, filing into `Notes/` and `Links/`) is deterministic string-matching that happens on your Mac: no AI, no network, and the verbatim transcription is never discarded.
 - `~/Library/Application Support/Rapture for Mac/settings.json`: your preferences (output folder, allowlist, reply mode, etc.).
 - `~/Library/Application Support/Rapture for Mac/state.json`: runtime bookkeeping (the chat.db ROWID watermark, recent self-handle cache, last-error string).
 
@@ -66,9 +66,9 @@ Two:
 
 That's the entire third-party surface. No analytics SDK, no crash reporter, no logger that phones home, no AI/LLM SDK.
 
-## What the `✓ Saved` reply looks like to your iMessage thread
+## What the `✅ Saved` reply looks like to your iMessage thread
 
-When the app sends `✓ Saved: 2026-05-19T14-32-08Z.txt` to confirm a capture, that message goes through Apple's iMessage infrastructure exactly the way any other iMessage would. Apple handles the transport; we have no visibility into it. The reply lands in your own iMessage thread on your phone, in the same chat as the conversation history.
+When the app sends `✅ Saved` to confirm a capture, that message goes through Apple's iMessage infrastructure exactly the way any other iMessage would. Apple handles the transport; we have no visibility into it. The reply lands in your own iMessage thread on your phone, in the same chat as the conversation history.
 
 If you'd rather not send replies, switch to **Settings → General → Reply mode → Never reply** and the app falls back to a `UNUserNotification` for catch-up summaries (still local).
 

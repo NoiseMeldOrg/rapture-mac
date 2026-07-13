@@ -11,6 +11,8 @@ struct PersistedState: Codable, Sendable, Equatable {
     var todayDate: Date?
     var lastCaptureAt: Date?
     var relayFiledRecords: [RelayFiledEntry]
+    var triagedRecords: [TriagedEntry]
+    var triageIntroShown: Bool
 
     init(
         chatDbWatermark: Int64 = 0,
@@ -22,7 +24,9 @@ struct PersistedState: Codable, Sendable, Equatable {
         todayCount: Int = 0,
         todayDate: Date? = nil,
         lastCaptureAt: Date? = nil,
-        relayFiledRecords: [RelayFiledEntry] = []
+        relayFiledRecords: [RelayFiledEntry] = [],
+        triagedRecords: [TriagedEntry] = [],
+        triageIntroShown: Bool = false
     ) {
         self.chatDbWatermark = chatDbWatermark
         self.selfHandlesCacheTs = selfHandlesCacheTs
@@ -34,6 +38,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.todayDate = todayDate
         self.lastCaptureAt = lastCaptureAt
         self.relayFiledRecords = relayFiledRecords
+        self.triagedRecords = triagedRecords
+        self.triageIntroShown = triageIntroShown
     }
 
     enum CodingKeys: String, CodingKey {
@@ -47,6 +53,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         case todayDate
         case lastCaptureAt
         case relayFiledRecords
+        case triagedRecords
+        case triageIntroShown
     }
 
     init(from decoder: Decoder) throws {
@@ -61,6 +69,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.todayDate = try c.decodeIfPresent(Date.self, forKey: .todayDate)
         self.lastCaptureAt = try c.decodeIfPresent(Date.self, forKey: .lastCaptureAt)
         self.relayFiledRecords = try c.decodeIfPresent([RelayFiledEntry].self, forKey: .relayFiledRecords) ?? []
+        self.triagedRecords = try c.decodeIfPresent([TriagedEntry].self, forKey: .triagedRecords) ?? []
+        self.triageIntroShown = try c.decodeIfPresent(Bool.self, forKey: .triageIntroShown) ?? false
     }
 
     /// Returns todayCount when `todayDate` falls on the same calendar day as `now`; 0 otherwise.

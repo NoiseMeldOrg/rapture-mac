@@ -44,6 +44,20 @@ final class Replier {
         await sendChat(chatGuid: chatGuid, text: text)
     }
 
+    /// Reply for a capture spooled while the destination volume is absent.
+    /// Same catch-up and chatGuid gating as `replyForWrite`.
+    func replyForSpooled(captured: CapturedMessage, settings: Settings) async {
+        guard !captured.isCatchup else { return }
+        guard let chatGuid = captured.event.chatGuid else {
+            Self.log.debug("Skipping spooled reply: no chatGuid")
+            return
+        }
+        guard let text = Self.composeSpooledReplyText(replyMode: settings.replyMode) else {
+            return
+        }
+        await sendChat(chatGuid: chatGuid, text: text)
+    }
+
     /// Single summary reply for catch-up batches with > 3 messages.
     func sendCatchupSummary(
         successCount: Int,
@@ -78,7 +92,19 @@ final class Replier {
             return "✅ Saved"
         case (_, .failure(let reason)):
             return "✗ \(reason)"
+        case (_, .unavailable):
+            // Momentary: the caller spools the capture and sends the queued reply.
+            return nil
         }
+    }
+
+    /// Honest confirmation for a capture queued in the internal spool while the
+    /// destination volume is absent: durable, but not in the notes folder yet.
+    /// Success-tier, so `.errorsOnly` and `.off` stay silent; no second reply
+    /// fires when the spool flushes.
+    nonisolated static func composeSpooledReplyText(replyMode: ReplyMode) -> String? {
+        guard replyMode == .all else { return nil }
+        return "✅ Queued — destination offline"
     }
 
     nonisolated static func composeCatchupText(successCount: Int, failureCount: Int) -> String {

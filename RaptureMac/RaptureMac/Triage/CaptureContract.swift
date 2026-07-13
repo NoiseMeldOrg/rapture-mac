@@ -149,6 +149,69 @@ enum CaptureContract {
         return ParsedFooter(bodyWithoutFooter: String(bodyPart), attachments: attachments)
     }
 
+    // MARK: - Footer rewriting (relocation renames)
+
+    /// Rewrites the folder segment of every attachment link in a composed note's
+    /// trailing markdown footer (`compose`'s `- [file](<folder/file>)` format)
+    /// whose folder equals `oldFolder`. Structural, like `parseFooter`: returns
+    /// nil unless a well-formed footer is present — a lookalike block in prose is
+    /// body text and must not be touched.
+    nonisolated static func rewriteFooterFolder(
+        inMarkdown text: String,
+        from oldFolder: String,
+        to newFolder: String
+    ) -> String? {
+        let marker = "Attachments:\n"
+        guard let range = text.range(of: "\n" + marker, options: .backwards) else { return nil }
+        let head = text[..<range.upperBound]
+        let footerPart = text[range.upperBound...]
+
+        var rewrote = false
+        var lines: [String] = []
+        for line in footerPart.split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                lines.append(String(line))
+                continue
+            }
+            // `- [<filename>](<<folder>/<filename>>)`
+            guard trimmed.hasPrefix("- ["),
+                  let linkStart = trimmed.range(of: "](<"),
+                  trimmed.hasSuffix(">)")
+            else { return nil }
+            let label = String(trimmed[trimmed.index(trimmed.startIndex, offsetBy: 3)..<linkStart.lowerBound])
+            let target = String(trimmed[linkStart.upperBound..<trimmed.index(trimmed.endIndex, offsetBy: -2)])
+            guard let slash = target.lastIndex(of: "/") else { return nil }
+            let folder = String(target[..<slash])
+            let filename = String(target[target.index(after: slash)...])
+            guard !folder.isEmpty, !filename.isEmpty, !label.isEmpty else { return nil }
+
+            if folder == oldFolder {
+                lines.append("- [\(label)](<\(newFolder)/\(filename)>)")
+                rewrote = true
+            } else {
+                lines.append(String(line))
+            }
+        }
+        guard rewrote else { return nil }
+        return String(head) + lines.joined(separator: "\n")
+    }
+
+    /// Same rewrite for the raw `.txt` footer format (`FileWriter.composeBody`).
+    nonisolated static func rewriteFooterFolder(
+        inPlainText text: String,
+        from oldFolder: String,
+        to newFolder: String
+    ) -> String? {
+        guard let footer = parseFooter(text) else { return nil }
+        guard footer.attachments.contains(where: { $0.folder == oldFolder }) else { return nil }
+        let updated = footer.attachments.map { attachment in
+            (folder: attachment.folder == oldFolder ? newFolder : attachment.folder,
+             filename: attachment.filename)
+        }
+        return FileWriter.composeBody(text: footer.bodyWithoutFooter, copiedAttachments: updated)
+    }
+
     // MARK: - Helpers
 
     /// Destination-relative path (what `TriagedEntry.mdRelativePath` stores).

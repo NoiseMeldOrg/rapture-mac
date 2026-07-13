@@ -62,7 +62,7 @@ Worth knowing:
 
 ## Using your captures
 
-The folder is the entire integration surface. The captures are plain Markdown files with a small YAML header (`captured`, `source`, `type`, `raw_media`) — or raw `.txt` files if you choose raw mode in **Settings → Triage**. You can:
+The folder is the entire integration surface. The captures are plain Markdown files with a small YAML header (`captured`, `source`, `type`, `raw_media`) — or raw `.txt` files if you choose raw mode in **Settings → Triage**. The folder can live on an external drive (an Obsidian vault on an SSD, say): while the drive is unplugged, new captures queue inside the app and the menu bar shows "Destination offline — N queued"; plug it back in and they file automatically, in order, with their original capture times. You can:
 
 - **Use them manually** when you're back at your computer. Open the folder, triage by hand, file what matters.
 - **Hand them off to an AI agent or assistant** to read and process automatically, according to your own rules.

@@ -38,6 +38,17 @@ final class AppState {
     /// Last triage error. Same separation rationale as `relayLastError`. Transient.
     var triageLastError: String?
 
+    /// True while the destination's volume is absent (see `DestinationGuard`).
+    /// Maintained by `DestinationMonitor`; UI + flush-trigger signal only — the
+    /// write path re-checks the guard synchronously inside the capture gate.
+    var destinationOffline = false
+    /// Captures waiting for the destination: spool items + pending relay files.
+    /// Maintained by `DestinationMonitor`. Transient.
+    var queuedCaptureCount = 0
+    /// Relay files deferring in the relay folder because the destination volume
+    /// is absent. Set by `RelayProcessor`, folded into `queuedCaptureCount`.
+    var relayPendingOffline = 0
+
     let settings: SettingsStore
     let state: StateStore
     let integrations: IntegrationsState
@@ -45,12 +56,16 @@ final class AppState {
     /// Serializes capture writes against an output-folder relocation. See `CaptureGate`.
     let captureGate = CaptureGate()
 
+    /// Volume-absence classifier used before relocations. Injectable for tests.
+    private let destinationGuard: DestinationGuard
+
     /// - Parameter supportDirectory: overrides where settings.json/state.json
     ///   live. Tests pass a temp directory so they never touch the dev
     ///   machine's live container; the app passes nil (app-support container).
-    init(supportDirectory: URL? = nil) {
+    init(supportDirectory: URL? = nil, destinationGuard: DestinationGuard = DestinationGuard()) {
         self.settings = SettingsStore(directory: supportDirectory)
         self.state = StateStore(directory: supportDirectory)
+        self.destinationGuard = destinationGuard
         let loginPath = LoginShellPath.capture()
         let runner = IntegrationRunner(loginPath: loginPath)
         self.integrations = IntegrationsState(
@@ -84,6 +99,20 @@ final class AppState {
         // No-op when unchanged.
         guard old?.path != new.path else { return }
 
+        // Relocating TO an absent volume must fail up front: the migrator's
+        // ensureDirectory would otherwise fabricate a shadow folder on the boot
+        // volume (see DestinationGuard).
+        guard destinationGuard.check(new) != .volumeAbsent else {
+            let message = "The drive for \"\(new.lastPathComponent)\" isn't connected."
+            relocationStatus = .failed(message)
+            recordError("Couldn't move notes: \(message)")
+            return
+        }
+        // Relocating AWAY FROM an absent volume: nothing can be moved off an
+        // unplugged drive. Allowed (the user may need a working destination now),
+        // but the stranded notes deserve an honest notice below.
+        let oldVolumeAbsent = old.map { destinationGuard.check($0) == .volumeAbsent } ?? false
+
         isRelocating = true
         relocationStatus = .inProgress
 
@@ -92,22 +121,32 @@ final class AppState {
                 // Run the file moves off the main actor so a large or cross-volume copy
                 // doesn't freeze the Settings UI; the gate stays held throughout, so
                 // capture writes remain blocked until the move completes.
-                try await Task.detached(priority: .userInitiated) {
+                let report = try await Task.detached(priority: .userInitiated) { () -> OutputFolderMigrator.MigrationReport? in
                     let migrator = OutputFolderMigrator()
                     if let old {
-                        try migrator.migrate(from: old, to: new)
+                        return try migrator.migrate(from: old, to: new)
                     } else {
                         try FileManager.default.createDirectory(at: new, withIntermediateDirectories: true)
+                        return nil
                     }
                 }.value
                 settings.update { $0.outputFolder = new }
+                // Collision-renamed notes: keep the triage ledger's recorded
+                // destinations pointing at the real files.
+                if let report, !report.renamedNotes.isEmpty {
+                    TriageLedger(stateStore: state).remap(report.renamedNotes)
+                }
                 OutputFolderSidecar.write(new)
                 // Opt-in; no-op unless the new folder ended up empty + CLAUDE.md-less.
                 if settings.settings.seedScaffold {
                     OutputFolderScaffold.seedIfEligible(folder: new)
                 }
                 relocationStatus = .idle
-                if lastError != nil { clearError() }
+                if oldVolumeAbsent {
+                    recordError("Your previous notes are still on the disconnected drive. Reconnect it and switch the folder back to move them.")
+                } else if lastError != nil {
+                    clearError()
+                }
             } catch {
                 let message = error.localizedDescription
                 relocationStatus = .failed(message)

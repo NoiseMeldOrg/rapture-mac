@@ -45,6 +45,24 @@ final class ReplierTests: XCTestCase {
         XCTAssertNil(Replier.composeReplyText(replyMode: .off, outcome: .failure(reason: "anything")))
     }
 
+    func testUnavailableOutcomeNeverRepliesDirectly() {
+        // .unavailable is momentary: the caller spools and sends the queued reply.
+        XCTAssertNil(Replier.composeReplyText(replyMode: .all, outcome: .unavailable))
+        XCTAssertNil(Replier.composeReplyText(replyMode: .errorsOnly, outcome: .unavailable))
+        XCTAssertNil(Replier.composeReplyText(replyMode: .off, outcome: .unavailable))
+    }
+
+    // MARK: - composeSpooledReplyText
+
+    func testSpooledReplyIsHonestQueuedVariant() {
+        XCTAssertEqual(Replier.composeSpooledReplyText(replyMode: .all), "✅ Queued — destination offline")
+    }
+
+    func testSpooledReplyIsSuccessTierSilentForErrorsOnlyAndOff() {
+        XCTAssertNil(Replier.composeSpooledReplyText(replyMode: .errorsOnly))
+        XCTAssertNil(Replier.composeSpooledReplyText(replyMode: .off))
+    }
+
     // MARK: - composeCatchupText
 
     func testCatchupTextSuccessOnly() {

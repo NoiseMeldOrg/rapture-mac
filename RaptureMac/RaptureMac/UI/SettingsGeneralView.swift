@@ -67,6 +67,7 @@ struct SettingsGeneralView: View {
             .onDrop(of: [.fileURL], isTargeted: $folderDropTargeted, perform: handleDrop)
 
             relocationStatusView
+            destinationOfflineStatusView
 
             Text("Captured notes land here. Drop a folder above to change it. Existing notes move to the new folder automatically.")
                 .font(.caption)
@@ -131,6 +132,21 @@ struct SettingsGeneralView: View {
                 }
             }
         )
+    }
+
+    @ViewBuilder
+    private var destinationOfflineStatusView: some View {
+        if appState.destinationOffline {
+            let count = appState.queuedCaptureCount
+            let counted = count > 0 ? " — \(count) \(count == 1 ? "capture" : "captures") queued" : ""
+            Label {
+                Text("Destination offline\(counted). Captures queue and file automatically when the drive reconnects.")
+                    .font(.caption)
+            } icon: {
+                Image(systemName: "externaldrive.badge.exclamationmark")
+            }
+            .foregroundStyle(.orange)
+        }
     }
 
     @ViewBuilder

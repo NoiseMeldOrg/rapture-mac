@@ -18,7 +18,18 @@ final class RelayFiler: RelayFiling {
     static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "RelayFiler")
     static let audioRetryDelay: TimeInterval = 2
 
+    private let destinationGuard: DestinationGuard
+
+    init(destinationGuard: DestinationGuard = DestinationGuard()) {
+        self.destinationGuard = destinationGuard
+    }
+
     func file(_ candidate: RelayCandidate, to folder: URL, mode: TriageMode) async -> WriteResult {
+        // Never write toward an unplugged volume (shadow-folder guard); the relay
+        // copy stays in the relay folder and the next scan retries.
+        guard destinationGuard.check(folder) != .volumeAbsent else {
+            return WriteResult(outcome: .unavailable, failedAttachments: [])
+        }
         switch mode {
         case .raw:
             return await fileRaw(candidate, to: folder)
@@ -128,6 +139,9 @@ final class RelayFiler: RelayFiling {
     /// otherwise it lands in a root folder named after the relay basename — the
     /// pre-triage behavior. The filed note is never rewritten.
     func fileOrphanAudio(at url: URL, to folder: URL, preferredDirectory: URL?) async -> WriteResult {
+        guard destinationGuard.check(folder) != .volumeAbsent else {
+            return WriteResult(outcome: .unavailable, failedAttachments: [])
+        }
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
 

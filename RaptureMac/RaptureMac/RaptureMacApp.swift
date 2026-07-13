@@ -96,6 +96,9 @@ private struct MenuBarLabel: View {
         if appState.settings.settings.paused {
             return "pause.fill"
         }
+        if appState.destinationOffline {
+            return "exclamationmark.triangle.fill"
+        }
         return nil
     }
 

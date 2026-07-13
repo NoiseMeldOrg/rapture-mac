@@ -6,7 +6,18 @@ final class FileWriter {
     static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "FileWriter")
     static let attachmentRetryDelay: TimeInterval = 2
 
+    private let destinationGuard: DestinationGuard
+
+    init(destinationGuard: DestinationGuard = DestinationGuard()) {
+        self.destinationGuard = destinationGuard
+    }
+
     func write(_ captured: CapturedMessage, to folder: URL, mode: TriageMode) async -> WriteResult {
+        // An unplugged destination volume must not be written to: createDirectory
+        // below would otherwise fabricate a shadow folder on the boot volume.
+        guard destinationGuard.check(folder) != .volumeAbsent else {
+            return WriteResult(outcome: .unavailable, failedAttachments: [])
+        }
         switch mode {
         case .raw:
             return await writeRaw(captured, to: folder)
@@ -116,7 +127,8 @@ final class FileWriter {
         }
     }
 
-    private nonisolated static func baseName(for date: Date) -> String {
+    // Internal (not private): `SpoolFlusher` reuses the raw-mode basename convention.
+    nonisolated static func baseName(for date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         formatter.timeZone = TimeZone(secondsFromGMT: 0)

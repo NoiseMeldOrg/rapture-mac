@@ -67,7 +67,32 @@ final class TriageLedger {
         )
     }
 
+    /// Rewrites `mdRelativePath` values after an output-folder relocation
+    /// collision-renamed notes (`OutputFolderMigrator`'s rename report), so
+    /// ghost-draining and orphan-audio placement keep pointing at the real files.
+    func remap(_ renamedNotes: [String: String]) {
+        guard !renamedNotes.isEmpty else { return }
+        stateStore.update { state in
+            state.triagedRecords = Self.remapped(state.triagedRecords, renamedNotes: renamedNotes)
+        }
+    }
+
     // MARK: - Pure helpers (testable without StateStore)
+
+    nonisolated static func remapped(
+        _ entries: [TriagedEntry],
+        renamedNotes: [String: String]
+    ) -> [TriagedEntry] {
+        entries.map { entry in
+            guard let newPath = renamedNotes[entry.mdRelativePath] else { return entry }
+            return TriagedEntry(
+                sourceFilename: entry.sourceFilename,
+                contentHash: entry.contentHash,
+                mdRelativePath: newPath,
+                triagedAt: entry.triagedAt
+            )
+        }
+    }
 
     nonisolated static func appendEntry(
         into entries: [TriagedEntry],

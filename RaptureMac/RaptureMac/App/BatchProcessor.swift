@@ -106,6 +106,8 @@ final class BatchProcessor {
     private let replier: Replier
     private let echoGuard: EchoGuard
     private let contentDedupCache: ContentDedupCache
+    private let spool: SpoolStore
+    private let destinationGuard: DestinationGuard
     private let selfHandlesProvider: @MainActor () -> Set<String>
     private let selfChatGuidProvider: @MainActor () -> String?
     private let advanceWatermark: @MainActor (Int64) -> Void
@@ -120,6 +122,8 @@ final class BatchProcessor {
         replier: Replier,
         echoGuard: EchoGuard,
         contentDedupCache: ContentDedupCache,
+        spool: SpoolStore,
+        destinationGuard: DestinationGuard = DestinationGuard(),
         selfHandlesProvider: @escaping @MainActor () -> Set<String>,
         selfChatGuidProvider: @escaping @MainActor () -> String?,
         advanceWatermark: @escaping @MainActor (Int64) -> Void
@@ -129,6 +133,8 @@ final class BatchProcessor {
         self.replier = replier
         self.echoGuard = echoGuard
         self.contentDedupCache = contentDedupCache
+        self.spool = spool
+        self.destinationGuard = destinationGuard
         self.selfHandlesProvider = selfHandlesProvider
         self.selfChatGuidProvider = selfChatGuidProvider
         self.advanceWatermark = advanceWatermark
@@ -234,6 +240,16 @@ final class BatchProcessor {
                     continue
                 }
 
+                // Spool instead of writing when the destination's volume is absent
+                // — or when older captures are already queued: writing ahead of the
+                // spool would break the flush's original-capture-order guarantee.
+                // The guard runs synchronously inside the capture gate, so it can't
+                // race the monitor's flush.
+                if destinationGuard.check(folder) == .volumeAbsent || !spool.isEmpty {
+                    await spoolCapture(captured, handleForDedup: handleForDedup, settings: settings, outcome: &outcome)
+                    continue
+                }
+
                 let result = await writer.write(captured, to: folder, mode: settings.triageMode)
                 switch result.outcome {
                 case .success(let url):
@@ -253,10 +269,18 @@ final class BatchProcessor {
                     )
                     await replier.replyForWrite(captured: captured, result: result, settings: settings)
                 case .failure(let reason):
+                    if destinationGuard.check(folder) == .volumeAbsent {
+                        // The unplug raced the write: the failure IS the absence.
+                        await spoolCapture(captured, handleForDedup: handleForDedup, settings: settings, outcome: &outcome)
+                        continue
+                    }
                     Self.log.error("write failed rowid=\(event.rowid): \(reason, privacy: .public)")
                     appState.recordError(reason)
                     outcome.failureCount += 1
                     await replier.replyForWrite(captured: captured, result: result, settings: settings)
+                case .unavailable:
+                    // The writer's internal guard fired (defense in depth).
+                    await spoolCapture(captured, handleForDedup: handleForDedup, settings: settings, outcome: &outcome)
                 }
             }
         }
@@ -272,4 +296,43 @@ final class BatchProcessor {
 
         return outcome
     }
+
+    /// Queues a capture in the internal spool. The spool write is durable (boot
+    /// volume), so this IS the capture: the watermark advances, the today count
+    /// increments, dedup tracks, and the honest queued confirmation goes out.
+    /// The flush later files it without re-counting or re-replying.
+    private func spoolCapture(
+        _ captured: CapturedMessage,
+        handleForDedup: String,
+        settings: Settings,
+        outcome: inout BatchOutcome
+    ) async {
+        do {
+            let item = try await spool.add(
+                text: captured.decodedText,
+                capturedAt: captured.event.dateUTC,
+                source: .raptureMac,
+                attachments: captured.event.attachments
+            )
+            Self.log.info("spooled rowid=\(captured.event.rowid) as \(item.name, privacy: .public) (destination offline)")
+            appState.state.recordSuccess(at: Date())
+            advanceWatermark(captured.event.rowid)
+            outcome.successCount += 1
+            contentDedupCache.track(
+                handle: handleForDedup,
+                text: captured.decodedText,
+                attachmentCount: captured.event.attachments.count
+            )
+            await replier.replyForSpooled(captured: captured, settings: settings)
+        } catch {
+            // Spool write failed (app-support container unwritable — should not
+            // happen). Existing failure semantics: error surfaced, watermark held,
+            // the row replays next poll.
+            let reason = "Couldn't queue capture: \(error.localizedDescription)"
+            Self.log.error("\(reason, privacy: .public)")
+            appState.recordError(reason)
+            outcome.failureCount += 1
+        }
+    }
+
 }

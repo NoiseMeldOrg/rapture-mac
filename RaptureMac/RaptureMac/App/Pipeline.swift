@@ -14,6 +14,8 @@ final class Pipeline {
     private lazy var echoGuard = EchoGuard(stateStore: appState.state)
     private lazy var contentDedupCache = ContentDedupCache(stateStore: appState.state)
     private lazy var triageLedger = TriageLedger(stateStore: appState.state)
+    private lazy var spoolStore = SpoolStore(stateStore: appState.state)
+    private lazy var spoolFiledLedger = SpoolFiledLedger(stateStore: appState.state)
     private lazy var replier = Replier(
         sender: sender,
         echoGuard: echoGuard,
@@ -35,6 +37,7 @@ final class Pipeline {
     private var triageWatcher: TriageWatcher?
     private var triageProcessor: TriageProcessor?
     private var triageConsumerTask: Task<Void, Never>?
+    private var destinationMonitor: DestinationMonitor?
     private var started = false
 
     init(appState: AppState) {
@@ -56,6 +59,9 @@ final class Pipeline {
         // Triage likewise needs no FDA: the backlog drains and external arrivals
         // convert even while iMessage capture is still waiting on permission.
         startTriage()
+        // Destination availability + spool flush; independent of FDA like the two
+        // above (a spool from a previous run must drain even before FDA lands).
+        startDestinationMonitor()
         await attemptStart()
     }
 
@@ -67,6 +73,7 @@ final class Pipeline {
         watcher?.stop()
         relayWatcher?.stop()
         triageWatcher?.stop()
+        destinationMonitor?.stop()
         resolver?.stop()
         selfChatResolver?.stop()
         fdaPollTask = nil
@@ -78,6 +85,7 @@ final class Pipeline {
         relayProcessor = nil
         triageWatcher = nil
         triageProcessor = nil
+        destinationMonitor = nil
         resolver = nil
         selfChatResolver = nil
         batchProcessor = nil
@@ -149,6 +157,17 @@ final class Pipeline {
         }
     }
 
+    private func startDestinationMonitor() {
+        let monitor = DestinationMonitor(
+            appState: appState,
+            spool: spoolStore,
+            flusher: SpoolFlusher(),
+            ledger: spoolFiledLedger
+        )
+        destinationMonitor = monitor
+        monitor.start()
+    }
+
     private func attemptStart() async {
         do {
             let pool = try ChatDB.open()
@@ -207,6 +226,7 @@ final class Pipeline {
             replier: replier,
             echoGuard: echoGuard,
             contentDedupCache: contentDedupCache,
+            spool: spoolStore,
             selfHandlesProvider: { [weak resolver] in
                 resolver?.currentHandlesSnapshot() ?? []
             },

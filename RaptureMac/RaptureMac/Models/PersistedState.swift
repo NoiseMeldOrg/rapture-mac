@@ -13,6 +13,11 @@ struct PersistedState: Codable, Sendable, Equatable {
     var relayFiledRecords: [RelayFiledEntry]
     var triagedRecords: [TriagedEntry]
     var triageIntroShown: Bool
+    /// Next spool item sequence number. Monotonic across the app's lifetime —
+    /// must never reset when the spool drains, or item names would be reused and
+    /// break both `SpoolFiledLedger` identity and same-second flush ordering.
+    var spoolNextSeq: Int
+    var spoolFiledRecords: [SpoolFiledEntry]
 
     init(
         chatDbWatermark: Int64 = 0,
@@ -26,7 +31,9 @@ struct PersistedState: Codable, Sendable, Equatable {
         lastCaptureAt: Date? = nil,
         relayFiledRecords: [RelayFiledEntry] = [],
         triagedRecords: [TriagedEntry] = [],
-        triageIntroShown: Bool = false
+        triageIntroShown: Bool = false,
+        spoolNextSeq: Int = 1,
+        spoolFiledRecords: [SpoolFiledEntry] = []
     ) {
         self.chatDbWatermark = chatDbWatermark
         self.selfHandlesCacheTs = selfHandlesCacheTs
@@ -40,6 +47,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.relayFiledRecords = relayFiledRecords
         self.triagedRecords = triagedRecords
         self.triageIntroShown = triageIntroShown
+        self.spoolNextSeq = spoolNextSeq
+        self.spoolFiledRecords = spoolFiledRecords
     }
 
     enum CodingKeys: String, CodingKey {
@@ -55,6 +64,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         case relayFiledRecords
         case triagedRecords
         case triageIntroShown
+        case spoolNextSeq
+        case spoolFiledRecords
     }
 
     init(from decoder: Decoder) throws {
@@ -71,6 +82,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.relayFiledRecords = try c.decodeIfPresent([RelayFiledEntry].self, forKey: .relayFiledRecords) ?? []
         self.triagedRecords = try c.decodeIfPresent([TriagedEntry].self, forKey: .triagedRecords) ?? []
         self.triageIntroShown = try c.decodeIfPresent(Bool.self, forKey: .triageIntroShown) ?? false
+        self.spoolNextSeq = try c.decodeIfPresent(Int.self, forKey: .spoolNextSeq) ?? 1
+        self.spoolFiledRecords = try c.decodeIfPresent([SpoolFiledEntry].self, forKey: .spoolFiledRecords) ?? []
     }
 
     /// Returns todayCount when `todayDate` falls on the same calendar day as `now`; 0 otherwise.

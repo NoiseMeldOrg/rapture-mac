@@ -27,6 +27,7 @@ final class TriageProcessor {
 
     private let appState: AppState
     private let ledger: TriageLedger
+    private let destinationGuard: DestinationGuard
     private let clock: @Sendable () -> Date
     /// Test override; nil means "read the CURRENT zone at each use", matching the
     /// writers (a system time-zone change mid-run must not date backlog notes with
@@ -39,11 +40,13 @@ final class TriageProcessor {
     init(
         appState: AppState,
         ledger: TriageLedger,
+        destinationGuard: DestinationGuard = DestinationGuard(),
         clock: @escaping @Sendable () -> Date = { Date() },
         timeZone: TimeZone? = nil
     ) {
         self.appState = appState
         self.ledger = ledger
+        self.destinationGuard = destinationGuard
         self.clock = clock
         self.timeZoneOverride = timeZone
     }
@@ -84,6 +87,11 @@ final class TriageProcessor {
         guard !settings.paused, !appState.isRelocating,
               settings.triageMode == .full,
               let folder = settings.outputFolder else { return }
+
+        // TOCTOU shadow-folder guard: the volume can unplug between the watcher's
+        // scan and this lock; the mkdir below must never run against an absent
+        // volume. Sources live on that volume anyway — deferral is free.
+        guard destinationGuard.check(folder) != .volumeAbsent else { return }
 
         let name = candidate.filename
         // Stale-snapshot guard: a candidate from a pre-relocation scan points at

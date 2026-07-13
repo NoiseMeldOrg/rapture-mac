@@ -74,4 +74,26 @@ final class TriageSettingsDecodeTests: XCTestCase {
         XCTAssertEqual(reloaded.triagedRecords.first?.triagedAt, triagedAt)
         XCTAssertTrue(reloaded.triageIntroShown)
     }
+
+    // MARK: - PersistedState spool fields (M2)
+
+    func testSpoolFieldsDefaultWhenKeysAbsent() throws {
+        let legacy = #"{"chatDbWatermark":42,"todayCount":3}"#
+        let state = try decoder().decode(PersistedState.self, from: Data(legacy.utf8))
+        XCTAssertEqual(state.spoolNextSeq, 1)
+        XCTAssertEqual(state.spoolFiledRecords, [])
+    }
+
+    func testSpoolFieldsRoundTrip() throws {
+        var state = PersistedState()
+        let filedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        state.spoolNextSeq = 17
+        state.spoolFiledRecords = [SpoolFiledEntry(itemName: "00000016-2026-07-13T14-00-00Z", filedAt: filedAt)]
+
+        let data = try encoder().encode(state)
+        let reloaded = try decoder().decode(PersistedState.self, from: data)
+
+        XCTAssertEqual(reloaded.spoolNextSeq, 17)
+        XCTAssertEqual(reloaded.spoolFiledRecords, [SpoolFiledEntry(itemName: "00000016-2026-07-13T14-00-00Z", filedAt: filedAt)])
+    }
 }

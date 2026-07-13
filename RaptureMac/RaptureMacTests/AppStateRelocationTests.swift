@@ -79,6 +79,71 @@ final class AppStateRelocationTests: XCTestCase {
         XCTAssertEqual(sidecarAfter, sidecarBefore, "sidecar must not point at a folder we failed to switch to")
     }
 
+    func testRelocateToAbsentVolumeFailsWithoutShadowFolder() async throws {
+        let old = temp.appendingPathComponent("old", isDirectory: true)
+        try fm.createDirectory(at: old, withIntermediateDirectories: true)
+        try "note".write(to: old.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+
+        let phantom = URL(fileURLWithPath: "/Volumes/RaptureReloc-\(UUID().uuidString)/Notes")
+
+        let appState = AppState()
+        appState.settings.update { $0.outputFolder = old }
+
+        await appState.setOutputFolder(phantom)
+
+        XCTAssertEqual(appState.settings.settings.outputFolder?.path, old.path,
+                       "relocating to an unplugged volume must not switch the folder")
+        guard case .failed = appState.relocationStatus else {
+            return XCTFail("expected relocationStatus == .failed, got \(appState.relocationStatus)")
+        }
+        XCTAssertFalse(fm.fileExists(atPath: phantom.deletingLastPathComponent().path),
+                       "no shadow folder may appear under /Volumes")
+        XCTAssertEqual(try String(contentsOf: old.appendingPathComponent("a.txt"), encoding: .utf8), "note")
+    }
+
+    func testRelocateAwayFromAbsentVolumeSwitchesWithStrandedNotice() async throws {
+        let phantomOld = URL(fileURLWithPath: "/Volumes/RaptureReloc-\(UUID().uuidString)/Notes")
+        let new = temp.appendingPathComponent("new", isDirectory: true)
+
+        let appState = AppState()
+        appState.settings.update { $0.outputFolder = phantomOld }
+
+        await appState.setOutputFolder(new)
+
+        XCTAssertEqual(appState.settings.settings.outputFolder?.path, new.path,
+                       "the user needs a working destination even while the old drive is unplugged")
+        XCTAssertEqual(appState.relocationStatus, .idle)
+        XCTAssertNotNil(appState.lastError, "stranded notes deserve an honest notice")
+        XCTAssertTrue(appState.lastError?.contains("disconnected drive") == true, "got: \(appState.lastError ?? "nil")")
+    }
+
+    func testCollisionRenameRemapsTriageLedger() async throws {
+        // Old and new both hold Notes/<name>.md; after relocation the incoming
+        // note lands at -1 and its ledger entry must follow.
+        let noteRel = "Notes/2026-07-10 Groceries.md"
+        let old = temp.appendingPathComponent("old", isDirectory: true)
+        try fm.createDirectory(at: old.appendingPathComponent("Notes"), withIntermediateDirectories: true)
+        try "incoming".write(to: old.appendingPathComponent(noteRel), atomically: true, encoding: .utf8)
+
+        let new = temp.appendingPathComponent("new", isDirectory: true)
+        try fm.createDirectory(at: new.appendingPathComponent("Notes"), withIntermediateDirectories: true)
+        try "existing".write(to: new.appendingPathComponent(noteRel), atomically: true, encoding: .utf8)
+
+        let appState = AppState()
+        appState.settings.update { $0.outputFolder = old }
+        let ledger = TriageLedger(stateStore: appState.state)
+        ledger.record(sourceFilename: "2026-07-10T14-00-00Z.txt", contentHash: "h", mdRelativePath: noteRel)
+
+        await appState.setOutputFolder(new)
+
+        XCTAssertEqual(appState.settings.settings.outputFolder?.path, new.path)
+        XCTAssertEqual(
+            ledger.entry(sourceFilename: "2026-07-10T14-00-00Z.txt")?.mdRelativePath,
+            "Notes/2026-07-10 Groceries-1.md",
+            "ledger must track the collision rename"
+        )
+    }
+
     func testNoOpWhenSettingSameFolder() async throws {
         let folder = temp.appendingPathComponent("notes", isDirectory: true)
         try fm.createDirectory(at: folder, withIntermediateDirectories: true)

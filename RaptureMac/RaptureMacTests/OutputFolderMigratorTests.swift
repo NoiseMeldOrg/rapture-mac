@@ -118,6 +118,129 @@ final class OutputFolderMigratorTests: XCTestCase {
         XCTAssertEqual(try read(old.appendingPathComponent("CLAUDE.md")), "incoming-claude")
     }
 
+    // MARK: - Note + attachment-folder pairs (M2: lockstep rename)
+
+    /// The M1-flagged edge: both folders hold the same note name WITH populated
+    /// attachment folders. Pre-M2, the note took `-1` but its attachment folder
+    /// merged into the destination note's folder — cross-wiring the two notes'
+    /// attachments and dangling the renamed note's footer.
+    func testPairCollisionRenamesNoteAndAttachmentFolderInLockstep() throws {
+        let noteName = "2026-07-10 Groceries"
+        let incomingBody = "---\ncaptured: 2026-07-10T14:00:00Z\ntype: voice-note\n---\n\ngroceries\n\nAttachments:\n- [incoming.jpg](<\(noteName)/incoming.jpg>)\n"
+
+        let old = try makeDir("old")
+        try write(incomingBody, to: old.appendingPathComponent("Notes/\(noteName).md"))
+        try write("incoming-img", to: old.appendingPathComponent("Notes/\(noteName)/incoming.jpg"))
+
+        let new = try makeDir("new")
+        try write("existing-note", to: new.appendingPathComponent("Notes/\(noteName).md"))
+        try write("existing-img", to: new.appendingPathComponent("Notes/\(noteName)/existing.jpg"))
+
+        let report = try migrator.migrate(from: old, to: new, strategy: .move)
+
+        // Destination pair untouched.
+        XCTAssertEqual(try read(new.appendingPathComponent("Notes/\(noteName).md")), "existing-note")
+        XCTAssertEqual(try read(new.appendingPathComponent("Notes/\(noteName)/existing.jpg")), "existing-img")
+        XCTAssertFalse(exists(new.appendingPathComponent("Notes/\(noteName)/incoming.jpg")),
+                       "incoming attachments must not merge into the other note's folder")
+
+        // Incoming pair renamed in lockstep, footer rewritten.
+        let renamedNote = new.appendingPathComponent("Notes/\(noteName)-1.md")
+        XCTAssertEqual(try read(new.appendingPathComponent("Notes/\(noteName)-1/incoming.jpg")), "incoming-img")
+        XCTAssertTrue(try read(renamedNote).contains("- [incoming.jpg](<\(noteName)-1/incoming.jpg>)"),
+                      "footer must point at the renamed folder")
+
+        // Rename reported for the ledger remap.
+        XCTAssertEqual(report.renamedNotes["Notes/\(noteName).md"], "Notes/\(noteName)-1.md")
+    }
+
+    func testPairWithOnlyDirCollidingStillRenamesLockstep() throws {
+        let old = try makeDir("old")
+        try write("note", to: old.appendingPathComponent("X.md"))
+        try write("img", to: old.appendingPathComponent("X/a.jpg"))
+
+        let new = try makeDir("new")
+        // Only the directory name is taken at the destination.
+        try write("other", to: new.appendingPathComponent("X/other.jpg"))
+
+        try migrator.migrate(from: old, to: new, strategy: .move)
+
+        XCTAssertEqual(try read(new.appendingPathComponent("X-1.md")), "note")
+        XCTAssertEqual(try read(new.appendingPathComponent("X-1/a.jpg")), "img")
+        XCTAssertEqual(try read(new.appendingPathComponent("X/other.jpg")), "other")
+    }
+
+    func testTxtPairFooterRewrittenOnLockstepRename() throws {
+        let base = "2026-05-19T04-12-08Z"
+        let old = try makeDir("old")
+        try write("note body\n\nAttachments:\n- \(base)/photo.jpg\n", to: old.appendingPathComponent("\(base).txt"))
+        try write("img", to: old.appendingPathComponent("\(base)/photo.jpg"))
+
+        let new = try makeDir("new")
+        try write("existing", to: new.appendingPathComponent("\(base).txt"))
+        try write("existing-img", to: new.appendingPathComponent("\(base)/keep.jpg"))
+
+        try migrator.migrate(from: old, to: new, strategy: .move)
+
+        XCTAssertEqual(try read(new.appendingPathComponent("\(base)-1/photo.jpg")), "img")
+        XCTAssertTrue(try read(new.appendingPathComponent("\(base)-1.txt")).contains("- \(base)-1/photo.jpg"))
+    }
+
+    func testPairSurvivesCrossVolumeCopyPath() throws {
+        let old = try makeDir("old")
+        try write("note", to: old.appendingPathComponent("Y.md"))
+        try write("img", to: old.appendingPathComponent("Y/a.jpg"))
+
+        let new = try makeDir("new")
+        try write("existing", to: new.appendingPathComponent("Y.md"))
+
+        try migrator.migrate(from: old, to: new, strategy: .copyVerifyDelete)
+
+        XCTAssertEqual(try read(new.appendingPathComponent("Y-1.md")), "note")
+        XCTAssertEqual(try read(new.appendingPathComponent("Y-1/a.jpg")), "img")
+        XCTAssertFalse(exists(old.appendingPathComponent("Y.md")), "source removed after verified copy")
+    }
+
+    func testSingleNoteCollisionReportedForLedgerRemap() throws {
+        let old = try makeDir("old")
+        try write("incoming", to: old.appendingPathComponent("Notes/2026-07-10 Idea.md"))
+
+        let new = try makeDir("new")
+        try write("existing", to: new.appendingPathComponent("Notes/2026-07-10 Idea.md"))
+
+        let report = try migrator.migrate(from: old, to: new, strategy: .move)
+
+        XCTAssertEqual(report.renamedNotes["Notes/2026-07-10 Idea.md"], "Notes/2026-07-10 Idea-1.md")
+    }
+
+    func testCleanMigrationReportsNoRenames() throws {
+        let old = try makeDir("old")
+        try write("note", to: old.appendingPathComponent("Notes/a.md"))
+        let new = try makeDir("new")
+
+        let report = try migrator.migrate(from: old, to: new, strategy: .move)
+
+        XCTAssertTrue(report.renamedNotes.isEmpty)
+    }
+
+    // MARK: - uniqueURL extension semantics (M2 fix)
+
+    func testCollidingDirectoryWithPeriodsInNameKeepsFullName() throws {
+        let old = try makeDir("old")
+        try write("incoming", to: old.appendingPathComponent("Notes v1.2/a.txt"))
+
+        let new = try makeDir("new")
+        // A file (not dir) at the destination path forces the type-mismatch
+        // collision branch instead of dir-into-dir merge.
+        try write("existing-file", to: new.appendingPathComponent("Notes v1.2"))
+
+        try migrator.migrate(from: old, to: new, strategy: .move)
+
+        XCTAssertEqual(try read(new.appendingPathComponent("Notes v1.2-1/a.txt")), "incoming",
+                       "directories are extensionless: never Notes v1-1.2")
+        XCTAssertFalse(exists(new.appendingPathComponent("Notes v1-1.2")))
+    }
+
     // MARK: - No-op when unchanged
 
     func testNoOpWhenSourceEqualsDestination() throws {

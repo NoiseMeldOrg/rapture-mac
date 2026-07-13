@@ -11,6 +11,8 @@ struct MenuBarView: View {
             permission: appState.permissionState,
             automation: appState.automationPermissionState,
             paused: appState.settings.settings.paused,
+            destinationOffline: appState.destinationOffline,
+            queuedCount: appState.queuedCaptureCount,
             lastError: appState.lastError
         )
 
@@ -41,6 +43,13 @@ struct MenuBarView: View {
                 Text("Triaging notes… \(done) of \(total)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            if status.kind == .destinationOffline {
+                Text("Captures keep queueing and file automatically when the drive reconnects.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

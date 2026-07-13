@@ -29,6 +29,7 @@ final class RelayProcessor {
     private let filer: any RelayFiling
     private let ledger: RelayFiledLedger
     private let triageLedger: TriageLedger
+    private let destinationGuard: DestinationGuard
     private let clock: @Sendable () -> Date
 
     private var lastFailureAt: [String: Date] = [:]
@@ -39,12 +40,14 @@ final class RelayProcessor {
         filer: any RelayFiling,
         ledger: RelayFiledLedger,
         triageLedger: TriageLedger,
+        destinationGuard: DestinationGuard = DestinationGuard(),
         clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.appState = appState
         self.filer = filer
         self.ledger = ledger
         self.triageLedger = triageLedger
+        self.destinationGuard = destinationGuard
         self.clock = clock
     }
 
@@ -71,6 +74,17 @@ final class RelayProcessor {
         guard let folder = settings.outputFolder else {
             recordRelayError("No output folder configured")
             return
+        }
+
+        // Destination volume absent: the relay folder IS the queue — files stay
+        // put, no error, no backoff. Surfaced via the destination-offline status
+        // (the pending count folds into the menu bar's queued number).
+        guard destinationGuard.check(folder) != .volumeAbsent else {
+            appState.relayPendingOffline = batch.candidates.count + batch.orphanAudio.count
+            return
+        }
+        if appState.relayPendingOffline != 0 {
+            appState.relayPendingOffline = 0
         }
 
         let mode = settings.triageMode
@@ -146,6 +160,10 @@ final class RelayProcessor {
             Self.log.error("relay filing failed for \(name, privacy: .public): \(reason, privacy: .public)")
             lastFailureAt[name] = clock()
             recordRelayError(reason)
+        case .unavailable:
+            // The volume vanished between the batch guard and this write: silent
+            // defer, no backoff — the relay copy stays and the next scan retries.
+            Self.log.debug("relay filing deferred for \(name, privacy: .public): destination offline")
         }
     }
 
@@ -187,6 +205,8 @@ final class RelayProcessor {
             Self.log.error("orphan audio filing failed for \(name, privacy: .public): \(reason, privacy: .public)")
             lastFailureAt[name] = clock()
             recordRelayError(reason)
+        case .unavailable:
+            Self.log.debug("orphan audio deferred for \(name, privacy: .public): destination offline")
         }
     }
 

@@ -63,4 +63,55 @@ final class MenuBarStatusTests: XCTestCase {
         let line = MenuBarStatus.line(permission: .unknown, automation: .ok, paused: false, lastError: nil)
         XCTAssertEqual(line.kind, .capturing)
     }
+
+    // MARK: - Destination offline
+
+    func testDestinationOfflineBeatsError() {
+        let line = MenuBarStatus.line(
+            permission: .ok,
+            automation: .ok,
+            paused: false,
+            destinationOffline: true,
+            queuedCount: 3,
+            lastError: "writer exploded"
+        )
+        XCTAssertEqual(line.kind, .destinationOffline)
+        XCTAssertEqual(line.primary, "⚠ Destination offline — 3 queued")
+    }
+
+    func testPausedBeatsDestinationOffline() {
+        let line = MenuBarStatus.line(
+            permission: .ok,
+            automation: .ok,
+            paused: true,
+            destinationOffline: true,
+            queuedCount: 3,
+            lastError: nil
+        )
+        XCTAssertEqual(line.kind, .paused)
+    }
+
+    func testFullDiskAccessBeatsDestinationOffline() {
+        let line = MenuBarStatus.line(
+            permission: .fullDiskAccessRequired,
+            automation: .ok,
+            paused: false,
+            destinationOffline: true,
+            queuedCount: 1,
+            lastError: nil
+        )
+        XCTAssertEqual(line.kind, .fullDiskAccessNeeded)
+    }
+
+    func testDestinationOfflineWithNothingQueuedOmitsCount() {
+        let line = MenuBarStatus.line(
+            permission: .ok,
+            automation: .ok,
+            paused: false,
+            destinationOffline: true,
+            queuedCount: 0,
+            lastError: nil
+        )
+        XCTAssertEqual(line.primary, "⚠ Destination offline")
+    }
 }

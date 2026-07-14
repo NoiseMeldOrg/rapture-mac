@@ -73,7 +73,7 @@ struct SettingsGeneralView: View {
                 .foregroundStyle(.secondary)
 
             Toggle("Seed a starter scaffold in empty folders", isOn: seedScaffoldBinding)
-            Text("When on, an empty folder with no `CLAUDE.md` gets a generic template `CLAUDE.md` plus `processed/` and `in-progress/`. Never touches a folder that already has content.")
+            Text("When on, an empty folder with no `CLAUDE.md` gets a generic template `CLAUDE.md` with starter rules for an AI assistant reading your notes. Never touches a folder that already has content.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } header: {

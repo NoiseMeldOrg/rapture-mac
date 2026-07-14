@@ -13,7 +13,7 @@ struct PermissionsView: View {
                 Text("Rapture needs Full Disk Access")
                     .font(.title2)
                     .fontWeight(.semibold)
-                Text("Rapture watches your Messages database so Siri-dictated notes can land as `.txt` files on your Mac. macOS requires Full Disk Access for any app that reads `~/Library/Messages/chat.db`.")
+                Text("Rapture watches your Messages database so Siri-dictated notes can be filed as notes on your Mac. macOS requires Full Disk Access for any app that reads `~/Library/Messages/chat.db`.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

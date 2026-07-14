@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings → General → "Reminders & Calendar": the two independent handoff
+/// Settings → Triage → "Reminders & Calendar": the two independent handoff
 /// toggles (off by default), target pickers shown while enabled, a plain
 /// caption, and the last handoff error. Enabling a toggle drives the pre-prompt
 /// → TCC request flow (`HandoffEnableFlow`); the toggle only persists ON after

@@ -18,7 +18,7 @@ struct SettingsAboutView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
-                    Text("Siri-dictated notes from a locked iPhone, landing as `.txt` files on your Mac.")
+                    Text("Siri-dictated notes from a locked iPhone, filed as Markdown notes on your Mac.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

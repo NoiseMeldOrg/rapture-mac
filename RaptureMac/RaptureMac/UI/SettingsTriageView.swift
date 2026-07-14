@@ -46,7 +46,7 @@ struct SettingsTriageView: View {
         case .waitingForFolder:
             return "Waiting for an output folder to be configured."
         case .watching:
-            return "Every capture becomes a Markdown note with a small header, filed into Notes/ or Links/. Text files dropped at the folder root are converted too."
+            return "Every capture becomes a Markdown note with a small header, filed into Notes/ or Links/ — plus Tasks/, Ideas/, and Journal/ with AI triage on. Text files dropped at the folder root are converted too."
         case .waitingForDownload(let count):
             return "Waiting for iCloud to download \(count) pending \(count == 1 ? "file" : "files") at the folder root."
         case .triaging(let done, let total):

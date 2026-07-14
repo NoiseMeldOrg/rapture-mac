@@ -4,6 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Internal
+
+- **CI green again: `LinkEnrichmentServiceTests` was timezone-dependent.** The fixture's capture instant (2026-07-14T03:33Z) crossed midnight UTC, so artifact filenames — which use the capture's *local* calendar day — came out `2026-07-14 …` on the UTC CI runner against hardcoded `2026-07-13 …` expectations (six failures on every push since M5; invisible locally in Eastern time). The fixture now pins midday UTC, day-stable from UTC-11 to UTC+11. Reproduced and verified with `TEST_RUNNER_TZ=UTC`.
+
 ### Fixed
 
 - **Stale pre-triage copy in the UI.** Four strings still described the old `.txt` world (surfaced by the v1.0.98 release dogfood): the About tab's tagline ("landing as `.txt` files") and the Full Disk Access onboarding now say notes, not `.txt` files; the starter-scaffold caption no longer promises `processed/`/`in-progress/` folders (the scaffold seeds only `CLAUDE.md` since the M5 template rewrite); and the Triage tab's filing caption now mentions `Tasks/`/`Ideas/`/`Journal/` alongside `Notes/`/`Links/` when AI triage is on.

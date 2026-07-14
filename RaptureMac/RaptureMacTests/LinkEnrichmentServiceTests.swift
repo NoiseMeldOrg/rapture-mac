@@ -68,7 +68,7 @@ final class LinkEnrichmentServiceTests: XCTestCase {
         let url = output.appendingPathComponent("Links/\(base).md")
         let content = """
         ---
-        captured: 2026-07-13T15:00:00Z
+        captured: 2026-07-13T12:00:00Z
         source: rapture-mac
         type: youtube-link
         raw_media: \(media)
@@ -82,7 +82,11 @@ final class LinkEnrichmentServiceTests: XCTestCase {
     }
 
     private func echo(type: CaptureType = .youtubeLink, rawMedia: String? = nil) -> LinkNoteEcho {
-        LinkNoteEcho(type: type, rawMedia: rawMedia ?? youtubeURL, capturedAt: Date(timeIntervalSince1970: 1_784_000_000))
+        // 2026-07-13T12:00:00Z — midday UTC so the local calendar day is 2026-07-13
+        // in every zone from UTC-11 to UTC+11 (artifact names use the LOCAL day of
+        // capturedAt via CaptureContract.filenameBase; a midnight-adjacent instant
+        // here made the hardcoded "2026-07-13" expectations fail on UTC CI runners).
+        LinkNoteEcho(type: type, rawMedia: rawMedia ?? youtubeURL, capturedAt: Date(timeIntervalSince1970: 1_783_944_000))
     }
 
     private func linksContents() throws -> [String] {

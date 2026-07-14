@@ -2,7 +2,7 @@
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 [![Release](https://img.shields.io/github/v/release/NoiseMeldOrg/rapture-mac?display_name=tag&sort=semver)](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest)
-[![Network: zero outbound](https://img.shields.io/badge/network-zero%20outbound-success)](./PRIVACY.md)
+[![Network: opt-in only](https://img.shields.io/badge/network-opt--in%20only-success)](./PRIVACY.md)
 
 A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Files your voice captures as Markdown notes — titled, dated, and sorted into `Notes/` and `Links/` — in a folder of your choice, so voice-captured thoughts land where any AI assistant (Claude, ChatGPT, Gemini, a local Llama) can read them. Notes arrive two ways: Siri-dictated iMessages, and captures the Rapture iPhone app sends through your own iCloud. (Prefer raw timestamped `.txt` files? Flip **Settings → Triage** to raw mode.)
 
@@ -28,7 +28,7 @@ The second path starts in the Rapture iPhone app. Turn on the **Rapture Mac** de
 2. Open the DMG, drag **Rapture.app** into `/Applications`.
 3. Launch the app. There's no Dock icon. Look for the Rapture glyph in the menu bar at the top of the screen.
 
-Once installed, Rapture keeps itself up to date — it checks for new releases and prompts you to install them in place (verified against an EdDSA signature and Apple's notarization first). Turn it off in **Settings → About**, or update on demand via **Check for Updates…** in the menu. It's the app's only network use; see [PRIVACY.md](./PRIVACY.md).
+Once installed, Rapture keeps itself up to date — it checks for new releases and prompts you to install them in place (verified against an EdDSA signature and Apple's notarization first). Turn it off in **Settings → About**, or update on demand via **Check for Updates…** in the menu. It's the app's only network use unless you opt into BYO-key AI triage; see [PRIVACY.md](./PRIVACY.md).
 
 ### First-run walkthrough
 
@@ -78,7 +78,7 @@ Pick whichever agent you already use. Rapture doesn't care.
 
 ## v1 scope
 
-- **Two capture sources, no server.** The iMessage source polls `~/Library/Messages/chat.db` once per second, decodes message text (including the binary `attributedBody` blob that iOS 16+ uses for Siri-dictated messages), filters to your self-chat plus a user-managed allowlist, writes one Markdown note per message (with attachments in a sibling folder), and replies via AppleScript through Messages.app. The relay source watches the synced iCloud relay folder and files whatever the Rapture iPhone app sent. The built-in triage engine also converts any `.txt` dropped at the folder root — including notes captured before triage existed. Classification is deterministic (no AI, no network): bare links file into `Links/`, everything else into `Notes/`.
+- **Two capture sources, no server.** The iMessage source polls `~/Library/Messages/chat.db` once per second, decodes message text (including the binary `attributedBody` blob that iOS 16+ uses for Siri-dictated messages), filters to your self-chat plus a user-managed allowlist, writes one Markdown note per message (with attachments in a sibling folder), and replies via AppleScript through Messages.app. The relay source watches the synced iCloud relay folder and files whatever the Rapture iPhone app sent. The built-in triage engine also converts any `.txt` dropped at the folder root — including notes captured before triage existed. Classification is deterministic by default (no AI, no network): bare links file into `Links/`, everything else into `Notes/`. An optional **AI triage** toggle (off by default, **Settings → Triage**) refines voice notes into `Tasks/`, `Ideas/`, and `Journal/` with smart titles — using Apple Intelligence on-device when available, or your own Anthropic API key otherwise; the verbatim dictation is always kept in the note, and captures file instantly without AI whenever it's off or unavailable.
 - **No cloud mode in v1.** A future v1.1 adds a Sendblue path via VPS relay. An on-Mac webhook listener would die whenever the Mac sleeps, so we won't ship one.
 
 ### Out of scope
@@ -87,10 +87,10 @@ A short list of things you might expect but don't get; for the full rationale se
 
 - Group chat capture
 - In-app browsing / search / preview (the folder *is* the UI; use Finder, Spotlight, ripgrep, or your AI assistant)
-- Built-in AI integration (vendor-neutral by design)
+- Built-in AI *consumption* of your notes (the folder stays vendor-neutral by design — the optional AI triage toggle only classifies and titles captures on the way in; any LLM can still read the output)
 - Audio capture of Siri-dictated iMessages (text only; that audio stays on your iPhone). Captures sent from the Rapture iPhone app *can* include the audio file when you turn that on in the iOS app.
 - Mac App Store distribution (structurally impossible; see [shape.md](./agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md))
-- Analytics or telemetry (the only outbound network call is the optional, opt-out auto-update check — see [PRIVACY.md](./PRIVACY.md))
+- Analytics or telemetry (the only outbound network calls are the optional, opt-out auto-update check and the opt-in BYO-key AI engine — see [PRIVACY.md](./PRIVACY.md))
 
 ## Why the app isn't sandboxed
 
@@ -99,7 +99,7 @@ The app asks for **Full Disk Access** and **Automation → Messages**, which are
 - **Reading `~/Library/Messages/chat.db` requires Full Disk Access**, period. No entitlement gets a sandboxed app into that file; this is an Apple privacy guarantee, not a configuration option. Without that read, the app has nothing to capture.
 - **Sending the `✅ Saved` reply requires spawning `osascript` and controlling Messages.app**, both of which the Mac App Store sandbox forbids for arbitrary apps.
 
-So the app ships outside the sandbox by structural necessity, which is also why it isn't (and can't be) on the Mac App Store. In exchange, the code carries no network calls, no telemetry, and only one third-party dependency. See [PRIVACY.md](./PRIVACY.md) for the full posture and how to verify it yourself with two shell commands.
+So the app ships outside the sandbox by structural necessity, which is also why it isn't (and can't be) on the Mac App Store. In exchange, the code carries no telemetry and no network calls beyond the two opt-in/opt-out features above (auto-update, BYO-key AI). See [PRIVACY.md](./PRIVACY.md) for the full posture and how to verify it yourself with two shell commands.
 
 ## Verify the download
 

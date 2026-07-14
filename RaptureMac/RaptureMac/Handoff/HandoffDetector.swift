@@ -16,6 +16,15 @@ enum HandoffDetector {
         case event(title: String, start: Date)
     }
 
+    /// A candidate plus the verbatim clause it came from. The clause feeds the
+    /// ledger's clause fingerprint (M4): re-dictations of the same utterance
+    /// fingerprint identically whether the deterministic or the AI tier detected
+    /// them, even though AI smart titles vary run to run.
+    struct Detected: Equatable, Sendable {
+        let candidate: Candidate
+        let clause: String
+    }
+
     nonisolated static let titleMaxChars = 60
 
     /// At most one reminder and one event per note: clauses scan in order and
@@ -24,17 +33,24 @@ enum HandoffDetector {
     /// said the word, honor it — "remind me to call John tomorrow at 2" pings
     /// at 2pm rather than booking time).
     nonisolated static func detect(_ text: String, capturedAt: Date, timeZone: TimeZone) -> [Candidate] {
-        var reminder: Candidate?
-        var event: Candidate?
+        detectDetailed(text, capturedAt: capturedAt, timeZone: timeZone).map(\.candidate)
+    }
+
+    /// Same scan as `detect`, carrying each candidate's source clause.
+    nonisolated static func detectDetailed(_ text: String, capturedAt: Date, timeZone: TimeZone) -> [Detected] {
+        var reminder: Detected?
+        var event: Detected?
         for clause in clauses(of: text) {
             if isReminderClause(clause) {
-                if reminder == nil {
-                    reminder = reminderCandidate(in: clause, capturedAt: capturedAt, timeZone: timeZone)
+                if reminder == nil,
+                   let candidate = reminderCandidate(in: clause, capturedAt: capturedAt, timeZone: timeZone) {
+                    reminder = Detected(candidate: candidate, clause: clause)
                 }
                 continue
             }
-            if event == nil {
-                event = eventCandidate(in: clause, capturedAt: capturedAt, timeZone: timeZone)
+            if event == nil,
+               let candidate = eventCandidate(in: clause, capturedAt: capturedAt, timeZone: timeZone) {
+                event = Detected(candidate: candidate, clause: clause)
             }
             if reminder != nil && event != nil { break }
         }

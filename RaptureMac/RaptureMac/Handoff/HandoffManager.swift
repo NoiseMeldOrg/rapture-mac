@@ -14,11 +14,21 @@ struct HandoffOutcome: Equatable, Sendable {
 
 /// The single handoff entry point, called once per freshly-filed capture at
 /// each of the four filing seams (live iMessage write, relay filing, spool
-/// flush, hand-drop/backlog triage). M4's AI detection plugs in behind this
-/// same protocol.
+/// flush, hand-drop/backlog triage). The AI tier (M4) plugs in via the `ai`
+/// parameter: when the capture's AI result carries validated handoff
+/// candidates, they replace the deterministic detector's output for that
+/// capture — everything downstream (toggles, auth gating, past-skip, ledger
+/// dedup, notes contract, reply suffix) is shared and unchanged.
 @MainActor
 protocol HandoffProcessing: AnyObject {
-    func process(text: String, capturedAt: Date) async -> HandoffOutcome
+    func process(text: String, capturedAt: Date, ai: AITriageOutput?) async -> HandoffOutcome
+}
+
+extension HandoffProcessing {
+    /// Deterministic-only convenience; pre-M4 call sites keep compiling.
+    func process(text: String, capturedAt: Date) async -> HandoffOutcome {
+        await process(text: text, capturedAt: capturedAt, ai: nil)
+    }
 }
 
 /// Orchestrates detection → gating → dedup → EventKit creation. Strictly
@@ -55,7 +65,7 @@ final class HandoffManager: HandoffProcessing {
         self.timeZoneProvider = timeZoneProvider
     }
 
-    func process(text: String, capturedAt: Date) async -> HandoffOutcome {
+    func process(text: String, capturedAt: Date, ai: AITriageOutput?) async -> HandoffOutcome {
         let settings = appState.settings.settings
         // Both toggles off = zero cost, zero EventKit contact — the "filing
         // untouched" guarantee.
@@ -64,17 +74,17 @@ final class HandoffManager: HandoffProcessing {
         }
 
         let zone = timeZoneProvider()
-        let candidates = HandoffDetector.detect(text, capturedAt: capturedAt, timeZone: zone)
-        guard !candidates.isEmpty else { return .none }
+        let detected = Self.candidates(text: text, capturedAt: capturedAt, timeZone: zone, ai: ai)
+        guard !detected.isEmpty else { return .none }
 
         var outcome = HandoffOutcome()
-        for candidate in candidates {
-            switch candidate {
+        for item in detected {
+            switch item.candidate {
             case .reminder(let title, let due):
                 guard settings.remindersHandoffEnabled, authorized(.reminder) else { continue }
                 let dateKey = HandoffLedger.dateKey(for: due, timeZone: zone)
-                let fingerprint = HandoffLedger.fingerprint(kind: .reminder, title: title, dateKey: dateKey)
-                guard !ledger.contains(fingerprint: fingerprint) else {
+                let fingerprints = Self.fingerprints(kind: .reminder, title: title, clause: item.clause, dateKey: dateKey)
+                guard !fingerprints.contains(where: { ledger.contains(fingerprint: $0) }) else {
                     Self.log.info("reminder suppressed (ledger dup): \(title, privacy: .private)")
                     continue
                 }
@@ -85,7 +95,7 @@ final class HandoffManager: HandoffProcessing {
                         notes: notes(for: text, capturedAt: capturedAt),
                         listID: settings.remindersListID
                     )
-                    ledger.record(fingerprint: fingerprint)
+                    fingerprints.forEach { ledger.record(fingerprint: $0) }
                     outcome.reminderCreated = true
                     noteSuccess(.reminder)
                     Self.log.info("reminder created: \(title, privacy: .private)")
@@ -102,12 +112,9 @@ final class HandoffManager: HandoffProcessing {
                     Self.log.info("event skipped (start already passed): \(title, privacy: .private)")
                     continue
                 }
-                let fingerprint = HandoffLedger.fingerprint(
-                    kind: .event,
-                    title: title,
-                    dateKey: HandoffLedger.dateKey(forEventStart: start)
-                )
-                guard !ledger.contains(fingerprint: fingerprint) else {
+                let dateKey = HandoffLedger.dateKey(forEventStart: start)
+                let fingerprints = Self.fingerprints(kind: .event, title: title, clause: item.clause, dateKey: dateKey)
+                guard !fingerprints.contains(where: { ledger.contains(fingerprint: $0) }) else {
                     Self.log.info("event suppressed (ledger dup): \(title, privacy: .private)")
                     continue
                 }
@@ -119,7 +126,7 @@ final class HandoffManager: HandoffProcessing {
                         notes: notes(for: text, capturedAt: capturedAt),
                         calendarID: settings.calendarID
                     )
-                    ledger.record(fingerprint: fingerprint)
+                    fingerprints.forEach { ledger.record(fingerprint: $0) }
                     outcome.eventCreated = true
                     noteSuccess(.event)
                     Self.log.info("event created: \(title, privacy: .private)")
@@ -129,6 +136,43 @@ final class HandoffManager: HandoffProcessing {
             }
         }
         return outcome
+    }
+
+    /// Which detector runs (pure, table-tested):
+    /// - No AI result (off/failed) → deterministic detector.
+    /// - AI result whose handoff block was entirely discarded by validation
+    ///   (`handoffsInvalidated`) → deterministic detector — a hallucinating
+    ///   model must not silently disable the M3 behavior the user trusts.
+    /// - Otherwise the AI candidates replace the detector's output, including
+    ///   the valid "AI confidently found none" empty list (superset assumption).
+    nonisolated static func candidates(
+        text: String,
+        capturedAt: Date,
+        timeZone: TimeZone,
+        ai: AITriageOutput?
+    ) -> [HandoffDetector.Detected] {
+        guard let ai, !ai.handoffsInvalidated else {
+            return HandoffDetector.detectDetailed(text, capturedAt: capturedAt, timeZone: timeZone)
+        }
+        return ai.handoffs
+    }
+
+    /// Both dedup fingerprints for one creation: title-based (M3, stable for
+    /// mechanical titles) and clause-based (M4, stable across AI title drift).
+    /// Checked with OR, recorded together — so the same utterance never
+    /// double-creates whichever tier detected it first.
+    nonisolated static func fingerprints(
+        kind: HandoffKind,
+        title: String,
+        clause: String,
+        dateKey: String
+    ) -> [String] {
+        var result = [HandoffLedger.fingerprint(kind: kind, title: title, dateKey: dateKey)]
+        let trimmed = clause.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            result.append(HandoffLedger.clauseFingerprint(kind: kind, clause: trimmed, dateKey: dateKey))
+        }
+        return result
     }
 
     // MARK: - Helpers

@@ -87,7 +87,7 @@ Plan: mirror rapture-ios's git-commit-count auto-versioning via a Run Script bui
 
 ## Out of scope for v1
 
-- **Networking:** no Hummingbird, cloudflared, Sendblue, webhook listener, MMS download. Entirely deferred to v1.1 with VPS-relay architecture.
-- **Keychain:** no secrets in v1.
+- **Networking:** no Hummingbird, cloudflared, Sendblue, webhook listener, MMS download. Entirely deferred to v1.1 with VPS-relay architecture. (The triage engine's M4 added one narrow, opt-in outbound call: the BYO-key Anthropic engine in `TriageAI/AnthropicEngine.swift`, plain `URLSession`, active only when the user enables AI triage with their own key and Apple Intelligence is unavailable.)
+- **Keychain:** one generic-password item — the user's optional Anthropic API key (triage-engine M4, `Persistence/KeychainStore.swift`; DEBUG builds use an isolated service name). Never in settings.json. This supersedes the original "no secrets in v1" line.
 - **Analytics:** no PostHog / TelemetryDeck.
 - **Auto-update:** no Sparkle.

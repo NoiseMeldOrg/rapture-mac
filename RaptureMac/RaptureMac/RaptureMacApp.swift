@@ -45,6 +45,10 @@ struct RaptureMacApp: App {
             SettingsView()
                 .environment(appState)
                 .environment(updater)
+                // The Triage tab's AI section drives the shared service (status,
+                // key save, enable flow) — the same instance the pipeline's
+                // composers consult.
+                .environment(pipeline.aiTriage)
         }
         .windowResizability(.contentSize)
     }

@@ -32,6 +32,11 @@ struct Settings: Codable, Sendable, Equatable {
     var remindersListID: String?
     /// `calendarIdentifier` of the calendar receiving handoffs; nil = system default.
     var calendarID: String?
+    /// When on, voice-note captures are classified/titled/formatted by an AI
+    /// engine (Apple on-device when available, else the user's Anthropic key)
+    /// before composing. Off by default. The API key itself lives in the
+    /// Keychain (`KeychainStore`), NEVER in this file.
+    var aiTriageEnabled: Bool
 
     init(
         outputFolder: URL? = nil,
@@ -46,7 +51,8 @@ struct Settings: Codable, Sendable, Equatable {
         remindersHandoffEnabled: Bool = false,
         calendarHandoffEnabled: Bool = false,
         remindersListID: String? = nil,
-        calendarID: String? = nil
+        calendarID: String? = nil,
+        aiTriageEnabled: Bool = false
     ) {
         self.outputFolder = outputFolder
         self.allowedHandles = allowedHandles
@@ -61,11 +67,12 @@ struct Settings: Codable, Sendable, Equatable {
         self.calendarHandoffEnabled = calendarHandoffEnabled
         self.remindersListID = remindersListID
         self.calendarID = calendarID
+        self.aiTriageEnabled = aiTriageEnabled
     }
 
     enum CodingKeys: String, CodingKey {
         case outputFolder, allowedHandles, allowSMS, launchAtLogin, paused, replyMode, seedScaffold, relayEnabled, triageMode
-        case remindersHandoffEnabled, calendarHandoffEnabled, remindersListID, calendarID
+        case remindersHandoffEnabled, calendarHandoffEnabled, remindersListID, calendarID, aiTriageEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -93,5 +100,7 @@ struct Settings: Codable, Sendable, Equatable {
         calendarHandoffEnabled = try c.decodeIfPresent(Bool.self, forKey: .calendarHandoffEnabled) ?? false
         remindersListID = try c.decodeIfPresent(String.self, forKey: .remindersListID)
         calendarID = try c.decodeIfPresent(String.self, forKey: .calendarID)
+        // Absent in pre-existing settings.json → AI off (explicit opt-in).
+        aiTriageEnabled = try c.decodeIfPresent(Bool.self, forKey: .aiTriageEnabled) ?? false
     }
 }

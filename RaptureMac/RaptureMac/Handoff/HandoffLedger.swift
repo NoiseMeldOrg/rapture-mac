@@ -60,6 +60,17 @@ final class HandoffLedger {
         "\(kind.rawValue)|\(normalizeTitle(title))|\(dateKey)"
     }
 
+    /// Second fingerprint (M4): keyed by the verbatim source *clause* instead of
+    /// the item title. AI smart titles vary across re-dictations of the same
+    /// utterance, but the clause text is stable — recording and checking BOTH
+    /// fingerprints on every creation blocks deterministic↔AI double-creates in
+    /// either direction. The `clause|` marker segment keeps the namespace
+    /// disjoint from title fingerprints; the dateKey stays terminal so
+    /// `window(forFingerprint:)`'s dateless rule applies unchanged.
+    nonisolated static func clauseFingerprint(kind: HandoffKind, clause: String, dateKey: String) -> String {
+        "\(kind.rawValue)|clause|\(normalizeTitle(clause))|\(dateKey)"
+    }
+
     /// Lowercased, whitespace-collapsed, trailing punctuation stripped — the
     /// same utterance re-dictated with different capitalization or a trailing
     /// period must fingerprint identically.

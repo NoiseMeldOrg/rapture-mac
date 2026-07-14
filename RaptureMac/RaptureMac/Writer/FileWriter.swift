@@ -7,9 +7,14 @@ final class FileWriter {
     static let attachmentRetryDelay: TimeInterval = 2
 
     private let destinationGuard: DestinationGuard
+    /// AI triage seam (M4). Consulted only in `.full` mode for voice-note
+    /// captures; nil (or a nil result) means the deterministic path below runs
+    /// exactly as before.
+    private let ai: (any AITriageProviding)?
 
-    init(destinationGuard: DestinationGuard = DestinationGuard()) {
+    init(destinationGuard: DestinationGuard = DestinationGuard(), ai: (any AITriageProviding)? = nil) {
         self.destinationGuard = destinationGuard
+        self.ai = ai
     }
 
     func write(_ captured: CapturedMessage, to folder: URL, mode: TriageMode) async -> WriteResult {
@@ -75,14 +80,27 @@ final class FileWriter {
         do {
             let text = captured.decodedText
             let classification = TriageClassifier.classify(text)
+
+            // AI refinement (M4): voice notes only — link captures keep their
+            // deterministic typing (M5 enrichment keys off youtube-link/
+            // article-link). A nil result at any stage = the deterministic
+            // values below, unchanged.
+            var aiOut: AITriageOutput?
+            if classification.type == .voiceNote, let ai {
+                aiOut = await ai.analyze(text: text, capturedAt: captured.event.dateUTC)
+            }
+
+            let noteType = aiOut?.classification ?? classification.type
             let title: String
-            if classification.type == .voiceNote {
+            if let aiTitle = aiOut?.title {
+                title = aiTitle
+            } else if classification.type == .voiceNote {
                 title = TitleDeriver.voiceNoteTitle(from: text)
             } else {
                 title = TitleDeriver.linkTitle(for: classification.rawMedia ?? "", type: classification.type)
             }
 
-            let subfolder = folder.appendingPathComponent(classification.type.subfolder, isDirectory: true)
+            let subfolder = folder.appendingPathComponent(noteType.subfolder, isDirectory: true)
             try FileManager.default.createDirectory(at: subfolder, withIntermediateDirectories: true)
 
             let base = CaptureContract.filenameBase(title: title, capturedAt: captured.event.dateUTC)
@@ -111,15 +129,15 @@ final class FileWriter {
             let note = CaptureContract.Note(
                 capturedAt: captured.event.dateUTC,
                 source: .raptureMac,
-                type: classification.type,
+                type: noteType,
                 rawMedia: classification.rawMedia,
-                body: text,
-                rawBody: nil
+                body: aiOut?.formattedBody ?? text,
+                rawBody: aiOut?.formattedBody != nil ? text : nil
             )
             let contents = CaptureContract.compose(note, attachments: copied)
             try AtomicFile.write(Data(contents.utf8), to: mdURL)
 
-            return WriteResult(outcome: .success(mdURL), failedAttachments: failedAttachments)
+            return WriteResult(outcome: .success(mdURL), failedAttachments: failedAttachments, ai: aiOut)
         } catch {
             let reason = error.localizedDescription
             Self.log.error("Triage write failed: \(reason, privacy: .public)")

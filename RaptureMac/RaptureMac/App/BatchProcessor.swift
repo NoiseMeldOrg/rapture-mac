@@ -280,7 +280,8 @@ final class BatchProcessor {
                     if let handoff {
                         handoffOutcome = await handoff.process(
                             text: captured.decodedText,
-                            capturedAt: captured.event.dateUTC
+                            capturedAt: captured.event.dateUTC,
+                            ai: result.ai
                         )
                     }
                     await replier.replyForWrite(

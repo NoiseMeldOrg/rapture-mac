@@ -31,6 +31,9 @@ final class TriageProcessor {
     /// Reminders/Calendar handoff, fired once per freshly-triaged note (never
     /// on ledger-hit ghost drains). Silent — hand-drops have no reply path.
     private let handoff: (any HandoffProcessing)?
+    /// AI triage seam (M4); voice-note captures only. This seam composes inline
+    /// (no writer), so it consults the service directly before compose.
+    private let ai: (any AITriageProviding)?
     private let clock: @Sendable () -> Date
     /// Test override; nil means "read the CURRENT zone at each use", matching the
     /// writers (a system time-zone change mid-run must not date backlog notes with
@@ -45,6 +48,7 @@ final class TriageProcessor {
         ledger: TriageLedger,
         destinationGuard: DestinationGuard = DestinationGuard(),
         handoff: (any HandoffProcessing)? = nil,
+        ai: (any AITriageProviding)? = nil,
         clock: @escaping @Sendable () -> Date = { Date() },
         timeZone: TimeZone? = nil
     ) {
@@ -52,6 +56,7 @@ final class TriageProcessor {
         self.ledger = ledger
         self.destinationGuard = destinationGuard
         self.handoff = handoff
+        self.ai = ai
         self.clock = clock
         self.timeZoneOverride = timeZone
     }
@@ -164,13 +169,25 @@ final class TriageProcessor {
         let info = CaptureContract.parseSourceFilename(name)
         let capturedAt = info.capturedAt ?? modificationDate(of: sourceURL) ?? clock()
         let classification = TriageClassifier.classify(bodyText)
+
+        // AI refinement (M4): voice notes only; links stay deterministic. The
+        // footer-stripped body is what the AI sees (attachment links aren't
+        // prose), anchored to the capture's own timestamp.
+        var aiOut: AITriageOutput?
+        if classification.type == .voiceNote, let ai {
+            aiOut = await ai.analyze(text: bodyText, capturedAt: capturedAt)
+        }
+
+        let noteType = aiOut?.classification ?? classification.type
+        // Title precedence: relay-derived title (iPhone provenance) > AI > deterministic.
         let title = info.relayTitle
+            ?? aiOut?.title
             ?? (classification.type == .voiceNote
                 ? TitleDeriver.voiceNoteTitle(from: bodyText)
                 : TitleDeriver.linkTitle(for: classification.rawMedia ?? "", type: classification.type))
 
         do {
-            let subfolder = folder.appendingPathComponent(classification.type.subfolder, isDirectory: true)
+            let subfolder = folder.appendingPathComponent(noteType.subfolder, isDirectory: true)
             try FileManager.default.createDirectory(at: subfolder, withIntermediateDirectories: true)
             let base = CaptureContract.filenameBase(title: title, capturedAt: capturedAt, timeZone: timeZoneOverride ?? .current)
             let (mdURL, attachmentFolderName) = FileWriter.uniqueDestination(in: subfolder, baseName: base, fileExtension: "md")
@@ -189,10 +206,10 @@ final class TriageProcessor {
             let note = CaptureContract.Note(
                 capturedAt: capturedAt,
                 source: info.source,
-                type: classification.type,
+                type: noteType,
                 rawMedia: classification.rawMedia,
-                body: bodyText,
-                rawBody: nil
+                body: aiOut?.formattedBody ?? bodyText,
+                rawBody: aiOut?.formattedBody != nil ? bodyText : nil
             )
             do {
                 try AtomicFile.write(Data(CaptureContract.compose(note, attachments: attachments).utf8), to: mdURL)
@@ -218,8 +235,10 @@ final class TriageProcessor {
             if let handoff {
                 // Footer-stripped body (attachment links aren't prose); capturedAt
                 // is the capture's own stamp — a backlog note saying "tomorrow"
-                // anchors to when it was dictated, not to this drain.
-                _ = await handoff.process(text: bodyText, capturedAt: capturedAt)
+                // anchors to when it was dictated, not to this drain. The AI
+                // result rides along so its sharper candidates replace the
+                // deterministic detector's for this capture.
+                _ = await handoff.process(text: bodyText, capturedAt: capturedAt, ai: aiOut)
             }
         } catch {
             fail(name: name, reason: "Couldn't triage \(name): \(error.localizedDescription)")

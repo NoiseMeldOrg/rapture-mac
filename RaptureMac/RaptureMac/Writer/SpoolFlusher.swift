@@ -17,9 +17,14 @@ final class SpoolFlusher: SpoolFiling {
     static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "SpoolFlusher")
 
     private let destinationGuard: DestinationGuard
+    /// AI triage seam (M4); voice-note captures in `.full` mode only. The AI
+    /// call anchors to the item's own `capturedAt`, so a spool item flushing
+    /// days later still resolves "tomorrow" against dictation time.
+    private let ai: (any AITriageProviding)?
 
-    init(destinationGuard: DestinationGuard = DestinationGuard()) {
+    init(destinationGuard: DestinationGuard = DestinationGuard(), ai: (any AITriageProviding)? = nil) {
         self.destinationGuard = destinationGuard
+        self.ai = ai
     }
 
     func file(_ item: SpoolItem, to folder: URL, mode: TriageMode) async -> WriteResult {
@@ -34,7 +39,7 @@ final class SpoolFlusher: SpoolFiling {
             case .raw:
                 return try fileRaw(item, text: text, to: folder)
             case .full:
-                return try fileTriaged(item, text: text, to: folder)
+                return try await fileTriaged(item, text: text, to: folder)
             }
         } catch {
             let reason = error.localizedDescription
@@ -63,16 +68,26 @@ final class SpoolFlusher: SpoolFiling {
 
     /// Full triage mode: compose-direct to the final contract note in its
     /// classified subfolder, exactly like a live `FileWriter.writeTriaged`.
-    private func fileTriaged(_ item: SpoolItem, text: String, to folder: URL) throws -> WriteResult {
+    private func fileTriaged(_ item: SpoolItem, text: String, to folder: URL) async throws -> WriteResult {
         let classification = TriageClassifier.classify(text)
+
+        // AI refinement (M4): voice notes only, links stay deterministic.
+        var aiOut: AITriageOutput?
+        if classification.type == .voiceNote, let ai {
+            aiOut = await ai.analyze(text: text, capturedAt: item.metadata.capturedAt)
+        }
+
+        let noteType = aiOut?.classification ?? classification.type
         let title: String
-        if classification.type == .voiceNote {
+        if let aiTitle = aiOut?.title {
+            title = aiTitle
+        } else if classification.type == .voiceNote {
             title = TitleDeriver.voiceNoteTitle(from: text)
         } else {
             title = TitleDeriver.linkTitle(for: classification.rawMedia ?? "", type: classification.type)
         }
 
-        let subfolder = folder.appendingPathComponent(classification.type.subfolder, isDirectory: true)
+        let subfolder = folder.appendingPathComponent(noteType.subfolder, isDirectory: true)
         try FileManager.default.createDirectory(at: subfolder, withIntermediateDirectories: true)
 
         let base = CaptureContract.filenameBase(title: title, capturedAt: item.metadata.capturedAt)
@@ -87,14 +102,14 @@ final class SpoolFlusher: SpoolFiling {
         let note = CaptureContract.Note(
             capturedAt: item.metadata.capturedAt,
             source: item.metadata.source,
-            type: classification.type,
+            type: noteType,
             rawMedia: classification.rawMedia,
-            body: text,
-            rawBody: nil
+            body: aiOut?.formattedBody ?? text,
+            rawBody: aiOut?.formattedBody != nil ? text : nil
         )
         try AtomicFile.write(Data(CaptureContract.compose(note, attachments: copied).utf8), to: mdURL)
 
-        return WriteResult(outcome: .success(mdURL), failedAttachments: copyOutcome.failed)
+        return WriteResult(outcome: .success(mdURL), failedAttachments: copyOutcome.failed, ai: aiOut)
     }
 
     /// Copies the item's spooled attachments (already sanitized at spool time)

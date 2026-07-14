@@ -32,10 +32,10 @@ final class HandoffSeamTests: XCTestCase {
     @MainActor
     private final class SpyHandoff: HandoffProcessing {
         var outcome = HandoffOutcome.none
-        private(set) var calls: [(text: String, capturedAt: Date)] = []
+        private(set) var calls: [(text: String, capturedAt: Date, ai: AITriageOutput?)] = []
 
-        func process(text: String, capturedAt: Date) async -> HandoffOutcome {
-            calls.append((text, capturedAt))
+        func process(text: String, capturedAt: Date, ai: AITriageOutput?) async -> HandoffOutcome {
+            calls.append((text, capturedAt, ai))
             return outcome
         }
     }

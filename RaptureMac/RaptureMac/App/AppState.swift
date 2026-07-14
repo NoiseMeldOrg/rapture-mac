@@ -54,6 +54,13 @@ final class AppState {
     /// touches the menu-bar error surface, because the note itself filed fine.
     var handoffLastError: String?
 
+    /// Which AI triage engine is active (or why none is). Settings-only surface,
+    /// maintained by `AITriageService`. Transient.
+    var aiEngineStatus: AIEngineStatus = .off
+    /// Last AI triage error. Same rule as `handoffLastError`: Settings only,
+    /// never the menu bar — the capture itself filed fine, deterministically.
+    var aiLastError: String?
+
     let settings: SettingsStore
     let state: StateStore
     let integrations: IntegrationsState
@@ -62,6 +69,12 @@ final class AppState {
     /// pipeline's `HandoffManager`. Constructing the production client is inert
     /// (no `EKEventStore` until a method runs); tests inject a fake.
     let eventKit: any EventKitClient
+
+    /// The app's one credential seam (the optional Anthropic API key), shared by
+    /// the Settings key field and `AITriageService`. Keychain-backed in the app;
+    /// tests inject a fake. Construction is inert — no keychain I/O until a
+    /// method runs.
+    let credentials: any CredentialStore
 
     /// Serializes capture writes against an output-folder relocation. See `CaptureGate`.
     let captureGate = CaptureGate()
@@ -75,12 +88,14 @@ final class AppState {
     init(
         supportDirectory: URL? = nil,
         destinationGuard: DestinationGuard = DestinationGuard(),
-        eventKit: (any EventKitClient)? = nil
+        eventKit: (any EventKitClient)? = nil,
+        credentials: (any CredentialStore)? = nil
     ) {
         self.settings = SettingsStore(directory: supportDirectory)
         self.state = StateStore(directory: supportDirectory)
         self.destinationGuard = destinationGuard
         self.eventKit = eventKit ?? SystemEventKitClient()
+        self.credentials = credentials ?? KeychainStore()
         let loginPath = LoginShellPath.capture()
         let runner = IntegrationRunner(loginPath: loginPath)
         self.integrations = IntegrationsState(

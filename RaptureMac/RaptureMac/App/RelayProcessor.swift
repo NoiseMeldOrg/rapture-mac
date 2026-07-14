@@ -164,7 +164,8 @@ final class RelayProcessor {
                 let capturedAt = RelayWatcher.parseRelayTimestamp(name) ?? clock()
                 _ = await handoff.process(
                     text: String(decoding: relayData, as: UTF8.self),
-                    capturedAt: capturedAt
+                    capturedAt: capturedAt,
+                    ai: result.ai
                 )
             }
             appState.state.recordSuccess(at: clock())

@@ -19,9 +19,12 @@ final class RelayFiler: RelayFiling {
     static let audioRetryDelay: TimeInterval = 2
 
     private let destinationGuard: DestinationGuard
+    /// AI triage seam (M4); voice-note captures in `.full` mode only.
+    private let ai: (any AITriageProviding)?
 
-    init(destinationGuard: DestinationGuard = DestinationGuard()) {
+    init(destinationGuard: DestinationGuard = DestinationGuard(), ai: (any AITriageProviding)? = nil) {
         self.destinationGuard = destinationGuard
+        self.ai = ai
     }
 
     func file(_ candidate: RelayCandidate, to folder: URL, mode: TriageMode) async -> WriteResult {
@@ -86,15 +89,26 @@ final class RelayFiler: RelayFiling {
             let text = String(decoding: data, as: UTF8.self)
 
             let classification = TriageClassifier.classify(text)
-            let title = TitleDeriver.relayTitle(fromBaseName: candidate.baseName)
-                ?? (classification.type == .voiceNote
-                    ? TitleDeriver.voiceNoteTitle(from: text)
-                    : TitleDeriver.linkTitle(for: classification.rawMedia ?? "", type: classification.type))
             // The relay filename carries the capture instant; filing time is the
             // honest fallback for non-contract names.
             let capturedAt = RelayWatcher.parseRelayTimestamp(candidate.relayFilename) ?? Date()
 
-            let subfolder = folder.appendingPathComponent(classification.type.subfolder, isDirectory: true)
+            // AI refinement (M4): voice notes only, links stay deterministic.
+            var aiOut: AITriageOutput?
+            if classification.type == .voiceNote, let ai {
+                aiOut = await ai.analyze(text: text, capturedAt: capturedAt)
+            }
+
+            let noteType = aiOut?.classification ?? classification.type
+            // Title precedence: the iOS-derived relay title still beats the AI
+            // title — the iPhone user typed/derived it, provenance wins.
+            let title = TitleDeriver.relayTitle(fromBaseName: candidate.baseName)
+                ?? aiOut?.title
+                ?? (classification.type == .voiceNote
+                    ? TitleDeriver.voiceNoteTitle(from: text)
+                    : TitleDeriver.linkTitle(for: classification.rawMedia ?? "", type: classification.type))
+
+            let subfolder = folder.appendingPathComponent(noteType.subfolder, isDirectory: true)
             try FileManager.default.createDirectory(at: subfolder, withIntermediateDirectories: true)
 
             let base = CaptureContract.filenameBase(title: title, capturedAt: capturedAt)
@@ -118,14 +132,14 @@ final class RelayFiler: RelayFiling {
             let note = CaptureContract.Note(
                 capturedAt: capturedAt,
                 source: .raptureIOS,
-                type: classification.type,
+                type: noteType,
                 rawMedia: classification.rawMedia,
-                body: text,
-                rawBody: nil
+                body: aiOut?.formattedBody ?? text,
+                rawBody: aiOut?.formattedBody != nil ? text : nil
             )
             try AtomicFile.write(Data(CaptureContract.compose(note, attachments: copied).utf8), to: mdURL)
 
-            return WriteResult(outcome: .success(mdURL), failedAttachments: failedAttachments)
+            return WriteResult(outcome: .success(mdURL), failedAttachments: failedAttachments, ai: aiOut)
         } catch {
             let reason = error.localizedDescription
             Self.log.error("Relay triage filing failed for \(candidate.relayFilename, privacy: .public): \(reason, privacy: .public)")

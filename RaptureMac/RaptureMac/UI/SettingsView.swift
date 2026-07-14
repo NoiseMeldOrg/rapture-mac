@@ -4,7 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
 
-    private enum Tab: Hashable { case general, allowlist, integrations, about }
+    private enum Tab: Hashable { case general, triage, allowlist, integrations, about }
     @State private var tab: Tab = .general
 
     var body: some View {
@@ -12,6 +12,10 @@ struct SettingsView: View {
             SettingsGeneralView()
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag(Tab.general)
+
+            SettingsTriageView()
+                .tabItem { Label("Triage", systemImage: "tray.full") }
+                .tag(Tab.triage)
 
             SettingsAllowlistView()
                 .tabItem { Label("Allowlist", systemImage: "person.crop.circle.badge.checkmark") }

@@ -131,7 +131,11 @@ final class DestinationMonitor {
                         // capturedAt comes verbatim from the item's metadata —
                         // possibly days old; dates anchor to it, and the manager
                         // skips events whose start has already passed.
-                        _ = await handoff.process(text: handoffText, capturedAt: item.metadata.capturedAt)
+                        _ = await handoff.process(
+                            text: handoffText,
+                            capturedAt: item.metadata.capturedAt,
+                            ai: result.ai
+                        )
                     }
                     // No recordSuccess: the capture counted at spool time.
                     Self.log.info("flushed \(item.name, privacy: .public) → \(url.lastPathComponent, privacy: .public)")

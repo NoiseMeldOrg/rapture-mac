@@ -8,9 +8,19 @@ final class Pipeline {
     nonisolated static let fdaRetryInterval: TimeInterval = 2
 
     private let appState: AppState
-    private let writer = FileWriter()
     private let sender = AppleScriptSender()
     private let notifications = NotificationDispatcher()
+    // One shared AI service across all four composers, so the engine cooldown,
+    // 401 latch, and Settings status see every capture. Construction is inert
+    // (no model contact, no keychain read, no network until a capture runs
+    // with the toggle on). Exposed for the Settings UI (status, key save,
+    // enable flow) via `.environment(...)`.
+    private(set) lazy var aiTriage = AITriageService(
+        appState: appState,
+        appleEngine: AppleFoundationEngine(),
+        anthropicEngine: AnthropicEngine(credentials: appState.credentials)
+    )
+    private lazy var writer = FileWriter(ai: aiTriage)
     private lazy var echoGuard = EchoGuard(stateStore: appState.state)
     private lazy var contentDedupCache = ContentDedupCache(stateStore: appState.state)
     private lazy var triageLedger = TriageLedger(stateStore: appState.state)
@@ -104,7 +114,7 @@ final class Pipeline {
     private func startRelay() {
         let processor = RelayProcessor(
             appState: appState,
-            filer: RelayFiler(),
+            filer: RelayFiler(ai: aiTriage),
             ledger: RelayFiledLedger(stateStore: appState.state),
             triageLedger: triageLedger,
             handoff: handoffManager
@@ -133,7 +143,12 @@ final class Pipeline {
     }
 
     private func startTriage() {
-        let processor = TriageProcessor(appState: appState, ledger: triageLedger, handoff: handoffManager)
+        let processor = TriageProcessor(
+            appState: appState,
+            ledger: triageLedger,
+            handoff: handoffManager,
+            ai: aiTriage
+        )
         triageProcessor = processor
 
         let triageWatcher = TriageWatcher()
@@ -170,7 +185,7 @@ final class Pipeline {
         let monitor = DestinationMonitor(
             appState: appState,
             spool: spoolStore,
-            flusher: SpoolFlusher(),
+            flusher: SpoolFlusher(ai: aiTriage),
             ledger: spoolFiledLedger,
             handoff: handoffManager
         )

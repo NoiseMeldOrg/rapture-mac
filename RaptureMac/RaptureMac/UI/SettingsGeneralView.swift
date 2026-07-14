@@ -15,12 +15,10 @@ struct SettingsGeneralView: View {
                 debugIsolationSection
             }
             outputFolderSection
-            triageSection
             launchAtLoginSection
             replyModeSection
             smsSection
             relaySection
-            HandoffSettingsSection()
         }
         .formStyle(.grouped)
     }
@@ -80,44 +78,6 @@ struct SettingsGeneralView: View {
                 .foregroundStyle(.secondary)
         } header: {
             Text("Notes Folder")
-        }
-    }
-
-    // MARK: - Triage
-
-    @ViewBuilder
-    private var triageSection: some View {
-        Section {
-            Picker("Filing", selection: appState.settings.binding(for: \.triageMode)) {
-                Text("Markdown notes, sorted into folders (recommended)").tag(TriageMode.full)
-                Text("Raw text files, no triage").tag(TriageMode.raw)
-            }
-            .pickerStyle(.inline)
-            Text(triageStatusDescription)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if let error = appState.triageLastError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-        } header: {
-            Text("Triage")
-        }
-    }
-
-    private var triageStatusDescription: String {
-        switch appState.triageStatus {
-        case .off:
-            return "Captures land as raw .txt files at the folder root — the pre-triage behavior. Nothing is converted."
-        case .waitingForFolder:
-            return "Waiting for an output folder to be configured."
-        case .watching:
-            return "Every capture becomes a Markdown note with a small header, filed into Notes/ or Links/. Text files dropped at the folder root are converted too."
-        case .waitingForDownload(let count):
-            return "Waiting for iCloud to download \(count) pending \(count == 1 ? "file" : "files") at the folder root."
-        case .triaging(let done, let total):
-            return "Triaging notes… \(done) of \(total)."
         }
     }
 

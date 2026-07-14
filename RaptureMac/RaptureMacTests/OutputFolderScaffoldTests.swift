@@ -33,8 +33,10 @@ final class OutputFolderScaffoldTests: XCTestCase {
         XCTAssertTrue(OutputFolderScaffold.seedIfEligible(folder: folder, fileManager: fm))
 
         XCTAssertTrue(exists(folder.appendingPathComponent("CLAUDE.md")))
-        XCTAssertTrue(exists(folder.appendingPathComponent("processed")))
-        XCTAssertTrue(exists(folder.appendingPathComponent("in-progress")))
+        // Only the template is seeded — the app creates Notes/, Links/, etc.
+        // itself as captures file, and the template no longer prescribes a
+        // processed/-folder workflow.
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: folder.path), ["CLAUDE.md"])
     }
 
     func testDoesNotSeedWhenClaudeMdPresent() throws {
@@ -81,6 +83,7 @@ final class OutputFolderScaffoldTests: XCTestCase {
         XCTAssertFalse(t.contains("/Users/"), "template must not embed a home path")
         XCTAssertFalse(t.lowercased().contains("agentic-os"), "template must not name a specific repo")
         XCTAssertFalse(t.contains("/Volumes/"), "template must not embed a volume path")
-        XCTAssertTrue(t.contains("processed/"), "template should still describe the folder layout")
+        XCTAssertTrue(t.contains("Notes/"), "template should describe the triaged tree")
+        XCTAssertTrue(t.contains("Links/Media/"), "template should mention enrichment artifacts")
     }
 }

@@ -133,7 +133,7 @@ When `manifest.json` is absent or any field is missing, the panel falls back to:
 ```json
 {
   "displayName": "Generic CLI",
-  "description": "A pure shell script that processes each new .txt file through whatever LLM CLI you set. Works with anything that reads stdin and writes to stdout.",
+  "description": "A pure shell script that pipes each new triaged Markdown note through whatever LLM CLI you set. Works with anything that reads stdin and writes to stdout.",
   "docs": [
     { "label": "README", "file": "README.md" },
     { "label": "Script", "file": "process-notes.sh" }

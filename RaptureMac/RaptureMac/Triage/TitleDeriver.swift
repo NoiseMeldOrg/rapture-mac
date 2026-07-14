@@ -79,6 +79,29 @@ enum TitleDeriver {
         return nil
     }
 
+    /// A fetched video/page title sanitized for use as a filename base (M5
+    /// enrichment rename). Same filesystem-hostile-character rules as
+    /// `voiceNoteTitle`, but the real title's own casing is kept and there is
+    /// no word cap — only the 60-char boundary. nil = nothing usable; the
+    /// caller keeps the deterministic name.
+    nonisolated static func enrichedLinkTitle(from fetchedTitle: String) -> String? {
+        var title = fetchedTitle
+            .replacingOccurrences(of: "\0", with: "")
+            .replacingOccurrences(of: "/", with: " ")
+            .replacingOccurrences(of: ":", with: " ")
+        title = title
+            .split(whereSeparator: { $0.isWhitespace || $0.isNewline })
+            .joined(separator: " ")
+        while title.hasPrefix(".") {
+            title.removeFirst()
+        }
+        title = title.trimmingCharacters(in: .whitespaces)
+        if title.count > maxChars {
+            title = truncateAtWordBoundary(title, limit: maxChars)
+        }
+        return title.isEmpty ? nil : title
+    }
+
     // MARK: - Relay basenames
 
     /// The title part of a contract-shaped relay basename (`<ISO-stamp> <title>`),

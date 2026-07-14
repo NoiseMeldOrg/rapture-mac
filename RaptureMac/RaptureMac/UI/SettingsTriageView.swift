@@ -1,9 +1,8 @@
 import SwiftUI
 
 /// The Triage tab: everything about what happens to a capture after it lands —
-/// filing mode, the AI tier, and the Reminders/Calendar handoff (moved here
-/// from General, which was outgrowing its window). M5's link-enrichment toggle
-/// joins this tab later.
+/// filing mode, the AI tier, link enrichment, and the Reminders/Calendar
+/// handoff (moved here from General, which was outgrowing its window).
 struct SettingsTriageView: View {
     @Environment(AppState.self) private var appState
 
@@ -11,6 +10,7 @@ struct SettingsTriageView: View {
         Form {
             triageSection
             AITriageSettingsSection()
+            LinkEnrichmentSettingsSection()
             HandoffSettingsSection()
         }
         .formStyle(.grouped)

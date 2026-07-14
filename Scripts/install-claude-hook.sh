@@ -3,8 +3,8 @@
 #
 # What this does:
 #   1. Writes a small check script to ~/.claude/scripts/rapture-notes-check.sh.
-#      The script reports the count of unprocessed .txt files at session start
-#      so Claude can offer to triage them per ~/Documents/Rapture Notes/CLAUDE.md.
+#      The script reports recent triaged Markdown notes at session start so
+#      Claude can offer to act on them per the folder's CLAUDE.md rules.
 #   2. Adds a SessionStart hook entry to ~/.claude/settings.json (idempotent —
 #      re-running won't duplicate the entry).
 #
@@ -72,9 +72,14 @@ else
   NOTES="\${RAPTURE_NOTES_FOLDER:-$DEFAULT_NOTES}"
 fi
 
-COUNT=\$(ls "\$NOTES"/*.txt 2>/dev/null | wc -l | tr -d ' ')
+# The app files captures as Markdown notes in these subfolders; report the
+# recent ones. In raw mode, .txt files at the root are the pending work instead.
+COUNT=\$(find "\$NOTES/Notes" "\$NOTES/Links" "\$NOTES/Tasks" "\$NOTES/Ideas" "\$NOTES/Journal" -maxdepth 1 -name '*.md' -mtime -1 2>/dev/null | wc -l | tr -d ' ')
+RAW_COUNT=\$(ls "\$NOTES"/*.txt 2>/dev/null | wc -l | tr -d ' ')
 if [ "\$COUNT" -gt 0 ]; then
-  echo "Rapture notes pending: \$COUNT unprocessed .txt files in \$NOTES. If the user's current task allows, offer to triage them per the rules at \$NOTES/CLAUDE.md."
+  echo "Rapture notes: \$COUNT new Markdown note(s) in the last day under \$NOTES. If the user's current task allows, offer to act on them per the rules at \$NOTES/CLAUDE.md."
+elif [ "\$RAW_COUNT" -gt 0 ]; then
+  echo "Rapture notes pending: \$RAW_COUNT unprocessed .txt files in \$NOTES (raw mode). If the user's current task allows, offer to triage them per the rules at \$NOTES/CLAUDE.md."
 fi
 EOF
 chmod +x "$SCRIPT_PATH"

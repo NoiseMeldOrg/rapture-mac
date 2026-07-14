@@ -1,7 +1,7 @@
 # Tech Stack
 
-> Last Updated: 2026-05-16
-> Version: 1.0.0
+> Last Updated: 2026-07-13
+> Version: 2.0.0
 
 ## Platform & Language
 
@@ -20,16 +20,20 @@
 ## Apple frameworks
 
 - **AppKit (bridged):** `NSOpenPanel` for folder picker
-- **Foundation:** `FileManager`, `Process` (for `osascript`), `FileCoordinator` (atomic writes)
+- **Foundation:** `FileManager`, `Process` (for `osascript`), atomic writes, `URLSession` (the two opt-in outbound features only)
 - **ServiceManagement:** `SMAppService.mainApp` for launch-at-login
 - **UserNotifications:** `UNUserNotificationCenter` for catch-up fallback when reply mode is off
+- **EventKit:** Reminders/Calendar handoff (opt-in, triage engine M3). Confined to `SystemEventKitClient`.
+- **FoundationModels (macOS 26+, weak-linked):** the on-device AI triage engine (opt-in, M4). Confined to `AppleFoundationEngine`; deployment target stays macOS 14.
+- **Security (Keychain):** one generic-password item — the optional Anthropic API key (`KeychainStore`).
 - **OSLog:** structured logging via `Logger`
 
 ## Third-party (SPM)
 
 - **GRDB.swift** — Swift SQLite wrapper, read-only against `~/Library/Messages/chat.db`. Chosen over raw `sqlite3` for safer async API and prepared-statement handling. https://github.com/groue/GRDB.swift
+- **Sparkle** — the standard open-source macOS updater (shipped v1.0.80). EdDSA-verified feed, system profiling disabled.
 
-That's it. No Sendblue SDK (no cloud mode in v1), no networking stack beyond Foundation.
+That's it. No Sendblue SDK (no cloud mode in v1), no AI/LLM SDK, no scraping library — the BYO-key Anthropic engine and the link-enrichment fetcher are plain `URLSession` code in this repo (`TriageAI/`, `Enrichment/`), and PRIVACY.md names every networking file.
 
 ## Persistence
 
@@ -39,7 +43,7 @@ That's it. No Sendblue SDK (no cloud mode in v1), no networking stack beyond Fou
 - **Atomic writes:** `.tmp` → `rename(2)` for all four files
 - **Output folder:** user-chosen via `NSOpenPanel`, stored as a plain absolute-path `URL` in `settings.json`. The app is **not** sandboxed, so no security-scoped bookmark is needed. Defaults to `~/Documents/Rapture Notes/` (auto-created) on first launch when none is configured, so the app is functional the moment FDA is granted. Changing the folder relocates the existing notes tree to the new location automatically (`AppState.setOutputFolder` → `OutputFolderMigrator`): same-volume atomic rename, cross-volume copy-verify-delete, merge-never-clobber on collisions, source left intact on failure. The capture pipeline is quiesced via `CaptureGate` during the move. The one directory-removal primitive lives in `FileSafety.removeIfEmpty` (removes only a verified-empty directory; dotfiles count as content), so no path can delete a folder that still holds data.
 - **DEBUG-build isolation:** the Application Support container name and the default output folder are `#if DEBUG`-conditional (`Rapture for Mac (Debug)` / `~/Documents/Rapture Notes (Debug)/`), so development and manual relocate-testing never share state with — or default into — the installed app's real `settings.json`/`state.json`/sidecar or notes. See `agent-os/specs/2026-06-26-0916-output-folder-data-safety-hardening/`.
-- **Opt-in starter scaffold:** `Settings.seedScaffold` (off by default) seeds a generic template `CLAUDE.md` + `processed/` + `in-progress/` into an *empty, `CLAUDE.md`-less* output folder via `OutputFolderScaffold` (strictly idempotent and non-destructive). `Settings` decodes leniently (`decodeIfPresent`) so older `settings.json` files without the field still load.
+- **Opt-in starter scaffold:** `Settings.seedScaffold` (off by default) seeds a generic template `CLAUDE.md` (assistant rules for the triaged tree) into an *empty, `CLAUDE.md`-less* output folder via `OutputFolderScaffold` (strictly idempotent and non-destructive). The app creates the note subfolders itself as captures file. `Settings` decodes leniently (`decodeIfPresent`) so older `settings.json` files without the field still load.
 
 ## Permissions
 
@@ -87,7 +91,7 @@ Plan: mirror rapture-ios's git-commit-count auto-versioning via a Run Script bui
 
 ## Out of scope for v1
 
-- **Networking:** no Hummingbird, cloudflared, Sendblue, webhook listener, MMS download. Entirely deferred to v1.1 with VPS-relay architecture. (The triage engine's M4 added one narrow, opt-in outbound call: the BYO-key Anthropic engine in `TriageAI/AnthropicEngine.swift`, plain `URLSession`, active only when the user enables AI triage with their own key and Apple Intelligence is unavailable.)
+- **Networking (inbound / cloud):** no Hummingbird, cloudflared, Sendblue, webhook listener, MMS download. Entirely deferred to v1.1 with VPS-relay architecture. Outbound is enumerated and narrow: Sparkle updates (opt-out), the BYO-key Anthropic engine (`TriageAI/AnthropicEngine.swift`, opt-in), and the link-enrichment fetcher (`Enrichment/URLSessionLinkFetcher.swift`, opt-in, triage-engine M5) — all plain `URLSession`, all named in PRIVACY.md's grep claim.
 - **Keychain:** one generic-password item — the user's optional Anthropic API key (triage-engine M4, `Persistence/KeychainStore.swift`; DEBUG builds use an isolated service name). Never in settings.json. This supersedes the original "no secrets in v1" line.
 - **Analytics:** no PostHog / TelemetryDeck.
-- **Auto-update:** no Sparkle.
+- **Auto-update:** Sparkle — shipped v1.0.80, no longer out of scope.

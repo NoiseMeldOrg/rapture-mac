@@ -34,6 +34,9 @@ final class TriageProcessor {
     /// AI triage seam (M4); voice-note captures only. This seam composes inline
     /// (no writer), so it consults the service directly before compose.
     private let ai: (any AITriageProviding)?
+    /// Link enrichment (M5), enqueued once per freshly-triaged link note
+    /// (never on ledger-hit ghost drains). Direct call — no writer echo here.
+    private let enrichment: (any LinkEnriching)?
     private let clock: @Sendable () -> Date
     /// Test override; nil means "read the CURRENT zone at each use", matching the
     /// writers (a system time-zone change mid-run must not date backlog notes with
@@ -49,6 +52,7 @@ final class TriageProcessor {
         destinationGuard: DestinationGuard = DestinationGuard(),
         handoff: (any HandoffProcessing)? = nil,
         ai: (any AITriageProviding)? = nil,
+        enrichment: (any LinkEnriching)? = nil,
         clock: @escaping @Sendable () -> Date = { Date() },
         timeZone: TimeZone? = nil
     ) {
@@ -57,6 +61,7 @@ final class TriageProcessor {
         self.destinationGuard = destinationGuard
         self.handoff = handoff
         self.ai = ai
+        self.enrichment = enrichment
         self.clock = clock
         self.timeZoneOverride = timeZone
     }
@@ -232,6 +237,14 @@ final class TriageProcessor {
             lastFailureAt[name] = nil
             clearTriageError()
             Self.log.info("triaged \(name, privacy: .public) → \(mdURL.lastPathComponent, privacy: .public)")
+            // Enrichment (M5): link captures only — enqueue is non-blocking, so
+            // calling it while this processor holds the capture gate is safe.
+            if let enrichment, let rawMedia = classification.rawMedia,
+               classification.type == .youtubeLink || classification.type == .articleLink {
+                enrichment.noteFiled(
+                    noteURL: mdURL, in: folder,
+                    echo: LinkNoteEcho(type: classification.type, rawMedia: rawMedia, capturedAt: capturedAt))
+            }
             if let handoff {
                 // Footer-stripped body (attachment links aren't prose); capturedAt
                 // is the capture's own stamp — a backlog note saying "tomorrow"

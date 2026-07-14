@@ -13,7 +13,7 @@ xcodebuild \
   clean build test
 ```
 
-You should see 234 tests pass.
+You should see 727 tests pass.
 
 **Why `/tmp/RaptureMacDerived`**: this repo is often checked out on an exFAT-formatted SSD. Building in-place causes macOS to write AppleDouble (`._*`) metadata files into the derived-data tree, which then get copied into the `.app` bundle and break `codesign`. Routing derived data to the internal APFS volume sidesteps that. The same path is used everywhere derived data appears in our scripts and docs.
 

@@ -60,6 +60,9 @@ final class AppState {
     /// Last AI triage error. Same rule as `handoffLastError`: Settings only,
     /// never the menu bar — the capture itself filed fine, deterministically.
     var aiLastError: String?
+    /// Last link-enrichment give-up. Same rule again: Settings only, never the
+    /// menu bar — the link note filed fine and is complete without enrichment.
+    var enrichmentLastError: String?
 
     let settings: SettingsStore
     let state: StateStore
@@ -161,10 +164,11 @@ final class AppState {
                     }
                 }.value
                 settings.update { $0.outputFolder = new }
-                // Collision-renamed notes: keep the triage ledger's recorded
-                // destinations pointing at the real files.
+                // Collision-renamed notes: keep the triage and enriched-link
+                // ledgers' recorded destinations pointing at the real files.
                 if let report, !report.renamedNotes.isEmpty {
                     TriageLedger(stateStore: state).remap(report.renamedNotes)
+                    EnrichedLinkLedger(stateStore: state).remap(report.renamedNotes)
                 }
                 OutputFolderSidecar.write(new)
                 // Opt-in; no-op unless the new folder ended up empty + CLAUDE.md-less.

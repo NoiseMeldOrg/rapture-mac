@@ -2,6 +2,8 @@
 
 This example sends processing summaries via Telegram, which works hands-free from a locked iPhone via standard push notifications. To use Signal, Discord, Slack, WhatsApp, or another supported channel, see <https://hermes-agent.nousresearch.com/docs/user-guide/messaging>.
 
+Rapture for Mac triages every capture itself: each one lands as a Markdown note with YAML frontmatter, filed under `Notes/`, `Links/`, `Tasks/`, `Ideas/`, or `Journal/` in the notes folder. The skill doesn't classify anything — it reads each new note's frontmatter and acts on it, then reports a summary.
+
 ## Setup
 
 1. **Install Hermes Agent** (skip if already installed):
@@ -22,7 +24,7 @@ This example sends processing summaries via Telegram, which works hands-free fro
    hermes cron create "every 5m" "Run the rapture-watch skill against your Rapture notes folder." --skill rapture-watch --deliver telegram
    ```
 
-5. **Verify** by dictating a Siri test note to yourself. Within the next cron tick, a Telegram message summarizing the processed note should arrive.
+5. **Verify** by dictating a Siri test note to yourself. Rapture files it as a `.md` note within seconds; within the next cron tick, a Telegram message summarizing the processed note should arrive.
 
 ## How the notes folder is resolved
 
@@ -33,6 +35,10 @@ The skill reads the current notes-folder path in this order:
 
 This means changing your folder in Rapture's Settings is picked up automatically without needing to edit the skill or re-create the cron job.
 
+## Raw mode
+
+If you prefer the old contract — plain `<ISO-timestamp>.txt` files at the folder root, no conversion — flip Rapture's **Settings → Triage → Filing** to **"Raw text files, no triage"**. The skill's raw-mode section covers that case (classify each root `.txt` yourself, move to `processed/YYYY-MM/` when done). Those root-`.txt` instructions apply only in raw mode; in the default mode the app converts root `.txt` drops within seconds.
+
 ## Reply via iMessage instead
 
 Hermes ships a first-party iMessage skill (`skills/apple/imessage/SKILL.md`) that uses Steipete's `imsg` CLI. To send your processing summary via iMessage instead of Telegram, swap `--deliver telegram` for the appropriate iMessage delivery target (see the Hermes messaging docs) and ensure `imsg` is installed:
@@ -41,7 +47,7 @@ Hermes ships a first-party iMessage skill (`skills/apple/imessage/SKILL.md`) tha
 brew install steipete/tap/imsg
 ```
 
-Both Rapture's own `✓ Saved` confirmation and Hermes' iMessage send coexist without conflict — Rapture's `is_from_me=true` filter drops Hermes' outbound, and Hermes uses its own echo handling.
+Both Rapture's own `✅ Saved` confirmation and Hermes' iMessage send coexist without conflict — Rapture's `is_from_me=true` filter drops Hermes' outbound, and Hermes uses its own echo handling.
 
 ## Why a separate consumer at all
 

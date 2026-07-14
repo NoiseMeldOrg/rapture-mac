@@ -34,6 +34,9 @@ final class RelayProcessor {
     /// relay captures have no reply path (PRD). Optional so existing tests are
     /// unchanged.
     private let handoff: (any HandoffProcessing)?
+    /// Link enrichment (M5), enqueued once per freshly-filed link note (never
+    /// on ledger-hit ghost drains).
+    private let enrichment: (any LinkEnriching)?
     private let clock: @Sendable () -> Date
 
     private var lastFailureAt: [String: Date] = [:]
@@ -46,6 +49,7 @@ final class RelayProcessor {
         triageLedger: TriageLedger,
         destinationGuard: DestinationGuard = DestinationGuard(),
         handoff: (any HandoffProcessing)? = nil,
+        enrichment: (any LinkEnriching)? = nil,
         clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.appState = appState
@@ -54,6 +58,7 @@ final class RelayProcessor {
         self.triageLedger = triageLedger
         self.destinationGuard = destinationGuard
         self.handoff = handoff
+        self.enrichment = enrichment
         self.clock = clock
     }
 
@@ -157,6 +162,10 @@ final class RelayProcessor {
             }
             // A failed audio copy keeps the .m4a in the relay; the orphan path
             // retries it once its txt is gone.
+            // Enrichment after ledger + relay-copy cleanup (M5): enqueue only.
+            if let enrichment, let echo = result.link {
+                enrichment.noteFiled(noteURL: url, in: folder, echo: echo)
+            }
             if let handoff, let relayData {
                 // Dates parse relative to the capture's own timestamp (the relay
                 // filename stamp), not filing time — an offline backlog that

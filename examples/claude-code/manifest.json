@@ -1,15 +1,15 @@
 {
   "displayName": "Claude Code",
-  "description": "Triage notes from the Rapture folder inside a Claude Code session. Fires opportunistically the next time you open Claude — no daemon, no per-message cost.",
+  "description": "Act on Rapture's triaged Markdown notes inside a Claude Code session. Fires opportunistically the next time you open Claude — no daemon, no per-message cost.",
   "docs": [
     { "label": "Overview", "file": "README.md" },
-    { "label": "Routing rules", "file": "CLAUDE.md" }
+    { "label": "Action rules", "file": "CLAUDE.md" }
   ],
   "installs": [
     {
       "id": "claude-hook",
       "name": "SessionStart hook",
-      "description": "Fires when you next open Claude Code. Reports the count of pending .txt files and offers to triage per CLAUDE.md. Composes with your normal Claude usage.",
+      "description": "Fires when you next open Claude Code. Reports recent .md notes across the triaged subfolders (Notes, Links, Tasks, Ideas, Journal) and offers to act on them per CLAUDE.md. Composes with your normal Claude usage.",
       "install": "Scripts/install-claude-hook.sh",
       "uninstall": "Scripts/uninstall-claude-hook.sh",
       "statusKey": "hook",

@@ -44,53 +44,59 @@ enum OutputFolderScaffold {
     }
 
     private static func writeScaffold(into folder: URL, fileManager: FileManager) throws {
-        try fileManager.createDirectory(
-            at: folder.appendingPathComponent("processed", isDirectory: true),
-            withIntermediateDirectories: true
-        )
-        try fileManager.createDirectory(
-            at: folder.appendingPathComponent("in-progress", isDirectory: true),
-            withIntermediateDirectories: true
-        )
+        // Only the template CLAUDE.md is seeded. The app creates the note
+        // subfolders (Notes/, Links/, …) itself as captures file into them.
         let claude = folder.appendingPathComponent("CLAUDE.md")
         try AtomicFile.write(Data(templateClaudeMd.utf8), to: claude)
     }
 
-    /// Generic, user-agnostic routing-rules template. Deliberately free of any specific
-    /// repo paths, client names, or machine details — those are the user's to fill in.
+    /// Generic, user-agnostic starter for an AI assistant pointed at the folder.
+    /// Deliberately free of any specific repo paths, client names, or machine
+    /// details — those are the user's to fill in. Describes the triaged tree the
+    /// app actually produces (the raw-`.txt` contract only exists in raw mode).
     static let templateClaudeMd = """
-    # Rapture notes — triage rules
+    # Rapture notes — assistant rules
 
-    This folder collects Siri-dictated iMessages captured by Rapture for Mac, one `.txt`
-    file per note (filenames are ISO 8601 UTC timestamps). When an AI assistant is pointed
-    at this folder, these instructions tell it how to process each note.
+    Rapture for Mac files every capture here as a Markdown note the moment it
+    lands: titled `YYYY-MM-DD <Title>.md`, with a small YAML header (`captured`,
+    `source`, `type`, `raw_media`), sorted into subfolders. When an AI assistant
+    is pointed at this folder, these instructions tell it how to act on the notes.
 
-    ## What you're processing
+    ## The tree
 
-    `.txt` files in the root of this folder. Each is a short spoken thought. Read each one,
-    decide what it is, act on it, then move it into `processed/YYYY-MM/`.
+    - **`Notes/`** — voice notes (and anything ambiguous). The default home.
+    - **`Links/`** — captured URLs (`type: youtube-link` / `article-link`; the URL
+      is in `raw_media`). With enrichment on, fetched transcripts/articles live in
+      **`Links/Media/`** and the note links to its artifact under `Media:`.
+    - **`Tasks/`, `Ideas/`, `Journal/`** — AI-triage destinations (only when the
+      user enabled that tier).
+    - Attachments sit in a folder named after their note, linked from the note's
+      `Attachments:` footer.
 
-    ## Folders
+    ## What to do (edit to taste)
 
-    - **root** — pending, unprocessed notes.
-    - **`in-progress/`** — notes you're mid-way through actioning (e.g. waiting on an
-      external step). Move back to root or on to `processed/` when resolved.
-    - **`processed/`** — archive of handled notes, grouped by month (`processed/2026-06/`).
+    The app already classified, titled, and filed each note — your job is acting
+    on the content, not sorting it:
 
-    ## Suggested routing (edit to taste)
-
-    - A reminder or task → your task manager, then archive the note.
-    - A link or article → save/extract it, then archive.
-    - A journal entry or idea → append to your notes/journal, then archive.
-    - Anything ambiguous → leave in root and flag it rather than guessing.
+    - `Tasks/` → put actionable items into the task manager of choice.
+    - `Links/` → read the note's artifact in `Links/Media/` if present; summarize
+      or file the content wherever reference material lives.
+    - `Ideas/`, `Journal/` → append to the user's idea list / journal system.
+    - Track what you've handled in a log file (e.g. `processed-log.md` at this
+      root) instead of moving notes — the folders are the user's organization.
 
     ## Rules
 
-    - Never delete a note's content; only move the file.
-    - One note may imply more than one action — handle all of them before archiving.
+    - Never delete or rewrite a note; notes are the source of truth. Append to
+      your own log/output files instead.
+    - A note's verbatim dictation is under `## Raw` when formatting changed the
+      body — trust it over the formatted text when they disagree.
+    - One note may imply more than one action — handle all of them.
     - When in doubt, do less and ask. These captures can have real side effects.
 
-    > This is a generic starter template seeded by Rapture for Mac. Replace it with your
-    > own routing rules — destinations, client folders, and tool integrations.
+    > This is a generic starter template seeded by Rapture for Mac. Replace it
+    > with your own rules — destinations, client folders, and tool integrations.
+    > (If you flipped Settings → Triage to raw mode, captures are `.txt` files at
+    > this root instead, and older root-`.txt` workflows apply.)
     """
 }

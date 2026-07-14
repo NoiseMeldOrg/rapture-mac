@@ -1,7 +1,7 @@
 ---
 name: rapture-watch
-description: Process newly-captured Rapture notes. Classify each .txt, take routing action, optionally send a summary via Telegram.
-version: 0.1.0
+description: Act on Rapture's triaged Markdown notes. Read each new .md note's frontmatter, take the action for its type, optionally send a summary via Telegram.
+version: 0.2.0
 author: Rapture for Mac contributors
 license: Apache-2.0
 platforms: [macos]
@@ -12,7 +12,9 @@ metadata:
 
 # Rapture watcher
 
-Runs from a Hermes cron job. Processes any new `.txt` files Rapture for Mac has written to your notes folder since the last run.
+Runs from a Hermes cron job. Acts on any new Markdown notes Rapture for Mac has triaged into your notes folder since the last run.
+
+Rapture classifies every capture itself the moment it lands: each one becomes a `.md` note with YAML frontmatter (`captured`, `type`, optional `source` and `raw_media`), auto-titled `YYYY-MM-DD <Title>.md`, filed under `Notes/` (voice notes), `Links/` (YouTube/article links), and — when the user's AI tier is on — `Tasks/`, `Ideas/`, `Journal/`. This skill does no classifying. It reads the frontmatter and acts.
 
 ## Resolving the notes folder
 
@@ -29,32 +31,35 @@ When a Hermes cron job invokes this skill against the resolved `$NOTES_FOLDER`.
 
 ## Procedure
 
-1. List `*.txt` in the notes folder root. Don't recurse into `processed/`.
-2. Skip any `*.tmp` files. Those are Rapture's in-flight atomic writes.
-3. For each remaining file, ordered by mtime ascending:
-   1. Read it.
-   2. Classify into one of: `todo`, `journal`, `idea`, `code-task`, `reminder`, `other`.
-   3. Take the routing action below.
-   4. Move the source to `$NOTES_FOLDER/processed/YYYY-MM/<original-filename>`.
-4. Send a single summary message via the cron job's configured delivery channel: `📥 Processed N notes: <todo: 3, journal: 1, ...>`. Suppress when N = 0. (Hermes' delivery default is `local` / CLI; the cron job must pass `--deliver telegram` or similar for the summary to reach a messaging channel.)
+1. List `*.md` in the top level of each triaged subfolder: `Notes/`, `Links/`, `Tasks/`, `Ideas/`, `Journal/`. Don't recurse into `Links/Media/` — those are fetched transcript/article artifacts, not notes.
+2. Skip any `*.tmp` files (Rapture's in-flight atomic writes) and skip any note whose folder-relative path already appears in `$NOTES_FOLDER/processed-log.md` (grep it; that log is the watermark — notes stay where the app filed them).
+3. For each remaining note, ordered by mtime ascending:
+   1. Read it. The frontmatter's `type` (`voice-note`, `youtube-link`, `article-link`, `task`, `idea`, `journal`) is the app's classification; use it directly. `captured` is the UTC dictation instant. If the body has a `## Raw` section, that's the verbatim dictation; quote from it when exact wording matters.
+   2. Take the action for its type (below).
+   3. Append the note's relative path to `$NOTES_FOLDER/processed-log.md` with a shell `>>` append.
+4. Send a single summary message via the cron job's configured delivery channel: `📥 Processed N notes: <task: 3, journal: 1, ...>`. Suppress when N = 0. (Hermes' delivery default is `local` / CLI; the cron job must pass `--deliver telegram` or similar for the summary to reach a messaging channel.)
 
-## Routing actions
+## Actions by type
 
-- **todo**: append to `$NOTES_FOLDER/inbox/todos.md` as a Markdown checkbox: `- [ ] <text>  (captured <iso-ts>)`.
-- **journal**: append to `$NOTES_FOLDER/inbox/journal-YYYY-MM.md` under an ISO timestamp heading.
-- **idea**: append to `$NOTES_FOLDER/inbox/ideas.md`, same format as journal.
-- **code-task**: leave the file in place. Surface in the summary as `🔧 code task in <filename>`.
-- **reminder**: append to `$NOTES_FOLDER/inbox/reminders.md`. If the user mentioned a date, prepend it.
-- **other**: append to `$NOTES_FOLDER/inbox/uncategorized.md`.
+- **task**: append to `$NOTES_FOLDER/inbox/todos.md` as a Markdown checkbox: `- [ ] <text>  (captured <iso-ts>)`. If the note mentions a date, prepend it.
+- **idea**: append a one-line pointer to `$NOTES_FOLDER/inbox/ideas.md`: `- <filename> — <one-sentence gist>  (captured <iso-ts>)`.
+- **journal**: nothing per-note. Count it in the summary.
+- **youtube-link / article-link**: if the note body has a `Media:` link, Rapture's link enrichment already fetched the transcript/readable text into `Links/Media/` — summarize from that artifact if the summary channel wants substance; don't re-fetch. If there's no `Media:` link, include the note title and URL in the summary so the user can follow up.
+- **voice-note**: if clearly actionable ("email Sarah about the deck"), treat as a task. Otherwise just log it; it's already filed and searchable.
 
 ## Pitfalls
 
 - Don't process `*.tmp` files. Skip them.
-- Don't touch files in `processed/`. They've already been handled.
+- Don't process root `*.txt` files. In the default mode, Rapture converts any `.txt` at the folder root to a Markdown note within seconds and deletes it — racing that conversion loses.
+- Don't edit, move, rename, or delete the triaged `.md` notes. The log entry, not a move, marks a note handled.
 - If `$NOTES_FOLDER` doesn't exist, exit cleanly with a message in the summary.
 - If the sidecar exists but contains an unreadable / nonexistent path, fall back to the default.
-- Rapture for Mac already sends the `✓ Saved` confirmation in the iMessage thread when each file lands, so this skill's delivery channel is for the *processing* summary, not the per-capture acknowledgement.
+- Rapture for Mac already sends the `✅ Saved` confirmation in the iMessage thread when each capture lands, so this skill's delivery channel is for the *processing* summary, not the per-capture acknowledgement.
+
+## Raw mode
+
+If the user has flipped Rapture's **Settings → Triage → Filing** to **"Raw text files, no triage"**, the triaged subfolders don't fill: captures are `<ISO-timestamp>.txt` files at the folder root, never converted. Only in that mode, fall back to the old contract: list root `*.txt`, classify each yourself, take the equivalent action, and move the source to `$NOTES_FOLDER/processed/YYYY-MM/<original-filename>`.
 
 ## Verification
 
-After install + cron setup, dictate a Siri test note to yourself. Within the next cron tick (5 minutes by default), you should see a Telegram message summarizing one processed note, and the corresponding `.txt` should have moved from the notes folder root into `processed/YYYY-MM/`.
+After install + cron setup, dictate a Siri test note to yourself. Within the next cron tick (5 minutes by default), you should see a Telegram message summarizing one processed note, and the corresponding `.md` note (e.g. `Notes/2026-07-13 <Title>.md`) should be listed in `processed-log.md`.

@@ -37,6 +37,10 @@ struct Settings: Codable, Sendable, Equatable {
     /// before composing. Off by default. The API key itself lives in the
     /// Keychain (`KeychainStore`), NEVER in this file.
     var aiTriageEnabled: Bool
+    /// When on, link captures are enriched best-effort after filing: YouTube
+    /// transcripts / article extracts fetched into `Links/Media/`, the note
+    /// renamed to the real title. Off by default; independent of `aiTriageEnabled`.
+    var linkEnrichmentEnabled: Bool
 
     init(
         outputFolder: URL? = nil,
@@ -52,7 +56,8 @@ struct Settings: Codable, Sendable, Equatable {
         calendarHandoffEnabled: Bool = false,
         remindersListID: String? = nil,
         calendarID: String? = nil,
-        aiTriageEnabled: Bool = false
+        aiTriageEnabled: Bool = false,
+        linkEnrichmentEnabled: Bool = false
     ) {
         self.outputFolder = outputFolder
         self.allowedHandles = allowedHandles
@@ -68,11 +73,13 @@ struct Settings: Codable, Sendable, Equatable {
         self.remindersListID = remindersListID
         self.calendarID = calendarID
         self.aiTriageEnabled = aiTriageEnabled
+        self.linkEnrichmentEnabled = linkEnrichmentEnabled
     }
 
     enum CodingKeys: String, CodingKey {
         case outputFolder, allowedHandles, allowSMS, launchAtLogin, paused, replyMode, seedScaffold, relayEnabled, triageMode
         case remindersHandoffEnabled, calendarHandoffEnabled, remindersListID, calendarID, aiTriageEnabled
+        case linkEnrichmentEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -102,5 +109,7 @@ struct Settings: Codable, Sendable, Equatable {
         calendarID = try c.decodeIfPresent(String.self, forKey: .calendarID)
         // Absent in pre-existing settings.json → AI off (explicit opt-in).
         aiTriageEnabled = try c.decodeIfPresent(Bool.self, forKey: .aiTriageEnabled) ?? false
+        // Absent in pre-existing settings.json → enrichment off (explicit opt-in).
+        linkEnrichmentEnabled = try c.decodeIfPresent(Bool.self, forKey: .linkEnrichmentEnabled) ?? false
     }
 }

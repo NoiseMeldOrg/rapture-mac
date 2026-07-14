@@ -1,6 +1,8 @@
 # OpenClaw consumer
 
-**You don't need `imsg` (unless you want OpenClaw to reply via iMessage).** Rapture for Mac already owns the iMessage capture layer (it reads inbound and sends the `✓ Saved` reply). OpenClaw consumes the notes folder as a file source.
+**You don't need `imsg` (unless you want OpenClaw to reply via iMessage).** Rapture for Mac already owns the iMessage capture layer (it reads inbound and sends the `✅ Saved` reply). OpenClaw consumes the notes folder as a file source.
+
+Rapture also owns the classifying: every capture lands as a Markdown note with YAML frontmatter, filed under `Notes/`, `Links/`, `Tasks/`, `Ideas/`, or `Journal/`. The skill reads each new note's frontmatter and acts on it, then reports a summary.
 
 This example sends processing summaries via Telegram, which works hands-free from a locked iPhone via standard push notifications. For other channels (Discord, Signal, Slack, etc.), swap the `--channel` and `--to` arguments below.
 
@@ -35,7 +37,7 @@ This example sends processing summaries via Telegram, which works hands-free fro
    openclaw cron run <job-id> --wait
    ```
 
-   The forced run should report any unprocessed `.txt` files. If you have none, dictate a Siri test note to yourself and re-run.
+   The forced run should report any triaged `.md` notes not yet in the skill's processed log. If you have none, dictate a Siri test note to yourself and re-run — Rapture files it as a `.md` note within seconds.
 
 ## How the notes folder is resolved
 
@@ -45,6 +47,10 @@ The skill reads the current notes-folder path in this order:
 2. **`~/Documents/Rapture Notes/`**, the default.
 
 This means changing your folder in Rapture's Settings is picked up automatically without needing to edit the skill or re-create the cron job.
+
+## Raw mode
+
+If you prefer the old contract — plain `<ISO-timestamp>.txt` files at the folder root, no conversion — flip Rapture's **Settings → Triage → Filing** to **"Raw text files, no triage"**. The skill's raw-mode section covers that case (classify each root `.txt` yourself, move to `processed/YYYY-MM/` when done). Those root-`.txt` instructions apply only in raw mode; in the default mode the app converts root `.txt` drops within seconds.
 
 ## Reply via iMessage instead (advanced)
 

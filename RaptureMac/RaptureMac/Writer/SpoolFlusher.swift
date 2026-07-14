@@ -109,7 +109,13 @@ final class SpoolFlusher: SpoolFiling {
         )
         try AtomicFile.write(Data(CaptureContract.compose(note, attachments: copied).utf8), to: mdURL)
 
-        return WriteResult(outcome: .success(mdURL), failedAttachments: copyOutcome.failed, ai: aiOut)
+        // Enrichment echo (M5): link captures only.
+        var linkEcho: LinkNoteEcho?
+        if let rawMedia = classification.rawMedia,
+           classification.type == .youtubeLink || classification.type == .articleLink {
+            linkEcho = LinkNoteEcho(type: classification.type, rawMedia: rawMedia, capturedAt: item.metadata.capturedAt)
+        }
+        return WriteResult(outcome: .success(mdURL), failedAttachments: copyOutcome.failed, ai: aiOut, link: linkEcho)
     }
 
     /// Copies the item's spooled attachments (already sanitized at spool time)

@@ -34,6 +34,9 @@ final class DestinationMonitor {
     /// second guard for the file→record crash window. Silent (the queued reply
     /// already went out at spool time).
     private let handoff: (any HandoffProcessing)?
+    /// Link enrichment (M5), enqueued per freshly-flushed link note (never on
+    /// the crash-resume delete-only path).
+    private let enrichment: (any LinkEnriching)?
     private let clock: @Sendable () -> Date
 
     private var pollTask: Task<Void, Never>?
@@ -46,6 +49,7 @@ final class DestinationMonitor {
         ledger: SpoolFiledLedger,
         destinationGuard: DestinationGuard = DestinationGuard(),
         handoff: (any HandoffProcessing)? = nil,
+        enrichment: (any LinkEnriching)? = nil,
         clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.appState = appState
@@ -54,6 +58,7 @@ final class DestinationMonitor {
         self.ledger = ledger
         self.destinationGuard = destinationGuard
         self.handoff = handoff
+        self.enrichment = enrichment
         self.clock = clock
     }
 
@@ -136,6 +141,11 @@ final class DestinationMonitor {
                             capturedAt: item.metadata.capturedAt,
                             ai: result.ai
                         )
+                    }
+                    // Enrichment (M5): enqueue only — the fetch runs outside
+                    // this gate hold, on the service's own worker.
+                    if let enrichment, let echo = result.link {
+                        enrichment.noteFiled(noteURL: url, in: folder, echo: echo)
                     }
                     // No recordSuccess: the capture counted at spool time.
                     Self.log.info("flushed \(item.name, privacy: .public) → \(url.lastPathComponent, privacy: .public)")

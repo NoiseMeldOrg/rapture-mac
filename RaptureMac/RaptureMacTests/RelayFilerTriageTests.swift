@@ -84,6 +84,15 @@ final class RelayFilerTriageTests: XCTestCase {
         let contents = try String(contentsOf: note, encoding: .utf8)
         XCTAssertTrue(contents.contains("type: youtube-link"))
         XCTAssertTrue(contents.contains("raw_media: \(url)"))
+        XCTAssertEqual(result.link?.type, .youtubeLink, "enrichment echo set for link captures")
+        XCTAssertEqual(result.link?.rawMedia, url)
+    }
+
+    func testVoiceNoteCarriesNoEnrichmentEcho() async throws {
+        let candidate = try makeCandidate(body: "Milk and eggs")
+        let result = await filer.file(candidate, to: output, mode: .full)
+        XCTAssertTrue(result.isSuccess)
+        XCTAssertNil(result.link)
     }
 
     func testAudioLandsInNoteNamedFolderWithMarkdownFooter() async throws {

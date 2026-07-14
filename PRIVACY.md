@@ -4,7 +4,7 @@ Rapture for Mac is built so this section can be honestly short.
 
 ## What stays on your Mac
 
-**Everything, with one opt-in exception you control.** Captured messages, their attachments, the app's settings, the app's runtime state. None of it leaves your computer — unless you explicitly turn on AI triage *and* it runs on your own Anthropic API key (see "AI triage" below). With that toggle off (the default), nothing about your captures ever leaves.
+**Everything, with two opt-in exceptions you control.** Captured messages, their attachments, the app's settings, the app's runtime state. None of it leaves your computer unless you explicitly turn on **AI triage** running on your own Anthropic API key (which sends voice-note text to Anthropic) or **link enrichment** (which sends the URLs you capture to the sites they point at). Both are off by default. With both off, nothing about your captures ever leaves.
 
 - Captured notes go into the folder *you* picked (default `~/Documents/Rapture Notes/`) as plain Markdown files with a small metadata header — or raw `.txt` files if you choose raw mode in **Settings → Triage**. Either way they're plain text. You own them. You can move, delete, encrypt, or sync them wherever you want. Triage (classification, titling, filing into `Notes/` and `Links/`) is deterministic string-matching that happens on your Mac by default: no AI, no network, and the verbatim transcription is never discarded.
 - `~/Library/Application Support/Rapture for Mac/settings.json`: your preferences (output folder, allowlist, reply mode, etc.).
@@ -21,6 +21,15 @@ Both files are plain JSON. You can `cat` them and see exactly what's in there. Y
 
 Either way: the AI never delays or blocks filing (if it's slow, offline, or erroring, the capture files deterministically and instantly), the verbatim transcription is always preserved in the note under `## Raw`, and no NoiseMeld server is ever involved. The API key is stored as a generic-password item in the macOS Keychain — never in a settings file, never synced.
 
+## Link enrichment (optional, off by default)
+
+**Settings → Triage → Link Enrichment** fetches a YouTube transcript or an article's readable text whenever a *link* capture files, saves it as a Markdown artifact in `Links/Media/`, and renames the note to the real video or page title. It is independent of AI triage and involves no AI at all — just plain HTTP fetches.
+
+- **What is sent:** only the captured URL (and, for YouTube, the video ID it contains). Never your note text, never any identifier. Fetching a page tells that site roughly what opening the link in a browser would: your IP address and the URL.
+- **Where it goes:** for YouTube links, `youtube.com` (its public oEmbed title endpoint and caption endpoints); for article links, the site the URL points at. Nothing is sent anywhere else, and no NoiseMeld server is involved.
+- **When:** only while the toggle is on, only for link captures, and only in the moments after the note files. Re-capturing a link you already enriched reuses the existing artifact without a new fetch.
+- **Failure is quiet:** if a fetch fails (no captions, a paywall, no network), the app retries briefly and then gives up silently. The link note is already filed and complete either way.
+
 ## Notes from the Rapture iPhone app
 
 If you enable the **Rapture Mac** destination in the Rapture iOS app, your iPhone hands each capture to your own iCloud, inside a relay folder in Rapture's app container. macOS syncs that folder to your Mac like any other iCloud Drive content. This app watches the synced local copy (`~/Library/Mobile Documents/iCloud~noisemeld~Rapture/Relay/`), files each arrival into your notes folder, and deletes the relay copy.
@@ -31,21 +40,22 @@ In transit these captures are ordinary iCloud data moving between your devices, 
 
 **Nothing.** No telemetry. No analytics. No crash reporter. No usage pings. No "anonymous" data collection. There is no backend, and nothing for us to receive even if we wanted it.
 
-The app can make exactly **two** kinds of outbound connection, and neither collects anything about you:
+The app can make exactly **three** kinds of outbound connection, and none of them collects anything about you:
 
 1. The optional **auto-update** check — it only *reads* public files from GitHub and sends no identifiers, no system profile, and no usage data. On by default, fully opt-out. Details in "Auto-update" below.
 2. The opt-in **BYO-key AI engine** — only if you turned on AI triage, Apple Intelligence isn't available, and you pasted your own Anthropic API key. It sends capture text to Anthropic to classify it (see "AI triage" above); NoiseMeld receives nothing.
+3. The opt-in **link enrichment** fetches — only if you turned on link enrichment, and only to YouTube or the site a captured link points at (see "Link enrichment" above). URLs only, never note text; NoiseMeld receives nothing.
 
-Turn both off (auto-update off, AI triage off — the latter is already the default) and the app makes no network connections at all.
+Turn all three off (auto-update off; AI triage and link enrichment are already off by default) and the app makes no network connections at all.
 
 You can confirm the no-collection posture:
 
-1. **Grep the source.** Outside the Sparkle updater, the only networking in the app is the BYO-key engine — `grep -RnE "URLSession|URLRequest|NWConnection|NWListener" RaptureMac/RaptureMac/` returns matches **only** in `TriageAI/AnthropicEngine.swift` and `TriageAI/AnthropicWire.swift` (the opt-in Anthropic call described above). Nothing else in the app touches the network.
-2. **Look for an endpoint.** The only addresses the app can ever contact are the public update feed (and the GitHub `.dmg` you choose to install) and, opt-in with your own key, `api.anthropic.com`. There is no analytics or tracking endpoint anywhere to find, signed-entitlements or otherwise.
+1. **Grep the source.** Outside the Sparkle updater, the only networking in the app is the two opt-in features — `grep -RnE "URLSession\.|URLRequest|NWConnection|NWListener" RaptureMac/RaptureMac/` returns matches **only** in `TriageAI/AnthropicEngine.swift` and `TriageAI/AnthropicWire.swift` (the BYO-key Anthropic call) and `Enrichment/URLSessionLinkFetcher.swift` (the link-enrichment fetches). Nothing else in the app touches the network.
+2. **Look for an endpoint.** The only addresses the app can ever contact are the public update feed (and the GitHub `.dmg` you choose to install), opt-in with your own key `api.anthropic.com`, and — opt-in — YouTube or the sites whose links you capture. There is no analytics or tracking endpoint anywhere to find, signed-entitlements or otherwise.
 
 ## Auto-update
 
-Rapture can keep itself current using [Sparkle](https://sparkle-project.org), the standard open-source macOS updater. Besides the opt-in BYO-key AI engine above, this is the only part of the app that uses the network.
+Rapture can keep itself current using [Sparkle](https://sparkle-project.org), the standard open-source macOS updater. Besides the two opt-in features above (BYO-key AI, link enrichment), this is the only part of the app that uses the network.
 
 - **What it fetches:** the update feed at `https://raw.githubusercontent.com/NoiseMeldOrg/rapture-mac/main/appcast.xml`, and — only if you click **Install** — the new `.dmg` from this repo's GitHub Releases. Both are public files; fetching them tells GitHub roughly what loading the release page in a browser would (your IP, around when). Nothing about your captures, settings, or usage is involved.
 - **What it sends about you:** nothing. Sparkle's optional anonymous system-profiling is disabled (`SUEnableSystemProfiling = NO`) — no identifiers, no OS/hardware profile, no usage data.
@@ -57,7 +67,7 @@ Rapture can keep itself current using [Sparkle](https://sparkle-project.org), th
 | Permission | Why | What it can see |
 |---|---|---|
 | Full Disk Access | Required to read `~/Library/Messages/chat.db`, which is the only place macOS stores iMessage history. | Anything in your home folder. We use exactly one file: `chat.db` (read-only). |
-| Automation → Messages | Required to send the `✓ Saved` reply in your iMessage thread via `osascript`. | We can ask Messages.app to send one specific outgoing reply per capture. |
+| Automation → Messages | Required to send the `✅ Saved` reply in your iMessage thread via `osascript`. | We can ask Messages.app to send one specific outgoing reply per capture. |
 | Output folder | The folder you picked for captures. | Just that folder. We don't write anywhere else. |
 | iCloud relay folder | Watched so captures sent from the Rapture iPhone app can be filed. | Only Rapture's own iCloud container. Reading it needs no permission grant, and Full Disk Access is not involved. |
 | Reminders *(optional)* | Requested only when you turn on **Settings → Triage → Reminders handoff**. Creates a Reminder when a capture clearly says "remind me to…". | Your Reminders lists (names shown in the target picker). The app only ever *creates* reminders you dictated; it doesn't read, edit, or complete existing ones. Off by default. |
@@ -80,7 +90,7 @@ Two:
 - **[GRDB.swift](https://github.com/groue/GRDB.swift)**: a Swift wrapper around SQLite, pinned in `Package.resolved`. Used read-only against `chat.db`. GRDB itself has zero network code.
 - **[Sparkle](https://github.com/sparkle-project/Sparkle)**: the standard open-source macOS updater. It is the only networked component, and only for the auto-update feature described above (fetch the appcast, download a release you choose to install, verify its signature). It sends no usage data; its anonymous system-profiling is disabled.
 
-That's the entire third-party surface. No analytics SDK, no crash reporter, no logger that phones home, no AI/LLM SDK — the optional BYO-key engine is ~200 lines of plain `URLSession` code in this repo, not a vendor SDK, and the optional Apple engine is the system FoundationModels framework.
+That's the entire third-party surface. No analytics SDK, no crash reporter, no logger that phones home, no AI/LLM SDK, no scraping library — the optional BYO-key engine and the optional link-enrichment fetcher are each a few hundred lines of plain `URLSession` code in this repo, not vendor SDKs, and the optional Apple engine is the system FoundationModels framework.
 
 ## What the `✅ Saved` reply looks like to your iMessage thread
 

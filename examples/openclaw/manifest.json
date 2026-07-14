@@ -1,6 +1,6 @@
 {
   "displayName": "OpenClaw",
-  "description": "Process notes via OpenClaw's skill system on a cron schedule, with summaries delivered to Telegram (or Discord, Signal, Slack). Independent of Claude Code; Rapture still owns the iMessage capture layer.",
+  "description": "Act on Rapture's triaged Markdown notes via OpenClaw's skill system on a cron schedule, with summaries delivered to Telegram (or Discord, Signal, Slack). Independent of Claude Code; Rapture still owns the iMessage capture layer.",
   "docs": [
     { "label": "README", "file": "README.md" },
     { "label": "Skill", "file": "SKILL.md" }

@@ -2,9 +2,14 @@
 #
 # Vendor-neutral Rapture notes processor.
 #
-# Pipes each unprocessed .txt file in NOTES_DIR through $LLM_CMD, writes the
-# response next to the source as <name>.response.md, and moves the source to
-# processed/YYYY-MM/.
+# Rapture for Mac has already triaged each capture into a Markdown note under
+# Notes/, Links/, Tasks/, Ideas/, or Journal/. This script pipes each note it
+# hasn't seen before through $LLM_CMD, writes the response to
+# responses/YYYY-MM/<name>.response.md, and records the note in
+# responses/processed.log so it isn't processed twice. Notes stay where the
+# app filed them.
+#
+# Skips Links/Media/ (fetched transcript/article artifacts, not notes).
 #
 # Usage:
 #   LLM_CMD="claude -p" ./process-notes.sh
@@ -24,32 +29,48 @@ if [ ! -d "$NOTES_DIR" ]; then
   exit 0
 fi
 
+LOG="$NOTES_DIR/responses/processed.log"
+mkdir -p "$NOTES_DIR/responses"
+touch "$LOG"
+
 processed_count=0
 
-for note in "$NOTES_DIR"/*.txt; do
+# Top level of each triaged subfolder only. Links/Media/ is a level deeper,
+# so these globs never match its artifacts.
+for note in "$NOTES_DIR"/Notes/*.md \
+            "$NOTES_DIR"/Links/*.md \
+            "$NOTES_DIR"/Tasks/*.md \
+            "$NOTES_DIR"/Ideas/*.md \
+            "$NOTES_DIR"/Journal/*.md; do
   # No-glob fallback when nothing matches.
   [ -f "$note" ] || continue
 
   # Skip in-flight atomic writes.
   case "$note" in *.tmp) continue ;; esac
 
-  filename=$(basename "$note" .txt)
+  # Skip anything already recorded in the processed log.
+  rel="${note#"$NOTES_DIR"/}"
+  if grep -Fxq "$rel" "$LOG"; then
+    continue
+  fi
+
+  filename=$(basename "$note" .md)
   month=$(date -r "$note" +%Y-%m)
-  processed_dir="$NOTES_DIR/processed/$month"
-  mkdir -p "$processed_dir"
+  response_dir="$NOTES_DIR/responses/$month"
+  mkdir -p "$response_dir"
 
-  response="$processed_dir/$filename.response.md"
+  response="$response_dir/$filename.response.md"
 
-  # Pipe note content through the LLM, write response.
+  # Pipe note content (frontmatter and all) through the LLM, write response.
   if ! sh -c "$LLM_CMD" < "$note" > "$response"; then
-    printf 'failed: %s\n' "$note" >&2
+    printf 'failed: %s\n' "$rel" >&2
     rm -f "$response"
     continue
   fi
 
-  mv "$note" "$processed_dir/"
+  printf '%s\n' "$rel" >> "$LOG"
   processed_count=$((processed_count + 1))
-  printf 'processed: %s\n' "$filename"
+  printf 'processed: %s\n' "$rel"
 done
 
 printf '\ndone. processed %d note(s).\n' "$processed_count"

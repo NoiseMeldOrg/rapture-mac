@@ -16,6 +16,11 @@ struct WriteResult: Sendable {
     /// `HandoffProcessing` without re-reading the capture text. nil = AI off,
     /// unavailable, failed, or not applicable (links, raw mode).
     var ai: AITriageOutput? = nil
+    /// Set by the composers when a `.full`-mode capture filed as a link note,
+    /// echoed back so the processor can hand the note to `LinkEnriching`.
+    /// nil = voice note, raw mode, or write failure — echo presence IS the
+    /// enrichment eligibility rule.
+    var link: LinkNoteEcho? = nil
 
     var isSuccess: Bool {
         if case .success = outcome { return true }

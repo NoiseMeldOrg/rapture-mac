@@ -34,6 +34,15 @@ final class Pipeline {
         client: appState.eventKit,
         ledger: handoffLedger
     )
+    // One shared enrichment service across all four filing seams, so the dedup
+    // ledger, in-flight coalescing, and cooldown see every link capture.
+    // Construction is inert (no network until a link files with the toggle on).
+    private(set) lazy var linkEnrichment = LinkEnrichmentService(
+        appState: appState,
+        fetcher: URLSessionLinkFetcher(),
+        ledger: EnrichedLinkLedger(stateStore: appState.state),
+        triageLedger: triageLedger
+    )
     private lazy var replier = Replier(
         sender: sender,
         echoGuard: echoGuard,
@@ -92,6 +101,7 @@ final class Pipeline {
         relayWatcher?.stop()
         triageWatcher?.stop()
         destinationMonitor?.stop()
+        linkEnrichment.stop()
         resolver?.stop()
         selfChatResolver?.stop()
         fdaPollTask = nil
@@ -117,7 +127,8 @@ final class Pipeline {
             filer: RelayFiler(ai: aiTriage),
             ledger: RelayFiledLedger(stateStore: appState.state),
             triageLedger: triageLedger,
-            handoff: handoffManager
+            handoff: handoffManager,
+            enrichment: linkEnrichment
         )
         relayProcessor = processor
 
@@ -147,7 +158,8 @@ final class Pipeline {
             appState: appState,
             ledger: triageLedger,
             handoff: handoffManager,
-            ai: aiTriage
+            ai: aiTriage,
+            enrichment: linkEnrichment
         )
         triageProcessor = processor
 
@@ -187,7 +199,8 @@ final class Pipeline {
             spool: spoolStore,
             flusher: SpoolFlusher(ai: aiTriage),
             ledger: spoolFiledLedger,
-            handoff: handoffManager
+            handoff: handoffManager,
+            enrichment: linkEnrichment
         )
         destinationMonitor = monitor
         monitor.start()
@@ -253,6 +266,7 @@ final class Pipeline {
             contentDedupCache: contentDedupCache,
             spool: spoolStore,
             handoff: handoffManager,
+            enrichment: linkEnrichment,
             selfHandlesProvider: { [weak resolver] in
                 resolver?.currentHandlesSnapshot() ?? []
             },

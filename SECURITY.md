@@ -1,6 +1,6 @@
 # Security Policy
 
-> If you're looking for what data the app collects or transmits, see [PRIVACY.md](./PRIVACY.md). The short version: nothing leaves your Mac.
+> If you're looking for what data the app collects or transmits, see [PRIVACY.md](./PRIVACY.md). The short version: the app collects nothing, and by default nothing about your captures leaves your Mac. Its only outbound connections are the opt-out update check and two opt-in features (BYO-key AI triage, link enrichment), all documented there.
 
 ## Reporting a vulnerability
 
@@ -17,8 +17,11 @@ Only the latest v1.x release on the [Releases page](https://github.com/NoiseMeld
 Anything in **this** codebase:
 
 - The capture pipeline (`chat.db` reads, message filtering, file writes, attachment copying)
+- The triage engine (Markdown conversion, classification, filing, the offline spool, folder relocation)
 - The reply pipeline (`osascript` subprocess, argv construction, echo guard)
-- Permission handling (Full Disk Access, Automation → Messages)
+- Permission handling (Full Disk Access, Automation → Messages, Reminders/Calendars)
+- The AI triage engines (`TriageAI/` — the Anthropic request path and the Keychain-stored API key) and the link-enrichment fetcher (`Enrichment/URLSessionLinkFetcher.swift`, which fetches user-captured URLs)
+- The Sparkle auto-update integration (feed handling, signature verification, the re-signed helper chain)
 - Settings and state persistence (`~/Library/Application Support/Rapture for Mac/`)
 - Code signing, hardened-runtime, and notarization configuration
 
@@ -32,9 +35,10 @@ Anything in **this** codebase:
 
 The shipped app has a deliberately small attack surface:
 
-- **One third-party dependency**: GRDB.swift, pinned in `Package.resolved`. Built read-only against `chat.db`.
-- **One subprocess invocation**: `/usr/bin/osascript` for in-thread `✓ Saved` replies. Text and chat GUID are passed as separate argv entries (not interpolated into shell), so command injection through message bodies is not possible by construction.
-- **Zero outbound network calls in v1**. The app does not embed a networking SDK, does not check for updates, and does not phone home. You can verify with `codesign -d --entitlements - <app>`. There are no `com.apple.security.network.*` entitlements.
+- **Two third-party dependencies**: GRDB.swift (read-only against `chat.db`) and Sparkle (the standard macOS updater, EdDSA-verified feed), both pinned in `Package.resolved`.
+- **One subprocess invocation**: `/usr/bin/osascript` for in-thread `✅ Saved` replies. Text and chat GUID are passed as separate argv entries (not interpolated into shell), so command injection through message bodies is not possible by construction.
+- **Three outbound network paths, no SDKs beyond Sparkle**: the opt-out update check (Sparkle), the opt-in BYO-key Anthropic call, and the opt-in link-enrichment fetches. The last two are plain `URLSession` code in this repo — `grep -RnE "URLSession\.|URLRequest|NWConnection|NWListener" RaptureMac/RaptureMac/` finds exactly `TriageAI/AnthropicEngine.swift`, `TriageAI/AnthropicWire.swift`, and `Enrichment/URLSessionLinkFetcher.swift`. Enrichment fetches arbitrary user-captured URLs by design; the response is parsed as text with a size cap and never executed or rendered.
+- **One Keychain item**: the app's own optional Anthropic API key. Nothing else is read from the Keychain.
 
 The build is reproducible from `main` at any commit: `xcodebuild -derivedDataPath /tmp/RaptureMacDerived -scheme RaptureMac -configuration Release build`. The signed DMG attached to each Release is produced by `Scripts/release.sh` from the corresponding tag.
 

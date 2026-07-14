@@ -113,6 +113,9 @@ final class BatchProcessor {
     /// note isn't filed yet when it spools. Optional so existing tests and
     /// callers without handoff are unchanged.
     private let handoff: (any HandoffProcessing)?
+    /// Link enrichment (M5), enqueued on the direct-write success path only —
+    /// a spooled capture enriches at flush time (`DestinationMonitor`).
+    private let enrichment: (any LinkEnriching)?
     private let selfHandlesProvider: @MainActor () -> Set<String>
     private let selfChatGuidProvider: @MainActor () -> String?
     private let advanceWatermark: @MainActor (Int64) -> Void
@@ -130,6 +133,7 @@ final class BatchProcessor {
         spool: SpoolStore,
         destinationGuard: DestinationGuard = DestinationGuard(),
         handoff: (any HandoffProcessing)? = nil,
+        enrichment: (any LinkEnriching)? = nil,
         selfHandlesProvider: @escaping @MainActor () -> Set<String>,
         selfChatGuidProvider: @escaping @MainActor () -> String?,
         advanceWatermark: @escaping @MainActor (Int64) -> Void
@@ -142,6 +146,7 @@ final class BatchProcessor {
         self.spool = spool
         self.destinationGuard = destinationGuard
         self.handoff = handoff
+        self.enrichment = enrichment
         self.selfHandlesProvider = selfHandlesProvider
         self.selfChatGuidProvider = selfChatGuidProvider
         self.advanceWatermark = advanceWatermark
@@ -274,6 +279,11 @@ final class BatchProcessor {
                         text: captured.decodedText,
                         attachmentCount: captured.event.attachments.count
                     )
+                    // Enrichment after the note durably filed (M5): enqueue only,
+                    // never blocks the batch.
+                    if let enrichment, let echo = result.link {
+                        enrichment.noteFiled(noteURL: url, in: folder, echo: echo)
+                    }
                     // Handoff after the note durably filed, before the reply so
                     // the outcome can suffix the confirmation.
                     var handoffOutcome = HandoffOutcome.none

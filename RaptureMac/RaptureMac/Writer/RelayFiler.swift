@@ -139,7 +139,13 @@ final class RelayFiler: RelayFiling {
             )
             try AtomicFile.write(Data(CaptureContract.compose(note, attachments: copied).utf8), to: mdURL)
 
-            return WriteResult(outcome: .success(mdURL), failedAttachments: failedAttachments, ai: aiOut)
+            // Enrichment echo (M5): link captures only.
+            var linkEcho: LinkNoteEcho?
+            if let rawMedia = classification.rawMedia,
+               classification.type == .youtubeLink || classification.type == .articleLink {
+                linkEcho = LinkNoteEcho(type: classification.type, rawMedia: rawMedia, capturedAt: capturedAt)
+            }
+            return WriteResult(outcome: .success(mdURL), failedAttachments: failedAttachments, ai: aiOut, link: linkEcho)
         } catch {
             let reason = error.localizedDescription
             Self.log.error("Relay triage filing failed for \(candidate.relayFilename, privacy: .public): \(reason, privacy: .public)")

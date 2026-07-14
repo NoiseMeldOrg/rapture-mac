@@ -137,7 +137,14 @@ final class FileWriter {
             let contents = CaptureContract.compose(note, attachments: copied)
             try AtomicFile.write(Data(contents.utf8), to: mdURL)
 
-            return WriteResult(outcome: .success(mdURL), failedAttachments: failedAttachments, ai: aiOut)
+            // Enrichment echo (M5): link captures only — the processor hands
+            // the filed note to `LinkEnriching`.
+            var linkEcho: LinkNoteEcho?
+            if let rawMedia = classification.rawMedia,
+               classification.type == .youtubeLink || classification.type == .articleLink {
+                linkEcho = LinkNoteEcho(type: classification.type, rawMedia: rawMedia, capturedAt: captured.event.dateUTC)
+            }
+            return WriteResult(outcome: .success(mdURL), failedAttachments: failedAttachments, ai: aiOut, link: linkEcho)
         } catch {
             let reason = error.localizedDescription
             Self.log.error("Triage write failed: \(reason, privacy: .public)")

@@ -6,5 +6,13 @@
 	<false/>
 	<key>com.apple.security.automation.apple-events</key>
 	<true/>
+	<!-- Hardened-runtime gates for EventKit: without these, requestFullAccess*
+	     is denied at the signing layer — no TCC prompt, and the app never
+	     appears in System Settings › Privacy & Security. Surfaced by the
+	     v1.0.98 release dogfood (calendar toggle could never enable). -->
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+	<key>com.apple.security.personal-information.reminders</key>
+	<true/>
 </dict>
 </plist>

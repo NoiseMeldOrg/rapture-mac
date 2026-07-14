@@ -98,7 +98,7 @@ struct AITriageSettingsSection: View {
                 Button("Remove") { removeKey() }
             }
         }
-        Text("Used only when Apple Intelligence isn't available. Stored in the macOS Keychain, never in a settings file. Get a key at console.anthropic.com.")
+        Text("Used only when Apple Intelligence isn't available. Stored in the macOS Keychain, never in a settings file. Get a key at console.anthropic.com — create a new key; existing ones are shown only once, at creation.")
             .font(.caption)
             .foregroundStyle(.secondary)
     }

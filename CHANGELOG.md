@@ -4,6 +4,14 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Fixed
+
+- **Calendar handoff could never be enabled in a released build.** The hardened runtime (required for notarization) denies EventKit calendar access unless the app is signed with the `com.apple.security.personal-information.calendars` entitlement — the request failed instantly with no macOS permission dialog, and Rapture never appeared in System Settings › Privacy & Security › Calendars. Both EventKit entitlements (calendars + reminders) are now declared. Reminders handoff was unaffected. Surfaced by the v1.0.98 release dogfood: unit tests fake the EventKit client and the M3 debug-build checks never exercised a Developer ID-signed calendar request, so the gap was invisible until now.
+
+### Changed
+
+- The Anthropic key caption in Settings → Triage now says to create a *new* key at console.anthropic.com (existing keys are shown only once, at creation — there's no way to re-copy one).
+
 ### Internal
 
 - **CI green again: `LinkEnrichmentServiceTests` was timezone-dependent.** The fixture's capture instant (2026-07-14T03:33Z) crossed midnight UTC, so artifact filenames — which use the capture's *local* calendar day — came out `2026-07-14 …` on the UTC CI runner against hardcoded `2026-07-13 …` expectations (six failures on every push since M5; invisible locally in Eastern time). The fixture now pins midday UTC, day-stable from UTC-11 to UTC+11. Reproduced and verified with `TEST_RUNNER_TZ=UTC`.

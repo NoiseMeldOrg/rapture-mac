@@ -17,7 +17,13 @@ concurrency:
 jobs:
   test:
     name: Build & Test (macOS)
-    runs-on: macos-15
+    # macos-26, not macos-15: with SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor,
+    # deallocating a MainActor-isolated class in a *synchronous* XCTest crashes
+    # the macOS 15 Swift concurrency runtime (malloc abort in
+    # TaskLocal::StopLookupScope via swift_task_deinitOnExecutor — see
+    # swiftlang/swift#87316). The macOS 26 runtime has the fix, and it matches
+    # the development environment.
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5

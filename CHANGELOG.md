@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.98] - 2026-07-14: Built-in triage engine
+
+Built from commit `940c393`. SHA-256: `ad7cf2bba47fcedd2d08ecc0d2040e8ff75d9625f2c50cf2b046ff0bb103ae60`.
+
+The app now makes sense of every capture the moment it arrives: Markdown notes classified into folders, deterministic by default, with opt-in AI refinement (on-device or your own Anthropic key), opt-in Reminders/Calendar handoff, opt-in link enrichment (YouTube transcripts and article extracts), and first-class external-drive destinations that queue captures while the drive is unplugged. Everything here is the triage-engine build-out (five milestones, 2026-07-13), riding on 727 tests.
+
 ### Added
 
 - **External-drive destinations are now first-class — captures queue while the drive is unplugged.** Point your notes folder at an external volume (say, an Obsidian vault on an SSD) and unplug it: nothing is lost and nothing lands in the wrong place. The app now tells a **disconnected volume** apart from a merely **missing folder** — a missing folder on a mounted volume is created as always, but when the volume itself is absent no write goes anywhere near it (previously, writing toward an unplugged drive could silently create a same-named shadow folder on the boot volume under `/Volumes` and strand captures inside it, hidden the moment the real drive remounted). While the destination is offline: Siri iMessage captures queue durably in an internal spool inside the app's own data container, iPhone-app relay notes simply wait in the iCloud relay folder, and the menu bar + Settings show **"Destination offline — N queued."** The iMessage confirmation says so honestly: `✅ Queued — destination offline` (the note is safe, just not in the vault yet). On reconnect everything files automatically within seconds, in original capture order, with the capture's true timestamp and source in the note header — a note flushed hours late is indistinguishable from one written live. The flush is duplicate-safe across restarts and crashes (a persisted spool ledger in `state.json`), and relocating the notes folder *to* a disconnected drive is refused up front instead of creating that same shadow folder.

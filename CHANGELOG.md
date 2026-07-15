@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.104] - 2026-07-15: Calendar handoff, and the app stops quoting itself
+
+Built from commit `19341cf`. SHA-256: `23011900479dfe1a0bfa76a1cd0eff3b747fc4f2caf4027a8304b4f38d8f0d1d`.
+
+Three fixes found by dogfooding v1.0.98 on real hardware. Calendar handoff could never actually be turned on in a released build; the app was capturing its own confirmation replies back as notes (and making junk Reminders out of them); and four UI strings still described the pre-triage `.txt` world. 734 tests.
+
 ### Fixed
 
 - **Rapture captured its own confirmation replies as notes.** A `✅ Saved · Reminder created` reply, relayed back through iCloud as an incoming message, filed itself as a note — and with AI triage on it was classified as a task, which then created a junk Reminder titled "Reminder created". The defense-in-depth filter that drops the app's own confirmations was matching `✅ Saved` by exact equality, so it missed every reply carrying a handoff suffix (`· Reminder created`, `· Event created`, `· Reminder + event created`) as well as the offline `✅ Queued — destination offline` reply — four of the five shapes the app can send. Those shapes were added in the Reminders/Calendar and destination-resilience milestones without the filter being taught about them. The filter now matches all of them, and a new test suite derives its inputs from the reply composer itself and asserts every emitted shape is dropped, so the two can't drift apart again. Real dictation is unaffected: notes that merely mention "saved", "queued", or "caught up" still capture normally.

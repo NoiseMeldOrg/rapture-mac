@@ -71,3 +71,27 @@ First live run gave up in 1.3s: the watch page's embedded caption `baseUrl`s now
 
 - **None in scope.** No X/Facebook/Instagram extraction, no media downloads, no summarization, no backfill, no JS-rendered/paywalled handling (they fail quietly as designed — a paywalled page comes back thin and the note stays as filed).
 - The PRD's "rename in the moments after arrival" is bounded by the fetch retries: worst case a rename lands ~3 minutes after filing (30s+120s spacing), typically 1–3 seconds.
+
+---
+
+## Release dogfood — v1.0.98, 2026-07-14/15
+
+The deferred release-dogfood checks from M3/M4/M5, run by hand on the installed, notarized build (iPhone 12 + Mac mini, real Siri, real Anthropic key, real vault). **The engine passed everything it was asked to do; the failures were all at the edges nobody had exercised on a signed build.** Fixes shipped as v1.0.104.
+
+**Passed:**
+- **FDA survived the Sparkle 1.0.88 → 1.0.98 in-place update** — no re-prompt, capture kept working. Second confirmation of the 1.0.80→1.0.83 result; the stable Developer ID designated requirement holds.
+- **Settings → Triage, hand-driven** — clean defaults on an updated install (Markdown filing on, everything else off, no settings drift). AI toggle resolved to Apple Intelligence on-device with the honest privacy line; key saved to Keychain (field flips to "API key saved" + Remove button; the blank-with-cursor look is just a focused SecureField hiding its placeholder). Link-enrichment toggle and caption correct.
+- **AI triage end-to-end, Apple engine** — the PRD's rambling-task example filed as `Tasks/2026-07-14 Fix the garage door sensor.md`, `type: task`, smart imperative title (deterministic would have given "Um ok so I really need to remember to"), verbatim body preserved, ~seconds after speaking.
+- **M3 leftovers closed** — reminder created in the chosen list, and the `✅ Saved · Reminder created` suffix arrived on the phone.
+- **Dual-fingerprint dedup** — re-dictating the same utterance filed a second note (correct: notes always file) and created **no** second reminder; reply was a plain `✅ Saved`. Handoff ledger confirms exactly one creation carrying both fingerprints.
+- **Link enrichment on the installed app** — YouTube link captured `16:55:20Z`, transcript artifact fetched `16:55:24Z`. **Four seconds.** The debug-build App Nap latency concern is closed; production behaves as designed. Rename to the real title, 48 KB transcript in `Links/Media/` with the full frontmatter contract, `Media:` link appended. **The innertube-iOS caption path still works** — no drift as of 2026-07-15.
+
+**Found and fixed (v1.0.104):**
+- **Calendar handoff could never be enabled in a released build.** The hardened runtime denies EventKit calendar access without `com.apple.security.personal-information.calendars`; the request failed with no OS dialog and Rapture never appeared in System Settings → Privacy → Calendars. Invisible to the suite (EventKit is faked) and to M3's debug-build checks, which never exercised a Developer ID-signed calendar request. Reminders was unaffected — its entitlement happened to be unnecessary for the flow that was tested.
+- **The app captured its own confirmation replies.** `✅ Saved · Reminder created`, relayed back through iCloud as `is_from_me=0`, filed as a note and — with AI triage on — got classified `task` and created a junk Reminder titled "Reminder created". `MessageFilter.looksLikeAppConfirmation` matched `✅ Saved` by **exact equality**, missing four of the five shapes `Replier` emits (three handoff suffixes from M3, plus M2's `✅ Queued — destination offline`). Both shapes were added by milestones that never taught the filter about them. `ReplierEchoFilterTests` now derives its inputs from `Replier`'s composers so the two can't drift again.
+- **Four stale UI strings** describing the pre-triage `.txt` world (About tagline, FDA onboarding, the scaffold caption still promising `processed/`/`in-progress/` after this milestone stopped seeding them, and the filing caption omitting the AI subfolders).
+- **CI had been red since M4** on six `LinkEnrichmentServiceTests` — a timezone-dependent fixture (capture instant `2026-07-14T03:33Z` crossed midnight UTC, so artifact filenames, which use the capture's **local** day, came out `2026-07-14` on the UTC runner against hardcoded `2026-07-13`). Invisible locally in US Eastern. Reproduce with `TEST_RUNNER_TZ=UTC` (plain `TZ` doesn't reach the test host).
+
+**Not a bug, recorded to stop it being re-reported:** two notes from the same re-dictated request both filing is **by design** — dedup governs handoffs, never notes (`mission.md`: never drop a capture). The fingerprint succeeded; no duplicate reminder was created.
+
+**The product finding that outlived the fixes:** the engine was filing perfectly into `~/Documents/Rapture Notes` for a week while the user wanted an Obsidian vault, and was never asked. He then hand-moved the notes, unaware `OutputFolderMigrator` has shipped ledger-aware relocation since v1.0.69 — which desynced both ledgers (4/4 triage and 2/2 enrichment records pointed at missing files; repointing the folder properly self-healed all of them). Every failure there was **discoverability, not capability** — which is the entire premise of [`_build_plan/destination-onboarding/`](../../../destination-onboarding/prd.md).

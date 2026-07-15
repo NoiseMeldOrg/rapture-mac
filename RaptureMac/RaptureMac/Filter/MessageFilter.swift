@@ -51,15 +51,37 @@ enum MessageFilter {
     }
 
     /// True when `text` matches the structure of an outbound confirmation that
-    /// the app itself sends via `osascript`. Covers the current short forms
-    /// (`✅ Saved`, `📥 Caught up: …`, `✗ …`) plus the legacy `✓ Saved: <filename>`
-    /// form that may still echo back through iCloud sync from before the
-    /// short-form upgrade. Pure, exposed `static` for unit testing.
+    /// the app itself sends via `osascript`. Covers every shape `Replier` can
+    /// emit (`✅ Saved` with or without a handoff suffix, `✅ Queued — …`,
+    /// `📥 Caught up: …`, `✗ …`) plus the legacy `✓ Saved: <filename>` form that
+    /// may still echo back through iCloud sync from before the short-form
+    /// upgrade. Pure, exposed `static` for unit testing.
+    ///
+    /// **Every branch here must stay in lockstep with `Replier`'s composers.**
+    /// This matcher is the last line of defense when the echo guard misses an
+    /// iCloud-relayed copy of our own reply, and the failure is silent and
+    /// expensive: the reply files as a note, and — since M4 — AI triage happily
+    /// classifies "✅ Saved · Reminder created" as a task and hands it off, so a
+    /// junk reminder appears too. That is a real incident (2026-07-14), caused by
+    /// this function testing `== "✅ Saved"` while M3 had started appending a
+    /// handoff suffix and M2 had added the queued reply. `ReplierEchoFilterTests`
+    /// now enumerates Replier's outputs and asserts each one lands here, so the
+    /// two can't drift apart again.
     static func looksLikeAppConfirmation(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // ✅ Saved — current short form (no filename).
+        // ✅ Saved                          (no handoff)
+        // ✅ Saved · Reminder created       (Replier.handoffSuffix)
+        // ✅ Saved · Event created
+        // ✅ Saved · Reminder + event created
+        // Prefix-matched on the separator rather than enumerating suffixes, so a
+        // new handoff kind can't reintroduce the 2026-07-14 echo. Bare equality
+        // stays first so the no-suffix form doesn't depend on the separator.
         if trimmed == "✅ Saved" { return true }
+        if trimmed.hasPrefix("✅ Saved · ") { return true }
+
+        // ✅ Queued — destination offline   (Replier.composeSpooledReplyText)
+        if trimmed == "✅ Queued — destination offline" { return true }
 
         // ✓ Saved: 2026-05-20T19-16-54Z.txt
         // ✓ Saved: 2026-05-20T19-16-54Z-3.txt

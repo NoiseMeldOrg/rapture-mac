@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rapture for Mac — Destination Onboarding — PRD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    html { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    body { font-feature-settings: "cv11", "ss01"; }
+    @media print {
+      html { background: white !important; color: black !important; color-scheme: light; }
+      html.dark { color-scheme: light; }
+      html.dark body, html.dark * { background: white !important; color: black !important; border-color: #d4d4d8 !important; }
+      .no-print { display: none !important; }
+      .print-card { break-inside: avoid; page-break-inside: avoid; }
+      header.sticky { position: static !important; backdrop-filter: none !important; }
+      main { padding-top: 0 !important; }
+      a { color: black !important; text-decoration: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 antialiased">
+  <header class="sticky top-0 z-10 backdrop-blur bg-zinc-50/80 dark:bg-zinc-950/80 border-b border-zinc-200 dark:border-zinc-800">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400">PRD · Rapture for Mac — Destination Onboarding</span>
+      <button id="theme-toggle" class="no-print inline-flex items-center justify-center w-9 h-9 rounded-md border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition" aria-label="Toggle theme">
+        <i data-lucide="sun" class="hidden dark:inline-block w-4 h-4"></i>
+        <i data-lucide="moon" class="inline-block dark:hidden w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-14">
+
+    <!-- DISCLAIMER -->
+    <div class="rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 p-4 text-sm text-amber-900 dark:text-amber-200">
+      <p><strong class="font-semibold">About this file:</strong> Everything in <code class="font-mono text-xs">_build_plan/destination-onboarding/</code> (this PRD and the per-milestone folders) is a documentation and guidance artifact for this feature's build-out. These files are not functional — no code, configuration, runtime logic, tests, or deployment process should import, read, reference, or depend on anything in <code class="font-mono text-xs">_build_plan/</code>.</p>
+      <p class="mt-2">Unlike the bm-prd-creator default, this repo <strong class="font-semibold">preserves</strong> <code class="font-mono text-xs">_build_plan/</code> as a frozen historical record rather than deleting it after build-out (see the repo <code class="font-mono text-xs">CLAUDE.md</code>). Durable architectural truth lives in <code class="font-mono text-xs">agent-os/specs/</code> and <code class="font-mono text-xs">agent-os/product/</code>.</p>
+    </div>
+
+    <!-- HERO -->
+    <section>
+      <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">Destination Onboarding</h1>
+      <p class="mt-5 text-lg sm:text-xl text-zinc-600 dark:text-zinc-400 leading-relaxed">Rapture should land captures where the user's notes actually live — on day one, not a week later. The app detects the notes vaults already installed on the Mac and offers them as the destination, contained in a single subfolder so its output never scatters among the vault's own folders; it nudges existing users still sitting on the silent default; and it asks before moving any notes, instead of relocating them invisibly.</p>
+      <div class="mt-6 flex flex-wrap gap-2">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Swift 5.9+</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">SwiftUI</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">macOS 14+</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">MVVM · @Observable</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">XCTest</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Unsandboxed</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">3 milestones</span>
+      </div>
+      <div class="mt-6 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+        <p><span class="font-semibold text-zinc-900 dark:text-zinc-100">Why this exists.</span> The triage engine (v1.0.98) already does the hard part: every capture becomes a classified Markdown note the moment it arrives. This feature is the <em>last mile</em> — the gap between "perfectly triaged" and "actually in my vault."</p>
+        <p class="mt-3">That gap was measured in a real dogfood. The author wanted captures in an Obsidian vault, was never prompted to repoint, and a week of correctly-triaged notes piled up in <code class="font-mono text-xs">~/Documents/Rapture Notes</code> — stranded outside the vault and synced nowhere. He then hand-moved them, unaware the app has shipped automatic, ledger-aware relocation since v1.0.69 — and the hand-move desynced both ledgers (4 of 4 triage records and 2 of 2 enrichment records pointed at files that no longer existed). <span class="font-medium text-zinc-900 dark:text-zinc-100">Every failure in that story is a discoverability failure, not a missing capability.</span></p>
+      </div>
+    </section>
+
+    <!-- WHAT THE APP DOES -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>What the app does
+      </h2>
+      <ul class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 list-none p-0">
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="search" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Finds your real notes vault</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Reads Obsidian's own config and offers each vault by name, instead of defaulting silently to a folder you never chose.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="folder" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Suggests sync roots too</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">iCloud Drive, Dropbox, and Google Drive appear as secondary options — a synced destination is what makes notes reachable from the phone.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="help-circle" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Asks on first run</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">After Full Disk Access is granted, you choose where notes go — the one moment where asking prevents a stranded week.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="shield" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Never loses a capture while you decide</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">The default folder stays underneath as a safety net, so a note dictated before you answer lands safely and migrates when you pick.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="box" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Keeps its output contained</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Point at a populated vault and it offers one container (default <code class="font-mono text-xs">Rapture Inbox</code>) instead of scattering five folders among your own.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="eye" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Asks before it moves anything</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">Shows how many notes move, from where to where, and how many collide — then lets you move them, leave them, or cancel.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="bell" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Nudges you off the default</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">A dismissible notice when a vault is detected and you're still on the default. It never switches anything on its own.</p>
+            </div>
+          </div>
+        </li>
+        <li class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+          <div class="flex items-start gap-3">
+            <div class="shrink-0 mt-0.5 w-8 h-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <i data-lucide="wand-2" class="w-4 h-4 text-zinc-700 dark:text-zinc-300"></i>
+            </div>
+            <div>
+              <p class="font-medium text-zinc-900 dark:text-zinc-100">Rescues a scattered vault root</p>
+              <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">If Rapture's folders are already loose in a vault root, it offers to gather them into a container.</p>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ALREADY PROVIDED -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="package-check" class="w-3.5 h-3.5"></i>Already provided by the existing codebase
+      </h2>
+      <p class="mt-3 text-sm text-zinc-500 dark:text-zinc-400">This feature <span class="font-medium text-zinc-700 dark:text-zinc-300">extends</span> shipped machinery. None of this is re-specced or rebuilt.</p>
+      <ul class="mt-5 flex flex-wrap gap-2 list-none p-0">
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>OutputFolderMigrator — relocation engine (v1.0.69)</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>AppState.setOutputFolder — orchestration + CaptureGate quiesce</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>TriageLedger / EnrichedLinkLedger + remap</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>DestinationGuard + offline spool</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>OutputFolderSidecar — the public path contract</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>OutputFolderScaffold — opt-in CLAUDE.md seed</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>HandoffEnableFlow / AITriageEnableFlow — the consent pattern</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>triageIntroShown — the dismissible notice pattern</li>
+        <li class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-700 dark:text-zinc-300"><i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>PermissionsView — the FDA onboarding, stays as step one</li>
+      </ul>
+    </section>
+
+    <!-- OUT OF SCOPE -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i>Out of scope
+      </h2>
+      <ul class="mt-5 space-y-2.5 list-none p-0">
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Rebuilding migration</span><span class="text-zinc-500 dark:text-zinc-400"> — OutputFolderMigrator ships and works. The gap is consent and discoverability, not capability.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Security-scoped bookmarks</span><span class="text-zinc-500 dark:text-zinc-400"> — the app is unsandboxed; zero usages in the codebase and tech-stack.md says explicitly none is needed.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Note-level dedup for re-dictations</span><span class="text-zinc-500 dark:text-zinc-400"> — reported as a bug, but files-always-land is the mission.md commitment. Handoff dedup is separate and verified working.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Apple Notes, Bear, Notion as destinations</span><span class="text-zinc-500 dark:text-zinc-400"> — database-backed, no folder to point at. Filing into them needs an importer, which breaks output neutrality.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Obsidian-flavored output</span><span class="text-zinc-500 dark:text-zinc-400"> — mission.md's hard commitment: output must never be readable only by one vendor's tool. Detection decides where to write, never how.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Multi-folder or per-class destinations</span><span class="text-zinc-500 dark:text-zinc-400"> — mission.md commits to one output folder per install.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Two-way sync</span><span class="text-zinc-500 dark:text-zinc-400"> — Rapture writes notes; it never reads the vault back or reacts to edits.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Backfill / re-triage after moving</span><span class="text-zinc-500 dark:text-zinc-400"> — bulk re-triage is out per mission.md; enrichment set the no-backfill precedent.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Following a vault that moves</span><span class="text-zinc-500 dark:text-zinc-400"> — relocate it in Finder and you repoint. No filesystem surveillance.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Touching the vault's existing content</span><span class="text-zinc-500 dark:text-zinc-400"> — Rapture never renames, reorganizes, or reads the user's own notes.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Installing Obsidian for you</span><span class="text-zinc-500 dark:text-zinc-400"> — no vault found means the default folder is the answer.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Cloud/remote destinations (S3, WebDAV)</span><span class="text-zinc-500 dark:text-zinc-400"> — local paths only; sync engines handle the rest.</span></span></li>
+        <li class="flex items-start gap-3"><i data-lucide="x" class="w-4 h-4 mt-1 shrink-0 text-zinc-400 dark:text-zinc-600"></i><span class="text-zinc-700 dark:text-zinc-300"><span class="font-medium">Vault git auto-backup</span><span class="text-zinc-500 dark:text-zinc-400"> — considered and deliberately rejected. A git push is a subprocess, so PRIVACY's grep verification claim would silently go stale; hourly add -A would race the AI sessions that commit to that vault. Solved by a signed helper app outside this codebase.</span></span></li>
+      </ul>
+    </section>
+
+    <!-- NETWORK POSTURE (replaces integrations — there are none) -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="plug" class="w-3.5 h-3.5"></i>External integrations
+      </h2>
+      <div class="mt-5 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/30 p-5">
+        <p class="font-semibold text-emerald-900 dark:text-emerald-200">None. No providers, no credentials, no API keys, nothing to sign up for.</p>
+        <p class="mt-3 text-sm text-emerald-900/90 dark:text-emerald-200/90 leading-relaxed">Vault detection reads one local JSON file that Obsidian already maintains. This matters beyond convenience: <span class="font-medium">this feature adds no outbound network path.</span> The app's three enumerated paths in PRIVACY.md (Sparkle updates, the BYO-key Anthropic engine, the link-enrichment fetcher) stay exactly three, and PRIVACY's grep claim still returns the same three files. Any implementation that would change that is out of scope by definition.</p>
+      </div>
+    </section>
+
+    <!-- DATA MODEL -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="database" class="w-3.5 h-3.5"></i>Data model
+      </h2>
+      <p class="mt-3 text-sm text-zinc-500 dark:text-zinc-400">What the app needs to remember. The destination is already modelled (<code class="font-mono text-xs">outputFolder</code> in settings.json) and containment is just a longer path — so this feature adds almost nothing.</p>
+      <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2">
+            <i data-lucide="box" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">PersistedState — one new field</h3>
+          </div>
+          <table class="mt-4 w-full text-sm">
+            <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <tr>
+                <td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">defaultDestinationNudgeDismissed</td>
+                <td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">Whether the user has settled the question of the default folder. Set when they either pick "keep the default" at first run or dismiss the nudge. One flag covers both, so someone who deliberately chose the default is never nagged. Defaults to no; must decode leniently — a strict key would wipe every existing user's ledgers.</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Lives in</span> · state.json</p>
+        </div>
+        <div class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
+          <div class="flex items-center gap-2">
+            <i data-lucide="folder" class="w-4 h-4 text-zinc-500 dark:text-zinc-400"></i>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Detected vault</h3>
+          </div>
+          <table class="mt-4 w-full text-sm">
+            <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <tr>
+                <td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">name</td>
+                <td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">The vault's display name, as the user knows it (e.g. "Second Brain").</td>
+              </tr>
+              <tr>
+                <td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">path</td>
+                <td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">Where it lives on disk.</td>
+              </tr>
+              <tr>
+                <td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">source</td>
+                <td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">How it was found — an Obsidian vault, or a sync root like iCloud/Dropbox.</td>
+              </tr>
+              <tr>
+                <td class="py-2 pr-4 font-mono text-xs font-medium text-zinc-700 dark:text-zinc-300 align-top whitespace-nowrap">reachable</td>
+                <td class="py-2 text-zinc-600 dark:text-zinc-400 leading-relaxed">Whether its drive is connected right now.</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400"><span class="font-semibold uppercase tracking-[0.14em] text-[11px]">Never persisted</span> · re-read each time the picker opens, so a new vault appears without a stale cache and an unplugged drive shows as unreachable immediately.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- MILESTONES -->
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <i data-lucide="route" class="w-3.5 h-3.5"></i>Milestones
+      </h2>
+      <div class="mt-5 space-y-5">
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">1</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Vault-Aware Destination</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Teaches the existing "change your notes folder" path to know about vaults, contain its output, and ask before moving. Delivered entirely through Settings → General, which already exists. This milestone alone would have prevented the stranded-week problem.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built
+                </h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Picker offers detected vaults by name, plus sync roots as secondary suggestions</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>A vault on a disconnected drive is shown but not selectable, with the reason stated</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Populated folder → offer to contain under an editable name, default <code class="font-mono text-xs">Rapture Inbox</code></span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Existing container name: adopt when empty or already ours; otherwise suggest another</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Consent step showing count, source, destination, and collision renames</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Move them / Leave them behind (prunes the ledger) / Cancel</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Sidecar always reflects the final destination, container included</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                  <i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone
+                </h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Any change to first launch — the default is still created silently</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>The default-folder nudge or any proactive notice</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>The vault-root rescue</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Any change to how notes are named, formatted, or classified</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Any new network call, credential, or entitlement</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> You can open Settings → General, see your real Obsidian vault offered by name, pick it, be offered <code class="font-mono text-xs">Rapture Inbox</code> as a container, see exactly what's about to move, and decline or accept — with notes ending up where you chose, the ledgers still resolving, and the sidecar pointing at the container. Unplugging the drive shows the vault as unreachable rather than gone.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">2</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">First-Run Destination Flow</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Replaces the silent default with an actual question, in the one place where asking prevents a week of stranded notes.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built
+                </h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>After FDA is granted, the app asks where notes should go</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Detected vaults, "Choose another folder…", and an explicit "Keep the default"</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Picking a vault runs M1's containment offer and migration consent</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>"Keep the default" is respected permanently — no nudge ever appears</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>The default folder stays underneath as a safety net — no capture waits on a decision</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Dismissing without answering leaves the question open for the nudge</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                  <i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone
+                </h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Changing, restyling, or reordering the Full Disk Access step</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Blocking capture on the destination choice</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>The nudge or the vault-root rescue</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Any onboarding beyond the destination question — no tour, no feature intro</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> A clean install walks from launch → FDA grant → destination choice → notes landing in the chosen vault, contained. Dictating a note before answering still files safely to the default and moves when the choice is made.</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="print-card rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+          <header class="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="shrink-0 w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 text-zinc-50 dark:text-zinc-900 flex items-center justify-center text-sm font-semibold">3</span>
+            <h3 class="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Nudges &amp; Vault-Root Rescue</h3>
+          </header>
+          <div class="p-5">
+            <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed">Reaches the users milestones 1 and 2 can't: everyone who already installed Rapture and is sitting on a silent default, or scattered across a vault root.</p>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>What gets built
+                </h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Dismissible menu-bar notice naming the detected vault, offering to move</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>A quiet, permanent Settings line that survives dismissal</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Both route into M1's containment and consent — neither switches on its own</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>No notice when no vault is detected, or once the question is settled</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>Vault-root rescue: gather loose Rapture folders into a container</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"></i><span>The rescue works despite the migrator refusing nested paths</span></li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                  <i data-lucide="x-circle" class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500"></i>Not in this milestone
+                </h4>
+                <ul class="mt-3 space-y-2 text-sm text-zinc-500 dark:text-zinc-400 list-none p-0">
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Repeated or recurring nagging — dismissed stays dismissed</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Any notice when no vault is detected</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Auto-switching, auto-containing, or auto-moving under any condition</span></li>
+                  <li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i><span>Rescuing anything other than Rapture's own folders</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+              <p class="flex items-start gap-2"><i data-lucide="flag" class="w-4 h-4 mt-0.5 shrink-0"></i><span><span class="font-semibold">Done when:</span> An existing install on the default folder, with a vault present, shows the notice on next launch; dismissing hides it forever while the Settings line remains. A destination set to a vault root with scattered Rapture folders offers the rescue, and accepting gathers them into <code class="font-mono text-xs">Rapture Inbox</code> with the ledgers still resolving.</span></p>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <footer class="pt-8 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400">
+      Generated by <span class="font-medium">bm-prd-creator</span>. Open <code class="font-mono">_build_plan/destination-onboarding/milestones/1-vault-aware-destination/prompt.md</code> to start building.
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var stored = localStorage.getItem('prd-theme');
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var initial = stored ? stored : (prefersDark ? 'dark' : 'light');
+      if (initial === 'dark') html.classList.add('dark');
+      var btn = document.getElementById('theme-toggle');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          var isDark = html.classList.toggle('dark');
+          localStorage.setItem('prd-theme', isDark ? 'dark' : 'light');
+        });
+      }
+      if (window.lucide) window.lucide.createIcons();
+    })();
+  </script>
+</body>
+</html>

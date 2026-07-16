@@ -59,7 +59,7 @@ This feature **extends** shipped machinery. None of the following is re-specced 
 - **Touching the vault's existing content** — Rapture never renames, reorganizes, or reads the user's own notes.
 - **Installing Obsidian for you** — no vault found means the default folder is the answer.
 - **Cloud/remote destinations (S3, WebDAV)** — local paths only; sync engines handle the rest.
-- **Vault git auto-backup** — a real feature, but its own PRD, not part of destination onboarding. (Originally considered as a separate signed helper app and then **reversed** on 2026-07-16 to live inside Rapture, since Rapture already is the signed, FDA-holding, both-drive-types app a helper would reconstruct, and its menu bar is the only way to satisfy "never fail silently." See [`_build_plan/vault-backup/prd.md`](../vault-backup/prd.md).)
+- **Vault git backup** — a real feature, but its own PRD, not part of destination onboarding. (Reshaped several times on 2026-07-16: helper app → Rapture-pushes → **Rapture only *watches* the backup and warns when it falls behind, never pushing.** Read-only, no networking. The actual pushing stays with obsidian-git / the user. See [`_build_plan/vault-backup/prd.md`](../vault-backup/prd.md).)
 
 ---
 

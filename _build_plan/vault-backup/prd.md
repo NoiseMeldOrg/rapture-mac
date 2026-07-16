@@ -1,85 +1,64 @@
-# Rapture for Mac — Vault Git Backup
+# Rapture for Mac — Destination Backup Health (Watchdog)
 
 > **About these build-plan files:** Everything in `_build_plan/vault-backup/` is a documentation and guidance artifact for this feature's build-out. It is **not functional** — no code, configuration, runtime logic, tests, or deployment process should import, read, reference, or depend on anything in `_build_plan/`.
 >
 > This repo **preserves** `_build_plan/` as a frozen historical record (see the repo `CLAUDE.md`). Durable architectural truth lives in `agent-os/specs/` and `agent-os/product/`.
 >
-> **Decisions in this PRD were made by the planning agent under an explicit "do whatever you think best" delegation (2026-07-16), not an interactive interview.** Each non-obvious call is written with its rationale so the building agent — and the user reviewing later — can see why. Where a call is genuinely the user's to make, it's flagged as a recommended default, changeable.
+> **This PRD was reshaped twice under a "do whatever you think best" delegation, and the evolution is the point of the design — keep it visible:**
+> 1. First scoped (2026-07-16) as a separate signed `launchd` **helper app** to git-push the vault.
+> 2. Reversed to **Rapture doing the git push itself**, because Rapture already is the signed, Full-Disk-Access, always-running, both-drive-types app a helper would reconstruct.
+> 3. Reversed again, on the user's challenge, to **Rapture only *watching* the backup, never pushing** — because the one real benefit of Rapture pushing (backing up while Obsidian is closed) barely applies when Obsidian is usually open, while the costs (a fourth outbound path concentrated in the message-reading app, git auth/key/divergence surface, scope drift) are real. The purpose-built tool (obsidian-git, on an SSH remote) does the pushing; Rapture supplies the one thing that was actually missing — **loud, always-on detection when backup falls behind.**
 
 ## What we're building
 
-**Rapture keeps the destination safe by version-controlling it — automatically, on any drive, and visibly.** When the notes folder lives inside a git repository (typically an Obsidian vault pushed to a private GitHub repo), Rapture commits and pushes that repository on its own, so a week of captures is never one disk failure away from gone. It works identically whether the vault is on the internal disk or an external volume, defers cleanly when an external drive is unplugged, and — critically — **surfaces its status where you can see it**, because a backup that fails silently is worse than no backup at all.
+**Rapture tells you the truth about whether your notes are safely backed up — because a backup you can't see the status of is a backup you can't trust.** When the notes folder lives inside a git repository, Rapture reads that repo's *local* state (no network, no pushing, no keys) and — if the vault has gone too long with uncommitted or unpushed work — raises a loud warning in the menu bar. That's it. It never commits, never pushes, never touches a remote. Whatever mechanism actually does the backup (the obsidian-git plugin, a `launchd` job, your own hand-commits) keeps doing it; Rapture just verifies it's happening and shouts when it isn't.
 
-This is a **reversal of an earlier plan.** The first instinct was a separate signed helper app driven by `launchd`. That was wrong for this app's goals. Rapture already *is* a Developer ID-signed, Full-Disk-Access, continuously-running app that writes to both internal and external volumes and already survives its own updates without losing permissions. A helper app would reconstruct all of that, worse — and being headless, it would fail *silently*, which is the exact disease that let the previous backup mechanisms (a `launchd` nightly job and the obsidian-git plugin) go three days making zero commits with nobody noticing. Rapture has a menu bar and a Settings window; putting backup status there is the whole point.
+This exists because of a real, measured failure: the vault's backup silently stopped for **three days** and nobody noticed — obsidian-git failed quietly, its own status indicator (a small icon in Obsidian's status bar) was too easy to miss, and the loss of trust that follows "was my stuff even being saved?" is the whole problem. Rapture is already the always-running app looking at your vault; making it the thing that notices — and says so where you'll actually see it — is a small, on-mission addition. It is destination health, the same family as the "destination offline — N queued" status Rapture already shows.
 
-The stack is unchanged: Swift 5.9+, SwiftUI, macOS 14+, MVVM with `@Observable`, XCTest. The app is unsandboxed and already spawns subprocesses (`osascript` via `Process`); `git` is the same mechanism. The build is two milestones.
+The stack is unchanged: Swift 5.9+, SwiftUI, macOS 14+, MVVM with `@Observable`, XCTest. The build is a single milestone.
 
 ---
 
 ### What the app does
 
-- **Backs up the vault automatically.** When the notes folder is inside a git repo, Rapture commits new content and pushes it to your remote — no plugin, no cron, no second app.
-- **Works on internal and external drives, uniformly.** The same code path handles both. On an external drive that's unplugged, backup defers exactly like captures defer, and runs when the drive returns.
-- **Never fails silently.** Last-backup time and last error appear in the menu bar and Settings. A push that's rejected, a drive that's gone, an auth failure — you see it, you're not left guessing three days later.
-- **Respects your `.gitignore`.** It stages with plain `git add -A`, never `-f`, so the secrets you deliberately keep out of the repo (a `Security/` folder, an SSN note, plugin files with API keys) stay out.
-- **Handles the fact that other things commit too.** Obsidian, AI coding sessions, and you all commit to this vault. When the remote has moved ahead, Rapture rebases and retries instead of dying on a rejected push.
-- **Stays off until you turn it on.** Opt-in, off by default. When on but the destination isn't a git repo, it's simply inert and says so.
+- **Notices when your backup falls behind.** If the notes folder is a git repo and it's been too long with work that isn't safely committed and pushed, Rapture shows a clear warning in the menu bar — where an always-visible, always-running app can't be missed the way a buried plugin icon can.
+- **Reads only, over no network.** It inspects the repo's *local* git state (last commit, uncommitted changes, whether local commits have been pushed as far as the local tracking ref knows). It never commits, pushes, fetches, authenticates, or opens a socket. **This feature adds zero networking; PRIVACY is unchanged.**
+- **Doesn't care how you back up.** obsidian-git, a scheduled job, hand-commits — Rapture is mechanism-agnostic. It verifies the *result* (the repo is current), so it keeps working if you change your backup approach later.
+- **Stays quiet when things are fine.** No news is no noise: a healthy repo shows at most a subtle "backed up: 2h ago" in Settings, nothing in the menu bar. It speaks up only when there's a real problem.
+- **Is inert when there's nothing to watch.** If the notes folder isn't inside a git repo, the feature does nothing and says so in Settings — no false alarms.
 
 ---
 
 ### Already provided by the existing codebase
 
-This feature **extends** shipped machinery:
+This feature **extends** shipped machinery and adds almost no new surface:
 
-- **`Process` subprocess invocation** — `AppleScriptSender` already runs `osascript` via `Foundation.Process` with a controlled environment. `git` invocation mirrors it: explicit executable path, explicit environment, no login shell.
-- **`DestinationGuard` + `DestinationMonitor` + the offline spool** — the volume-present-vs-absent classification and the 2s remount poll. "Defer the backup while the drive is unplugged, run it when it remounts" is the same behavior captures already have, reused rather than reinvented.
-- **The menu-bar status line and Settings error surfaces** — `appState.lastError` / `aiLastError` / `enrichmentLastError` / `handoffLastError` and the About-tab diagnostics already render "last time / last error." Backup status is a new member of that family, not a new UI pattern.
-- **`OutputFolderSidecar`** — the resolved output-folder path. Repo-root discovery walks up from there.
-- **`CaptureGate`** — the quiesce primitive, if a backup must not overlap a relocation.
-- **`RuntimeEnvironment.isRunningXCTests`** — the front-guard every side-effecting subsystem uses so the test host never spawns real `git` or touches the network.
-- **The `settings.json` / `state.json` atomic-write persistence and lenient-decode conventions** — the new setting and the last-backup state follow them.
+- **`Process` subprocess invocation** — `AppleScriptSender` already runs a subprocess with a controlled environment and no login shell. Reading git state runs `/usr/bin/git` the same way, **read-only** (`status`, `log`, `rev-list`), never a mutating command.
+- **The menu-bar status surface** — `MenuBarView`'s status block already renders warning states (FDA-needed, destination-offline). The "backup is behind" warning is a sibling of those, not a new pattern. `MenuBarStatus.Kind` is a closed enum; treat the backup warning as an additional caption line, not a new `Kind` (capture is still working — the *destination's backup* is what's stale).
+- **`DestinationGuard` + `OutputFolderSidecar`** — repo-root discovery walks up from the current output folder (read live) until a `.git` directory is found; volume-absent handling means an unplugged external vault is "can't check right now," not "backup failed."
+- **`RuntimeEnvironment.isRunningXCTests`** — the front-guard so the test host never spawns real `git`.
+- **The `settings.json` lenient-decode convention** — the one new setting follows it.
 
 ---
 
 ### Out of scope
 
-- **A separate helper app or `launchd` job** — the rejected alternative. The whole point of this PRD is that Rapture does it.
-- **Being the git client for repos unrelated to the notes destination** — Rapture backs up the repo the notes folder lives in, nothing else. No general-purpose "add a repo to back up" list.
-- **Switching the user's remote for them, or creating repos** — the app detects and reports the remote; the SSH-remote switch is a documented setup step, not something the app performs silently on the user's repo. (For this install it was done by hand on 2026-07-16.)
-- **Resolving genuine merge conflicts** — Rapture rebases and retries a rejected push; a real content conflict is surfaced as an error for the human to resolve, never auto-merged or force-pushed.
-- **`git add -f` / bypassing `.gitignore`** — never. The ignore rules protect real secrets.
-- **Pull/restore/rollback UI** — this is a backup writer, not a git client. Restoring from history is done in git or Obsidian by the user.
-- **Backing up while Rapture is quit** — Rapture backs up while it runs (it launches at login and runs continuously). Vault edits made in Obsidian while Rapture is quit are captured at the next backup after Rapture is running again. A truly always-on daemon is explicitly not what this is.
-- **Configurable commit messages, branches, or multiple remotes** — one commit-message format, the repo's current branch, the repo's `origin`. Not a git power-tool.
-- **Encrypting the backup** — the repo is what it is; encryption is the user's remote's concern.
+The entire *doing* of backup is out of scope — that is the heart of this reshape:
+
+- **Committing, pushing, or touching a remote** — Rapture never runs `git add`, `git commit`, `git push`, or `git fetch`. The backup is performed by obsidian-git (or a `launchd` job, or the user). Rapture only observes.
+- **Auth, credentials, SSH keys** — Rapture holds no key and performs no authenticated operation, so there is nothing to store, rotate, or leak. (The vault's remote was switched HTTPS→SSH by hand on 2026-07-16 so the *actual* pusher authenticates reliably; that is the pusher's concern, not Rapture's.)
+- **Divergence / conflict handling, rebases, force-pushes** — none; Rapture never writes to the repo.
+- **A fourth outbound network path** — explicitly avoided. This was the decisive reason to reshape away from Rapture-pushing: reading local git refs needs no network, so PRIVACY's "three outbound paths, grep three files" claim stays exactly as it is.
+- **Fixing a broken backup** — Rapture *alerts*; it does not repair. The fix (open Obsidian, run a commit, re-check the plugin) was always easy once known; not-knowing was the problem.
+- **Backing up non-git destinations** — if the notes folder isn't a git repo, there's nothing to watch; the feature is inert, not an error.
+- **Watching repos other than the notes destination** — Rapture watches the repo its own output lives in, nothing else.
+- **A general git status / history / diff UI** — this is a single health signal (behind / current), not a git client.
 
 ---
 
-### Network posture (this changes PRIVACY — read carefully)
+### Network posture
 
-This feature adds the app's **fourth** outbound path, and it's different in kind from the first three: a `git push` is a **subprocess** (`/usr/bin/git`), so it is invisible to PRIVACY.md's `grep URLSession\.` verification. That grep must be kept honest.
-
-Three things bound the cost:
-
-1. **No new recipient or exposure.** The push goes only to the git remote the user already configured and already pushes to by hand — their own private repo. The vault is already on GitHub; Rapture pushing it sends data nowhere it doesn't already go. This is materially *less* exposing than the existing Anthropic path, which sends note text to a third party.
-2. **Opt-in, off by default**, like the AI and enrichment paths.
-3. **Confined and named**, the same discipline already used for networking: all `git` invocation lives in one file (e.g. `VaultBackup/GitBackupRunner.swift`), PRIVACY enumerates it as the fourth path, and the verification gains a **second grep** for the subprocess invocation (e.g. the `git` executable path / `Process` launch) confined to that file — mirroring how `AnthropicEngine` confines `URLSession`. The claim grows from "one mechanism, three files" to "two mechanisms, four files, all named."
-
-Per the repo `CLAUDE.md`, any new networking must update PRIVACY's grep claim **in the same change** as the code. This is a hard requirement of the feature, not a follow-up.
-
----
-
-### Security posture & mitigations
-
-Automating backup changes the app's security profile in three ways this feature must address head-on, not leave implicit. (Surfaced in a 2026-07-16 review of the app's direction; each mitigation below is a hard requirement, not a nice-to-have.)
-
-**1. Auto-push removes the human checkpoint on "should this leave my machine."** Hand-committing means a person decides, each time, what reaches the remote. `git add -A` on a timer replaces that with a standing rule: *everything not in `.gitignore` leaves, automatically and permanently* — git history is forever, so a later delete does not unpublish it. The safety of the whole backup therefore rests on `.gitignore` being correct and staying correct. Two required mitigations:
-   - **A first-enable confirmation** (milestone 1) stating plainly what auto-backup does, that history is permanent, and showing what is currently ignored — so turning it on is a conscious, informed, one-time act. Modeled on `HandoffEnableFlow`'s persist-on-success pre-prompt (cancel → stays off).
-   - **Truthful docs** (milestone 2): PRIVACY/SECURITY/README say "this pushes everything not in `.gitignore`, automatically, and git history is permanent," never a soft "backs up your notes."
-
-**2. Concentrating git-push into Rapture increases compromise blast radius.** Rapture already reads `chat.db` (every message) and holds Full Disk Access; adding "push my whole vault to a remote" to that same process means a compromise of Rapture also owns the vault's push access. This was a deliberate trade — a separate helper app was rejected for reliability and never-fail-silently reasons — but it is a real least-privilege cost, and it is only acceptable if the new capability stays **narrow and inert by default**: opt-in, off by default, confined to one file, pushing only to the repo's existing `origin`, never a remote the app chose or rewrote.
-
-**3. Headless push nudges toward a weak key posture.** A passphraseless SSH key (or an always-loaded agent key) means anyone who can read the user's home folder — malware, a borrowed unlocked laptop — has push *and pull* access to the private repo. The app cannot and does not manage keys, but its setup guidance (milestone 2) must recommend a **dedicated deploy key scoped to the one repo**, not the user's global GitHub key, so a leaked key exposes a single vault rather than the whole account.
+**None.** This feature makes no outbound connection of any kind — it reads local git state via read-only subprocess calls. The app's three enumerated outbound paths (Sparkle, the BYO-key Anthropic engine, the link-enrichment fetcher) are unchanged, and PRIVACY.md's `grep URLSession\.` verification still returns the same three files. The only doc touch is a short README line noting Rapture warns when the notes folder's backup falls behind.
 
 ---
 
@@ -87,73 +66,44 @@ Automating backup changes the app's security profile in three ways this feature 
 
 #### Settings (`settings.json`) — one new field
 
-- **`vaultBackupEnabled`** — whether automatic backup is on. Off by default. Decoded leniently (`decodeIfPresent ?? false`) so existing `settings.json` files load.
+- **`vaultBackupWarningsEnabled`** — whether the **loud menu-bar warning** is shown. **Defaults to off** (`decodeIfPresent ?? false`), consistent with the app's opt-in posture for everything past core capture. The audience is technical (a git-backed vault is set up deliberately), so an opt-in toggle is discoverable to exactly the people who'd want it, and an unrequested nag from a capture tool about git hygiene is avoided.
 
-#### PersistedState (`state.json`) — backup status
+  The toggle governs **only the menu-bar warning**. The **passive status line in Settings** (near the output folder) is shown whenever the destination is a git repo *regardless of the toggle* — "Backed up · 2h ago" / "27 changes uncommitted for 2 days" / "Destination isn't a git repository." So the information is always one glance away for anyone who opens Settings (no nag, no discoverability cliff), and turning the toggle on escalates it to the always-visible menu-bar safety net. Off by default, not invisible.
 
-- **`lastVaultBackupAt`** — when the last successful commit+push completed (for the "last backup: 2h ago" line). Optional; nil until the first success.
-- **`lastVaultBackupError`** — the last failure, human-readable, cleared on the next success (mirrors how the other `last*Error` transients behave, but persisted so it survives a relaunch — a failure the user hasn't seen yet must not vanish on restart). Optional.
-- Both decoded leniently; a strict key would wipe existing users' ledgers via `StateStore.load`'s fresh-state fallback.
+Everything else is computed live from the repo at check time and nothing else is persisted — there is no state to keep stale, and no risk of a saved "healthy" flag masking a real problem.
 
-#### Derived, never persisted
+#### The staleness signal (derived, never persisted)
 
-- **The repo root** — discovered at runtime by walking up from the output folder until a `.git` directory is found. Not stored; the output folder can change and the repo root is always re-derived from the current one.
+Read with no network:
+- **Uncommitted work** — `git status --porcelain` is non-empty.
+- **Unpushed commits** — `git rev-list --count @{u}..HEAD` > 0 (uses the *local* remote-tracking ref, which a successful `git push` advances locally — so this reflects whether the last push worked, with no fetch).
+- **Age** — how long the repo has continuously been in an un-backed-up state (via last-commit time and/or how long the working tree has been dirty), so a normal same-session edit doesn't trigger a warning.
+
+"At risk" = there's uncommitted or unpushed work **and** it's been that way longer than a grace threshold comfortably above a normal backup cadence (proposed default ~24 hours; tunable, and gracefully degraded for repos with no upstream/remote — where "unpushed" is undefined and only commit-age applies).
 
 ---
 
-## Milestone 1 — The Backup Engine
+## Milestone 1 — The Backup-Health Watchdog
 
-Rapture commits and pushes the vault on its own, reliably, on any drive, with its status visible. This is the whole working feature for the real-world path: new captures land, get backed up shortly after, and you can see that it happened.
+Rapture notices when the notes folder's git backup has fallen behind and says so loudly, reading only local state over no network. This is the whole feature.
 
 ### What gets built
 
-- A new setting, **Settings → General → "Back up my notes folder to git"** (near the output folder, because it's destination safety), off by default, with a one-line explanation and — when the destination isn't a git repo — an inert status saying so.
-- **A first-enable confirmation** before the toggle persists on (security mitigation #1): a plain statement that auto-backup pushes *everything not in `.gitignore`*, automatically, and that git history is permanent (a later delete doesn't unpublish), plus a list of what's currently ignored — so enabling is an informed, one-time decision. Persist-on-success, modeled on `HandoffEnableFlow`: cancel and the toggle stays off, no state changes.
-- **Repo-root discovery**: walk up from the output folder until a `.git` directory is found; if none, the feature is inert and says "No git repository at the destination." (Works identically for internal and external paths.)
-- **The backup run**: `git add -A` (respecting `.gitignore`, never `-f`) → commit only if something is staged (skip quietly when nothing changed) → push. Commit message is a fixed format with an ISO 8601 timestamp.
-- **Divergence handling**: on a non-fast-forward push rejection (because Obsidian, an AI session, or the user pushed in between), rebase onto the updated remote and retry the push once. A genuine conflict that rebase can't resolve is surfaced as an error, never force-pushed.
-- **In-flight guard**: never two backups at once; if one is running, the next trigger is skipped (not queued deep).
-- **Offline-aware**: when the destination volume is absent (`DestinationGuard`), the backup defers and runs when the drive remounts (`DestinationMonitor`) — the same behavior captures already have. This is what makes internal and external drives one code path.
-- **Trigger**: a debounced run shortly after capture activity settles (the natural "there's new content to back up" signal), plus a daily floor so an idle day still gets a snapshot.
-- **Status, visibly**: last-backup time and last error in the menu bar popover and in Settings. This is a hard requirement — the feature's reason for living in Rapture instead of a headless job.
-- All `git` invocation confined to one file, XCTest-front-guarded so the suite never spawns `git` or hits the network.
+- **Repo-root discovery**: walk up from the current output folder until a `.git` directory is found. None found → inert, with a Settings line saying the destination isn't a git repo. (Same discovery for internal and external paths.)
+- **A no-network staleness check**: read `git status --porcelain`, `git rev-list --count @{u}..HEAD` (guarded for repos with no upstream), and last-commit time — all read-only, all local. Determine "current" vs "at risk (behind for > threshold)."
+- **A loud menu-bar warning when at risk — only if the toggle is on** (`vaultBackupWarningsEnabled`, default off): a clear caption in the menu-bar popover — e.g. *"⚠︎ Notes folder not backed up in 2 days"* — in the same visual family as the existing offline/FDA warnings. Nothing in the menu bar when healthy, and nothing in the menu bar at all when the toggle is off.
+- **A Settings line, always shown when the destination is a git repo** (Settings → General, near the output folder — this is destination health), *independent of the toggle*: current state in plain language ("Backed up · last commit 2h ago", "⚠︎ 27 changes uncommitted for 2 days", or "Destination isn't a git repository — nothing to back up"), plus the on/off toggle that governs the menu-bar warning.
+- **Volume-aware**: if the destination volume is absent (`DestinationGuard`), the state is "can't check — drive not connected," never a false "backup failed."
+- All `git` invocation is read-only and confined to one file, XCTest-front-guarded so the suite spawns no real `git`.
 
 ### What milestone 1 explicitly does NOT include
 
-- Any UI for choosing what to back up, the commit message, the branch, or the remote.
-- Auth setup assistance or HTTPS-vs-SSH guidance (milestone 2).
-- Restore, rollback, history browsing, or conflict *resolution* UI.
-- The full documentation rewrite (milestone 2) — though the setting's own copy must be truthful.
+- Any mutating git operation — no commit, push, fetch, or remote contact of any kind.
+- Any credential, key, or auth handling.
+- Fixing or performing a backup.
+- A configurable threshold UI, snooze, or per-repo settings (a sensible fixed default; revisit only if it proves noisy).
+- Any change to PRIVACY's grep claim (there is no networking to disclose) beyond the one README line.
 
 ### Done when
 
-Turning backup on shows the first-enable confirmation naming the `.gitignore`-trust and permanent-history behavior and listing what's currently ignored, before anything is committed; cancelling leaves the toggle off with no state change. With backup on and the notes folder inside a git repo on a **connected** drive: dictate a capture, and within the debounce window a commit lands and pushes, with "last backup: just now" visible in the menu bar. Unplug an external drive, capture (it spools), replug — the backup runs on remount. Make a commit from another clone and push it, then trigger a Rapture backup — it rebases and succeeds rather than failing on rejection. Turn backup on with the destination *not* in a git repo — the app says so and does nothing. Throughout, the test suite spawns no real `git` and makes no network call.
-
----
-
-## Milestone 2 — Auth Reliability, Failure UX & Docs
-
-Makes the feature trustworthy for someone who isn't watching it, and tells the truth in the docs. This is the milestone that separates "works on my machine" from "works on a stranger's HTTPS-remote vault, and they know when it doesn't."
-
-### What gets built
-
-- **Remote diagnosis**: detect whether the repo's remote is SSH or HTTPS, and when a push fails on auth, surface a specific, actionable message (HTTPS + credential-helper failures are the classic silent killer — name the fix, don't just say "push failed"). The app does **not** rewrite the user's remote; it guides.
-- **Dedicated-deploy-key guidance** (security mitigation #3): the setup docs and the auth guidance recommend a deploy key scoped to the single backup repo, not the user's global GitHub key — so a leaked key exposes one vault, not the whole account. The app guides only; it never generates, installs, or manages keys.
-- **Auth-failure surfacing**: an authentication failure is a first-class, visible error state with a plain-language explanation, distinct from "drive offline" or "nothing to commit."
-- **Divergence-failure surfacing**: when rebase-and-retry can't resolve a conflict, a clear "your vault and its remote have diverged in a way I won't auto-merge — resolve it in git/Obsidian" message, never a force-push.
-- **The documentation pass** (mandatory, per repo `CLAUDE.md`, in the same change as any code it describes):
-  - **PRIVACY.md** — the fourth outbound path (git push, opt-in, to the user's own configured remote), stated plainly as "pushes everything not in `.gitignore`, automatically, with permanent history" (security mitigation #1); the second grep for the `git` subprocess confined to its one file; the "two mechanisms, four files" framing, re-verified verbatim.
-  - **SECURITY.md** — the new capability, its `.gitignore`-respecting / never-`-f` guarantee, the **permanent-history caveat** (a later delete does not unpublish), and the **dedicated-deploy-key recommendation** (mitigations #1 and #3).
-  - **README.md** — the backup story: capture → triage → *and it's version-controlled off-site*.
-  - **tech-stack.md** — `git` via `Process` as an enumerated outbound capability.
-- Whether this warrants a dated `agent-os/specs/` folder and a `roadmap.md` line as durable truth (the triage engine's M5 backport is the precedent).
-
-### What milestone 2 explicitly does NOT include
-
-- Automatic remote rewriting, key generation, or GitHub API calls.
-- A credential manager or in-app key storage (SSH keys live in `~/.ssh`, the user's domain).
-- Conflict resolution — still surfaced, never performed.
-
-### Done when
-
-A vault whose remote is HTTPS and whose credential helper can't authenticate headlessly produces a specific, actionable error in Settings (not a generic failure), and switching that remote to SSH per the guidance makes backup succeed. PRIVACY's grep verification, run verbatim, returns the four named files across the two mechanisms and nothing else. README, SECURITY, and tech-stack describe the shipped behavior.
+With the notes folder inside a git repo that has uncommitted or unpushed work older than the threshold, the Settings status line shows the at-risk state in plain language (always, regardless of the toggle), and — with the warnings toggle on — a clear menu-bar warning also appears; with the toggle off (the default), the menu bar stays silent. No network call is made in either case (verifiable: the check touches no socket). Bring the repo current (commit + push from any tool) and, on the next check, the state returns to "backed up" on its own. Point the destination at a folder that isn't a git repo and the feature goes quiet and says so. Unplug an external vault and the state reads "can't check — drive not connected," not a failure. The test suite spawns no real `git` (the git-state reader is injected behind a protocol) and makes no network call.

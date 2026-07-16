@@ -27,6 +27,8 @@ You are entering plan mode to plan and then build milestone 2 of this feature.
 ### Locked decisions (do not re-litigate)
 
 - **The app never rewrites the user's remote, generates keys, or calls the GitHub API.** It *diagnoses* and *guides*. The HTTPS→SSH switch is a documented setup step (done by hand for this install on 2026-07-16); the app tells the user when it's needed and why, and stops there.
+- **Recommend a dedicated deploy key (security mitigation #3).** Headless push works best with a passphraseless key, and a global GitHub key on disk exposes the whole account if the home folder is readable. The setup docs and the auth-failure guidance must recommend a **deploy key scoped to the one backup repo**, so a leak exposes a single vault. Guidance only — never generate or install keys. See the PRD's "Security posture & mitigations" section.
+- **The docs must state the permanent-history / gitignore-trust truth (security mitigation #1).** PRIVACY/SECURITY/README say plainly that backup pushes *everything not in `.gitignore`*, automatically, and that git history is permanent (a later delete does not unpublish). No soft "backs up your notes." This is the docs half of the first-enable confirmation M1 builds.
 - **A conflict rebase can't resolve is surfaced, never force-pushed and never auto-merged.**
 - **Auth failure, divergence failure, drive-offline, and nothing-to-commit are four visually distinct, calm states** — not one generic "backup failed."
 

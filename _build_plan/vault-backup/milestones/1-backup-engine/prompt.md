@@ -35,6 +35,7 @@ You are entering plan mode to plan and then build milestone 1 of this feature.
 - **In-flight guard**: never two backups concurrently; skip if one is running.
 - **Trigger = debounced-after-capture + a daily floor.** Not a naive fixed interval.
 - **Never fail silently.** Last-backup time and last error in the menu bar *and* Settings. This is the feature's whole justification for living in Rapture; it is not optional polish.
+- **First-enable confirmation (security mitigation #1, hard requirement).** The toggle must not persist ON until the user confirms a plain-language notice: auto-backup pushes *everything not in `.gitignore`*, automatically, and git history is permanent (a later delete does not unpublish). Show what is currently ignored. Model it on `HandoffEnableFlow` / `AITriageEnableFlow` (`RaptureMac/RaptureMac/Handoff/HandoffEnableFlow.swift`) — persist-on-success with an injected confirmation closure so tests don't block on a modal. See the PRD's "Security posture & mitigations" section for why this exists. The point is to restore, once, the human "should this leave my machine?" checkpoint that hand-committing gave and auto-push removes.
 - **This install's remote is already SSH** (switched 2026-07-16, `git@github.com:NoiseMeld/second-brain.git`, push verified). Assume SSH works here; general HTTPS-remote handling and auth-failure UX are milestone 2 — but M1's error surfacing must not *crash or hang* on an auth failure, it must record it and move on.
 
 ### Verified facts — don't re-derive

@@ -69,6 +69,20 @@ Per the repo `CLAUDE.md`, any new networking must update PRIVACY's grep claim **
 
 ---
 
+### Security posture & mitigations
+
+Automating backup changes the app's security profile in three ways this feature must address head-on, not leave implicit. (Surfaced in a 2026-07-16 review of the app's direction; each mitigation below is a hard requirement, not a nice-to-have.)
+
+**1. Auto-push removes the human checkpoint on "should this leave my machine."** Hand-committing means a person decides, each time, what reaches the remote. `git add -A` on a timer replaces that with a standing rule: *everything not in `.gitignore` leaves, automatically and permanently* — git history is forever, so a later delete does not unpublish it. The safety of the whole backup therefore rests on `.gitignore` being correct and staying correct. Two required mitigations:
+   - **A first-enable confirmation** (milestone 1) stating plainly what auto-backup does, that history is permanent, and showing what is currently ignored — so turning it on is a conscious, informed, one-time act. Modeled on `HandoffEnableFlow`'s persist-on-success pre-prompt (cancel → stays off).
+   - **Truthful docs** (milestone 2): PRIVACY/SECURITY/README say "this pushes everything not in `.gitignore`, automatically, and git history is permanent," never a soft "backs up your notes."
+
+**2. Concentrating git-push into Rapture increases compromise blast radius.** Rapture already reads `chat.db` (every message) and holds Full Disk Access; adding "push my whole vault to a remote" to that same process means a compromise of Rapture also owns the vault's push access. This was a deliberate trade — a separate helper app was rejected for reliability and never-fail-silently reasons — but it is a real least-privilege cost, and it is only acceptable if the new capability stays **narrow and inert by default**: opt-in, off by default, confined to one file, pushing only to the repo's existing `origin`, never a remote the app chose or rewrote.
+
+**3. Headless push nudges toward a weak key posture.** A passphraseless SSH key (or an always-loaded agent key) means anyone who can read the user's home folder — malware, a borrowed unlocked laptop — has push *and pull* access to the private repo. The app cannot and does not manage keys, but its setup guidance (milestone 2) must recommend a **dedicated deploy key scoped to the one repo**, not the user's global GitHub key, so a leaked key exposes a single vault rather than the whole account.
+
+---
+
 ### Data model
 
 #### Settings (`settings.json`) — one new field
@@ -94,6 +108,7 @@ Rapture commits and pushes the vault on its own, reliably, on any drive, with it
 ### What gets built
 
 - A new setting, **Settings → General → "Back up my notes folder to git"** (near the output folder, because it's destination safety), off by default, with a one-line explanation and — when the destination isn't a git repo — an inert status saying so.
+- **A first-enable confirmation** before the toggle persists on (security mitigation #1): a plain statement that auto-backup pushes *everything not in `.gitignore`*, automatically, and that git history is permanent (a later delete doesn't unpublish), plus a list of what's currently ignored — so enabling is an informed, one-time decision. Persist-on-success, modeled on `HandoffEnableFlow`: cancel and the toggle stays off, no state changes.
 - **Repo-root discovery**: walk up from the output folder until a `.git` directory is found; if none, the feature is inert and says "No git repository at the destination." (Works identically for internal and external paths.)
 - **The backup run**: `git add -A` (respecting `.gitignore`, never `-f`) → commit only if something is staged (skip quietly when nothing changed) → push. Commit message is a fixed format with an ISO 8601 timestamp.
 - **Divergence handling**: on a non-fast-forward push rejection (because Obsidian, an AI session, or the user pushed in between), rebase onto the updated remote and retry the push once. A genuine conflict that rebase can't resolve is surfaced as an error, never force-pushed.
@@ -112,7 +127,7 @@ Rapture commits and pushes the vault on its own, reliably, on any drive, with it
 
 ### Done when
 
-With backup on and the notes folder inside a git repo on a **connected** drive: dictate a capture, and within the debounce window a commit lands and pushes, with "last backup: just now" visible in the menu bar. Unplug an external drive, capture (it spools), replug — the backup runs on remount. Make a commit from another clone and push it, then trigger a Rapture backup — it rebases and succeeds rather than failing on rejection. Turn backup on with the destination *not* in a git repo — the app says so and does nothing. Throughout, the test suite spawns no real `git` and makes no network call.
+Turning backup on shows the first-enable confirmation naming the `.gitignore`-trust and permanent-history behavior and listing what's currently ignored, before anything is committed; cancelling leaves the toggle off with no state change. With backup on and the notes folder inside a git repo on a **connected** drive: dictate a capture, and within the debounce window a commit lands and pushes, with "last backup: just now" visible in the menu bar. Unplug an external drive, capture (it spools), replug — the backup runs on remount. Make a commit from another clone and push it, then trigger a Rapture backup — it rebases and succeeds rather than failing on rejection. Turn backup on with the destination *not* in a git repo — the app says so and does nothing. Throughout, the test suite spawns no real `git` and makes no network call.
 
 ---
 
@@ -123,11 +138,12 @@ Makes the feature trustworthy for someone who isn't watching it, and tells the t
 ### What gets built
 
 - **Remote diagnosis**: detect whether the repo's remote is SSH or HTTPS, and when a push fails on auth, surface a specific, actionable message (HTTPS + credential-helper failures are the classic silent killer — name the fix, don't just say "push failed"). The app does **not** rewrite the user's remote; it guides.
+- **Dedicated-deploy-key guidance** (security mitigation #3): the setup docs and the auth guidance recommend a deploy key scoped to the single backup repo, not the user's global GitHub key — so a leaked key exposes one vault, not the whole account. The app guides only; it never generates, installs, or manages keys.
 - **Auth-failure surfacing**: an authentication failure is a first-class, visible error state with a plain-language explanation, distinct from "drive offline" or "nothing to commit."
 - **Divergence-failure surfacing**: when rebase-and-retry can't resolve a conflict, a clear "your vault and its remote have diverged in a way I won't auto-merge — resolve it in git/Obsidian" message, never a force-push.
 - **The documentation pass** (mandatory, per repo `CLAUDE.md`, in the same change as any code it describes):
-  - **PRIVACY.md** — the fourth outbound path (git push, opt-in, to the user's own configured remote), the second grep for the `git` subprocess confined to its one file, the "two mechanisms, four files" framing, re-verified verbatim.
-  - **SECURITY.md** — the new capability and its `.gitignore`-respecting, never-`-f` guarantee.
+  - **PRIVACY.md** — the fourth outbound path (git push, opt-in, to the user's own configured remote), stated plainly as "pushes everything not in `.gitignore`, automatically, with permanent history" (security mitigation #1); the second grep for the `git` subprocess confined to its one file; the "two mechanisms, four files" framing, re-verified verbatim.
+  - **SECURITY.md** — the new capability, its `.gitignore`-respecting / never-`-f` guarantee, the **permanent-history caveat** (a later delete does not unpublish), and the **dedicated-deploy-key recommendation** (mitigations #1 and #3).
   - **README.md** — the backup story: capture → triage → *and it's version-controlled off-site*.
   - **tech-stack.md** — `git` via `Process` as an enumerated outbound capability.
 - Whether this warrants a dated `agent-os/specs/` folder and a `roadmap.md` line as durable truth (the triage engine's M5 backport is the precedent).

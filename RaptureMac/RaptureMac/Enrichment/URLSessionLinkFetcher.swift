@@ -91,6 +91,9 @@ final class URLSessionLinkFetcher: LinkFetching {
 
     func fetchArticle(url: URL) async throws -> FetchedLinkContent {
         guard !ProcessInfo.processInfo.isRunningXCTests else { throw LinkFetchError.unavailable }
+        // The article URL comes verbatim from a capture; refuse non-http(s) and
+        // loopback/private host literals before we ever open a socket (SSRF).
+        guard LinkFetchPolicy.isFetchable(url) else { throw LinkFetchError.blockedURL }
 
         let (data, status, encodingName) = try await getWithEncoding(url)
         guard status == 200 else { throw LinkFetchError.http(status) }

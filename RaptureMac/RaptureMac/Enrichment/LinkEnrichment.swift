@@ -39,6 +39,10 @@ enum LinkFetchError: Error, Equatable {
     case noCaptions
     /// Extraction produced nothing usable (content-class; no retry).
     case unusableContent
+    /// The URL is not safe to fetch — non-http(s) scheme or a loopback/private
+    /// host literal (see `LinkFetchPolicy`). Content-class: give up quietly, the
+    /// note stays as filed.
+    case blockedURL
     /// Front-guard under XCTest; the test host must never fetch.
     case unavailable
 
@@ -46,7 +50,7 @@ enum LinkFetchError: Error, Equatable {
     var isTransport: Bool {
         switch self {
         case .timeout, .network, .http: return true
-        case .noCaptions, .unusableContent, .unavailable: return false
+        case .noCaptions, .unusableContent, .blockedURL, .unavailable: return false
         }
     }
 }

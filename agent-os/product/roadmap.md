@@ -1,8 +1,8 @@
 # Product Roadmap
 
-> Last Updated: 2026-07-15
-> Version: 1.2.2
-> Status: v1 shipped — latest public release v1.0.104 (2026-07-15), the dogfood patch on top of v1.0.98's built-in triage engine (5 milestones, 2026-07-13). Next planned work: destination onboarding (`_build_plan/destination-onboarding/`, 0/3 milestones).
+> Last Updated: 2026-07-17
+> Version: 1.2.3
+> Status: v1 shipped — latest public release v1.0.112 (2026-07-17): the catch-up echo-loop hotfix + SSRF guard on link enrichment. Next planned work: destination onboarding (`_build_plan/destination-onboarding/`, 0/3 milestones) and the vault backup-health watchdog (`_build_plan/vault-backup/`, 0/1).
 
 Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/plan.md`. Effort is shaped as `XS` (1 day), `S` (2–3 days), `M` (1 week), `L` (2 weeks).
 

@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.112] - 2026-07-17: The app stops talking to itself, for good
+
+Built from commit `1a98890`. SHA-256: `319093cbd4440f11c8f87d00e7380f82fb2919dc94c5f753ed36cfe59b80dfd9`.
+
+An emergency stop for a live echo loop — the app could flood the self-thread with "📥 Caught up: 0 notes" indefinitely — plus an SSRF guard on the link-enrichment fetcher, a key-field polish, and install docs that match tested reality. 745 tests.
+
 ### Fixed
 
 - **The app could flood the self-thread with "📥 Caught up: 0 notes" forever.** A self-sustaining echo loop, observed live on 1.0.104: the app's own confirmation replies sync back through iCloud multi-device delivery as *incoming* messages; ten or more of them in one poll triggers catch-up mode; the filter correctly drops every one (nothing files) — but the catch-up summary was sent anyway, announcing "0 notes." That new message synced back as another incoming message, kept the batch over the threshold, and re-triggered catch-up indefinitely. A catch-up that captured nothing and failed nothing now sends no summary at all — which starves the loop and removes a message that was pure noise even outside it. A real catch-up whose writes failed still reports "(N failed)".

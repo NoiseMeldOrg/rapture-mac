@@ -24,17 +24,20 @@ The second path starts in the Rapture iPhone app. Turn on the **Rapture Mac** de
 
 ## Install
 
-1. Download the latest DMG from the [Releases page](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest).
-2. Open the DMG, drag **Rapture.app** into `/Applications`.
-3. Launch the app. There's no Dock icon. Look for the Rapture glyph in the menu bar at the top of the screen.
+**You'll need:** an Apple silicon Mac running macOS 14 (Sonoma) or later, signed into Messages with the same Apple ID as your iPhone. (The prebuilt DMG is Apple-silicon-only; Intel users can [build from source](#build-from-source).)
 
-Once installed, Rapture keeps itself up to date — it checks for new releases and prompts you to install them in place (verified against an EdDSA signature and Apple's notarization first). Turn it off in **Settings → About**, or update on demand via **Check for Updates…** in the menu. It's the app's only network use unless you opt into BYO-key AI triage or link enrichment; see [PRIVACY.md](./PRIVACY.md).
+1. Download the latest DMG from the [Releases page](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest).
+2. Open the DMG and drag **Rapture.app** into `/Applications`, then eject the DMG.
+3. Launch the app from `/Applications`. macOS asks once to confirm opening an app you downloaded — click **Open**. (The app is Developer ID-signed and notarized by Apple, so there's no warning to work around.)
+4. There's no Dock icon. Look for the Rapture glyph in the menu bar at the top of the screen.
+
+**Updating:** the app updates itself in place — it checks for new releases and prompts you to install (verified against an EdDSA signature and Apple's notarization first). Let it: an in-place update **keeps your permissions**. Manually drag-replacing the app bundle makes macOS forget its Full Disk Access grant, so you'd redo that permission step. Turn auto-check off in **Settings → About**, or update on demand via **Check for Updates…** in the menu. Update checks are the app's only network use unless you opt into BYO-key AI triage or link enrichment; see [PRIVACY.md](./PRIVACY.md).
 
 ### First-run walkthrough
 
 The app will guide you through two macOS permissions. Both are needed for iMessage capture; captures from the Rapture iPhone app work without either, so relayed notes file even while this walkthrough is still pending.
 
-1. **Full Disk Access**: needed to read `~/Library/Messages/chat.db`. The app opens a sheet with an **Open System Settings** button that deep-links to the right pane. Toggle Rapture for Mac on. (If you don't see it in the list, click `+` and add it manually.) The sheet closes automatically once access is granted.
+1. **Full Disk Access**: needed to read `~/Library/Messages/chat.db`. The app opens a sheet with an **Open System Settings** button that deep-links to the right pane. Toggle Rapture for Mac on. (If you don't see it in the list, click `+` and add it manually.) The sheet closes once access is granted — then the app asks to **quit and reopen**. Approve it: macOS applies a new Full Disk Access grant only to a freshly launched process, so capture can't start until the relaunch. This is a one-time step; the built-in updater preserves the grant from then on.
 2. **Automation → Messages**: needed for the `✅ Saved` reply. The first time the app tries to reply, you'll see a one-time pre-prompt explaining what's about to happen, then macOS shows its own permission dialog. Click **OK**.
 3. Send yourself an iMessage from another device on the same iCloud account: *"Hey Siri, text me, this is a test."*
 4. Within about a second, a Markdown note appears under `~/Documents/Rapture Notes/Notes/` (the default folder; you can change it under **Settings → General**).

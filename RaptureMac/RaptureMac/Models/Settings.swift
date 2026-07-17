@@ -8,8 +8,10 @@ struct Settings: Codable, Sendable, Equatable {
     var paused: Bool
     var replyMode: ReplyMode
     /// When on, an *empty* output folder with no `CLAUDE.md` is seeded with a generic
-    /// starter scaffold (template `CLAUDE.md` + `processed/` + `in-progress/`). Off by
-    /// default and strictly non-destructive — see `OutputFolderScaffold`.
+    /// template `CLAUDE.md` (assistant rules for the triaged tree — the only file
+    /// seeded since the M5 template rewrite; the app creates note subfolders itself
+    /// as captures file). Off by default and strictly non-destructive — see
+    /// `OutputFolderScaffold`.
     var seedScaffold: Bool
     /// When on, the app watches the iCloud relay folder the Rapture iOS app writes into
     /// and files arrivals into the output folder. On by default: it is a no-op until the

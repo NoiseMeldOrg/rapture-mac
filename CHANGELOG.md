@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Fixed
+
+- **The app could flood the self-thread with "📥 Caught up: 0 notes" forever.** A self-sustaining echo loop, observed live on 1.0.104: the app's own confirmation replies sync back through iCloud multi-device delivery as *incoming* messages; ten or more of them in one poll triggers catch-up mode; the filter correctly drops every one (nothing files) — but the catch-up summary was sent anyway, announcing "0 notes." That new message synced back as another incoming message, kept the batch over the threshold, and re-triggered catch-up indefinitely. A catch-up that captured nothing and failed nothing now sends no summary at all — which starves the loop and removes a message that was pure noise even outside it. A real catch-up whose writes failed still reports "(N failed)".
+
+- **Saving the Anthropic API key now shows its confirmation immediately.** The key field kept keyboard focus after Save, and a focused empty field hides its placeholder on macOS — so instead of "API key saved" you got a blank field with a blinking cursor and no visible acknowledgment. The field now drops focus on Save (and Remove), making the saved state visible at once.
+
 ### Security
 
 - **Link enrichment now refuses to fetch loopback and private-network addresses.** The article fetcher took the captured URL verbatim; a crafted link (e.g. `http://localhost:8080/…` or `http://192.168.…`) could make the app issue a request to a service on your own machine or LAN. It now fetches only `http`/`https` URLs whose host isn't a loopback, private, or link-local literal — anything else is refused before a socket opens and the note simply files without enrichment (the existing quiet-failure behavior). No legitimate transcript or article target is affected. This adds no networking; the fetcher is still the only link-enrichment file that touches the network, and PRIVACY's grep verification is unchanged.

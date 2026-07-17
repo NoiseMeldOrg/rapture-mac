@@ -10,6 +10,11 @@ struct AITriageSettingsSection: View {
     @Environment(AITriageService.self) private var aiTriage
 
     @State private var keyDraft = ""
+    /// Cleared on save/remove: a focused empty SecureField hides its placeholder
+    /// on macOS, so leaving focus in the field after Save shows a blank field with
+    /// a cursor instead of the "API key saved" confirmation (dogfood papercut,
+    /// v1.0.98 release validation).
+    @FocusState private var keyFieldFocused: Bool
 
     private var rawMode: Bool { appState.settings.settings.triageMode == .raw }
     private var hasStoredKey: Bool { appState.credentials.anthropicAPIKey()?.isEmpty == false }
@@ -92,6 +97,7 @@ struct AITriageSettingsSection: View {
                 text: $keyDraft
             )
             .textContentType(.password)
+            .focused($keyFieldFocused)
             Button("Save") { saveKey() }
                 .disabled(keyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
             if hasStoredKey {
@@ -109,6 +115,7 @@ struct AITriageSettingsSection: View {
         do {
             try appState.credentials.setAnthropicAPIKey(key)
             keyDraft = ""
+            keyFieldFocused = false
             aiTriage.noteKeySaved()
         } catch {
             appState.aiLastError = "Couldn't save the key: \(error.localizedDescription)"
@@ -119,6 +126,7 @@ struct AITriageSettingsSection: View {
         do {
             try appState.credentials.setAnthropicAPIKey(nil)
             keyDraft = ""
+            keyFieldFocused = false
             aiTriage.refreshStatus()
         } catch {
             appState.aiLastError = "Couldn't remove the key: \(error.localizedDescription)"

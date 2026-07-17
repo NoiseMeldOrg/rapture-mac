@@ -80,6 +80,26 @@ final class ReplierTests: XCTestCase {
         XCTAssertEqual(text, "📥 Caught up: 0 notes (3 failed)")
     }
 
+    // MARK: - shouldSendCatchupSummary (echo-loop guard)
+
+    func testCatchupSummarySuppressedWhenNothingHappened() {
+        // The 1.0.104 loop: a catch-up batch of all-dropped confirmations captured
+        // 0 and failed 0; sending "Caught up: 0 notes" echoed back and re-triggered
+        // catch-up forever. Zero-and-zero must produce no summary.
+        XCTAssertFalse(Replier.shouldSendCatchupSummary(successCount: 0, failureCount: 0))
+    }
+
+    func testCatchupSummarySentWhenNotesCaptured() {
+        XCTAssertTrue(Replier.shouldSendCatchupSummary(successCount: 1, failureCount: 0))
+        XCTAssertTrue(Replier.shouldSendCatchupSummary(successCount: 12, failureCount: 0))
+    }
+
+    func testCatchupSummarySentWhenOnlyFailures() {
+        // A real catch-up whose writes all failed still deserves the "(N failed)"
+        // summary — the user needs to know. Only the truly-nothing case is silenced.
+        XCTAssertTrue(Replier.shouldSendCatchupSummary(successCount: 0, failureCount: 3))
+    }
+
     // MARK: - catchupDestination
 
     func testCatchupDestinationChatWhenSelfChatKnown() {

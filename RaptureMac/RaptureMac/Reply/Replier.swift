@@ -73,6 +73,10 @@ final class Replier {
         selfChatGuid: String?,
         replyMode: ReplyMode
     ) async {
+        guard Self.shouldSendCatchupSummary(successCount: successCount, failureCount: failureCount) else {
+            Self.log.info("catch-up produced 0 captures and 0 failures — suppressing summary (echo-loop guard)")
+            return
+        }
         let text = Self.composeCatchupText(successCount: successCount, failureCount: failureCount)
         let destination = Self.catchupDestination(replyMode: replyMode, selfChatGuid: selfChatGuid)
         switch destination {
@@ -135,6 +139,17 @@ final class Replier {
             return "📥 Caught up: \(successCount) notes (\(failureCount) failed)"
         }
         return "📥 Caught up: \(successCount) notes"
+    }
+
+    /// Whether a catch-up summary should be sent at all. A catch-up batch that
+    /// captured nothing AND failed nothing is entirely dropped messages — in
+    /// practice our own `📥 Caught up: …` / `✅ Saved` confirmations re-entering
+    /// as is_from_me=0 via iCloud multi-device sync. Emitting "Caught up: 0 notes"
+    /// would add another message that echoes back, keeps the batch ≥ the backlog
+    /// threshold, and re-triggers catch-up — an infinite self-sustaining loop
+    /// (observed spamming the self-thread in 1.0.104). Nothing happened → no summary.
+    nonisolated static func shouldSendCatchupSummary(successCount: Int, failureCount: Int) -> Bool {
+        successCount > 0 || failureCount > 0
     }
 
     nonisolated static func catchupDestination(replyMode: ReplyMode, selfChatGuid: String?) -> CatchupDestination {

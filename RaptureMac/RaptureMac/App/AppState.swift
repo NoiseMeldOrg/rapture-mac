@@ -49,6 +49,12 @@ final class AppState {
     /// is absent. Set by `RelayProcessor`, folded into `queuedCaptureCount`.
     var relayPendingOffline = 0
 
+    /// Backup health of the notes folder's git repo (see `VaultBackup/`).
+    /// Maintained by `BackupHealthMonitor`; drives the Settings status line
+    /// (always) and — when `vaultBackupWarningsEnabled` — the menu-bar warning.
+    /// Read-only, no network. Transient.
+    var backupHealth: BackupHealth = .unknown
+
     /// Last Reminders/Calendar handoff error (create failure or revoked grant).
     /// Rendered in the Settings handoff section only — a handoff failure never
     /// touches the menu-bar error surface, because the note itself filed fine.

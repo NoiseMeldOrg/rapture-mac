@@ -51,6 +51,19 @@ struct MenuBarView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            // Backup-health warning: an additional caption (capture still works —
+            // it's the destination's backup that's stale), gated on the opt-in
+            // toggle. No new MenuBarStatus.Kind.
+            if let backupWarning = BackupHealthPresentation.menuWarning(
+                appState.backupHealth,
+                enabled: appState.settings.settings.vaultBackupWarningsEnabled
+            ) {
+                Text(backupWarning)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

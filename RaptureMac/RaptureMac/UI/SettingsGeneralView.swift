@@ -67,6 +67,7 @@ struct SettingsGeneralView: View {
 
             relocationStatusView
             destinationOfflineStatusView
+            backupHealthStatusView
 
             Text("Captured notes land here. Drop a folder above to change it. Existing notes move to the new folder automatically.")
                 .font(.caption)
@@ -76,8 +77,27 @@ struct SettingsGeneralView: View {
             Text("When on, an empty folder with no `CLAUDE.md` gets a generic template `CLAUDE.md` with starter rules for an AI assistant reading your notes. Never touches a folder that already has content.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            Toggle("Warn me when the notes folder isn't backed up", isOn: appState.settings.binding(for: \.vaultBackupWarningsEnabled))
+            Text("When on, Rapture shows a menu-bar warning if your notes folder is a git repo with uncommitted or unpushed work older than a day. It only reads local git state — it never commits, pushes, or connects to anything. The status above always shows when the folder is a git repo.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         } header: {
             Text("Notes Folder")
+        }
+    }
+
+    /// Always shown when the destination is a git repo (independent of the
+    /// warnings toggle): plain-language backup health near the output folder.
+    @ViewBuilder
+    private var backupHealthStatusView: some View {
+        if let line = BackupHealthPresentation.settingsLine(appState.backupHealth) {
+            Label {
+                Text(line.text).font(.caption)
+            } icon: {
+                Image(systemName: line.systemImage)
+            }
+            .foregroundStyle(line.isWarning ? Color.orange : Color.secondary)
         }
     }
 

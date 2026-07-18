@@ -65,6 +65,7 @@ final class Pipeline {
     private var triageProcessor: TriageProcessor?
     private var triageConsumerTask: Task<Void, Never>?
     private var destinationMonitor: DestinationMonitor?
+    private var backupHealthMonitor: BackupHealthMonitor?
     private var started = false
 
     init(appState: AppState) {
@@ -89,6 +90,8 @@ final class Pipeline {
         // Destination availability + spool flush; independent of FDA like the two
         // above (a spool from a previous run must drain even before FDA lands).
         startDestinationMonitor()
+        // Backup-health watchdog; read-only local git state, no FDA, no network.
+        startBackupHealthMonitor()
         await attemptStart()
     }
 
@@ -101,6 +104,7 @@ final class Pipeline {
         relayWatcher?.stop()
         triageWatcher?.stop()
         destinationMonitor?.stop()
+        backupHealthMonitor?.stop()
         linkEnrichment.stop()
         resolver?.stop()
         selfChatResolver?.stop()
@@ -114,6 +118,7 @@ final class Pipeline {
         triageWatcher = nil
         triageProcessor = nil
         destinationMonitor = nil
+        backupHealthMonitor = nil
         resolver = nil
         selfChatResolver = nil
         batchProcessor = nil
@@ -203,6 +208,12 @@ final class Pipeline {
             enrichment: linkEnrichment
         )
         destinationMonitor = monitor
+        monitor.start()
+    }
+
+    private func startBackupHealthMonitor() {
+        let monitor = BackupHealthMonitor(appState: appState, reader: SystemGitStateReader())
+        backupHealthMonitor = monitor
         monitor.start()
     }
 

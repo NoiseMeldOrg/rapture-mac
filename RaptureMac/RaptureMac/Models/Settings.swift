@@ -43,6 +43,12 @@ struct Settings: Codable, Sendable, Equatable {
     /// transcripts / article extracts fetched into `Links/Media/`, the note
     /// renamed to the real title. Off by default; independent of `aiTriageEnabled`.
     var linkEnrichmentEnabled: Bool
+    /// When on, a loud menu-bar warning appears if the notes folder's git backup
+    /// has fallen behind (uncommitted/unpushed work older than a grace threshold).
+    /// Off by default. Governs the **menu-bar warning only** — the passive Settings
+    /// status line shows whenever the destination is a git repo, regardless. Reads
+    /// local git state read-only; adds no networking (see `VaultBackup/`).
+    var vaultBackupWarningsEnabled: Bool
 
     init(
         outputFolder: URL? = nil,
@@ -59,7 +65,8 @@ struct Settings: Codable, Sendable, Equatable {
         remindersListID: String? = nil,
         calendarID: String? = nil,
         aiTriageEnabled: Bool = false,
-        linkEnrichmentEnabled: Bool = false
+        linkEnrichmentEnabled: Bool = false,
+        vaultBackupWarningsEnabled: Bool = false
     ) {
         self.outputFolder = outputFolder
         self.allowedHandles = allowedHandles
@@ -76,12 +83,13 @@ struct Settings: Codable, Sendable, Equatable {
         self.calendarID = calendarID
         self.aiTriageEnabled = aiTriageEnabled
         self.linkEnrichmentEnabled = linkEnrichmentEnabled
+        self.vaultBackupWarningsEnabled = vaultBackupWarningsEnabled
     }
 
     enum CodingKeys: String, CodingKey {
         case outputFolder, allowedHandles, allowSMS, launchAtLogin, paused, replyMode, seedScaffold, relayEnabled, triageMode
         case remindersHandoffEnabled, calendarHandoffEnabled, remindersListID, calendarID, aiTriageEnabled
-        case linkEnrichmentEnabled
+        case linkEnrichmentEnabled, vaultBackupWarningsEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -113,5 +121,7 @@ struct Settings: Codable, Sendable, Equatable {
         aiTriageEnabled = try c.decodeIfPresent(Bool.self, forKey: .aiTriageEnabled) ?? false
         // Absent in pre-existing settings.json → enrichment off (explicit opt-in).
         linkEnrichmentEnabled = try c.decodeIfPresent(Bool.self, forKey: .linkEnrichmentEnabled) ?? false
+        // Absent in pre-existing settings.json → backup warnings off (explicit opt-in).
+        vaultBackupWarningsEnabled = try c.decodeIfPresent(Bool.self, forKey: .vaultBackupWarningsEnabled) ?? false
     }
 }

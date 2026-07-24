@@ -112,9 +112,9 @@ final class RelayProcessor {
 
         // Already filed (restart or iCloud re-sync): drain the relay, never re-file.
         if ledger.contains(relayFilename: name) {
-            removeRelayFile(candidate.txtURL)
+            await removeRelayFile(candidate.txtURL)
             if let audioURL = candidate.audioURL, ledger.contains(relayFilename: audioURL.lastPathComponent) {
-                removeRelayFile(audioURL)
+                await removeRelayFile(audioURL)
             }
             return
         }
@@ -156,9 +156,9 @@ final class RelayProcessor {
             if audioCopied, let audioURL = candidate.audioURL {
                 ledger.record(relayFilename: audioURL.lastPathComponent)
             }
-            removeRelayFile(candidate.txtURL)
+            await removeRelayFile(candidate.txtURL)
             if audioCopied, let audioURL = candidate.audioURL {
-                removeRelayFile(audioURL)
+                await removeRelayFile(audioURL)
             }
             // A failed audio copy keeps the .m4a in the relay; the orphan path
             // retries it once its txt is gone.
@@ -199,7 +199,7 @@ final class RelayProcessor {
         let name = url.lastPathComponent
 
         if ledger.contains(relayFilename: name) {
-            removeRelayFile(url)
+            await removeRelayFile(url)
             return
         }
         guard Self.shouldAttempt(name: name, lastFailureAt: lastFailureAt, now: clock()) else { return }
@@ -225,7 +225,7 @@ final class RelayProcessor {
         case .success(let destination):
             Self.log.info("filed orphan relay audio into \(destination.deletingLastPathComponent().lastPathComponent, privacy: .public)/")
             ledger.record(relayFilename: name)
-            removeRelayFile(url)
+            await removeRelayFile(url)
             lastFailureAt[name] = nil
             // No recordSuccess: the today count counts notes, and the note already
             // counted when its txt filed.
@@ -240,15 +240,21 @@ final class RelayProcessor {
 
     // MARK: - Helpers
 
-    /// Direct file removal is correct here: the relay is a delivery queue this app
-    /// owns draining, not the user's output folder. `FileSafety.removeIfEmpty`
+    /// Relay copies live in an iCloud container, so removal goes through
+    /// `FileSafety.coordinatedRemoveFile` — an uncoordinated delete raced the
+    /// file provider right after wake-time materialization and failed
+    /// transiently (observed 2026-07-23). Detached because the coordination
+    /// wait must not block the main actor; awaited so a batch finishes its
+    /// cleanup before returning. The relay is a delivery queue this app owns
+    /// draining, not the user's output folder; `FileSafety.removeIfEmpty`
     /// remains the app's only *directory*-delete primitive. A failed delete is
     /// retried on the next scan via the ledger-hit path.
-    private func removeRelayFile(_ url: URL) {
-        do {
-            try FileManager.default.removeItem(at: url)
-        } catch {
-            Self.log.warning("couldn't remove relay copy \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+    private func removeRelayFile(_ url: URL) async {
+        let outcome = await Task.detached(priority: .utility) {
+            FileSafety.coordinatedRemoveFile(at: url)
+        }.value
+        if case .failed(let reason) = outcome {
+            Self.log.warning("couldn't remove relay copy \(url.lastPathComponent, privacy: .public): \(reason, privacy: .public)")
         }
     }
 

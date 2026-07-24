@@ -144,7 +144,7 @@ final class TriageProcessor {
             if FileManager.default.fileExists(atPath: noteURL.path) {
                 // Sync ghost of an already-triaged capture: drain it. Safe only
                 // because the note it became still exists.
-                removeSource(sourceURL)
+                await removeSource(sourceURL)
                 return
             }
             // The note is gone (user deleted it) and the source is back: re-triage.
@@ -233,7 +233,7 @@ final class TriageProcessor {
                 contentHash: hash,
                 mdRelativePath: CaptureContract.relativePath(of: mdURL, in: folder)
             )
-            removeSource(sourceURL)
+            await removeSource(sourceURL)
             lastFailureAt[name] = nil
             clearTriageError()
             Self.log.info("triaged \(name, privacy: .public) → \(mdURL.lastPathComponent, privacy: .public)")
@@ -260,16 +260,20 @@ final class TriageProcessor {
 
     // MARK: - Helpers
 
-    /// Direct file removal is deliberate and narrow: the one file the app ever
-    /// deletes in the user's destination is a `.txt` whose full content was just
-    /// durably written to a verified note. `FileSafety.removeIfEmpty` remains the
-    /// app's only *directory*-delete primitive. A failed delete retries via the
-    /// ledger-hit path next scan.
-    private func removeSource(_ url: URL) {
-        do {
-            try FileManager.default.removeItem(at: url)
-        } catch {
-            Self.log.warning("couldn't remove triaged source \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+    /// The one file the app ever deletes in the user's destination is a `.txt`
+    /// whose full content was just durably written to a verified note. Removal
+    /// goes through `FileSafety.coordinatedRemoveFile` because the destination
+    /// can live on iCloud Drive, where an uncoordinated delete races the file
+    /// provider (the relay hit exactly that race, 2026-07-23). Detached because
+    /// the coordination wait must not block the main actor.
+    /// `FileSafety.removeIfEmpty` remains the app's only *directory*-delete
+    /// primitive. A failed delete retries via the ledger-hit path next scan.
+    private func removeSource(_ url: URL) async {
+        let outcome = await Task.detached(priority: .utility) {
+            FileSafety.coordinatedRemoveFile(at: url)
+        }.value
+        if case .failed(let reason) = outcome {
+            Self.log.warning("couldn't remove triaged source \(url.lastPathComponent, privacy: .public): \(reason, privacy: .public)")
         }
     }
 

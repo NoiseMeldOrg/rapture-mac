@@ -78,4 +78,39 @@ final class FileSafetyTests: XCTestCase {
         XCTAssertFalse(FileSafety.isEmptyDirectory(full, fileManager: fm))
         XCTAssertFalse(FileSafety.isEmptyDirectory(root.appendingPathComponent("missing"), fileManager: fm))
     }
+
+    // MARK: - coordinatedRemoveFile
+
+    func testCoordinatedRemoveDeletesAFile() throws {
+        let file = root.appendingPathComponent("relay.txt")
+        try "note".write(to: file, atomically: true, encoding: .utf8)
+
+        XCTAssertEqual(FileSafety.coordinatedRemoveFile(at: file, fileManager: fm), .removed)
+        XCTAssertFalse(fm.fileExists(atPath: file.path))
+    }
+
+    func testCoordinatedRemoveTreatsMissingFileAsAlreadyGone() {
+        let missing = root.appendingPathComponent("gone.txt")
+        XCTAssertEqual(FileSafety.coordinatedRemoveFile(at: missing, fileManager: fm), .alreadyGone)
+    }
+
+    func testCoordinatedRemoveRefusesADirectoryWithContent() throws {
+        let dir = try makeDir("not-a-file")
+        try "x".write(to: dir.appendingPathComponent("note.txt"), atomically: true, encoding: .utf8)
+
+        guard case .failed = FileSafety.coordinatedRemoveFile(at: dir, fileManager: fm) else {
+            return XCTFail("a directory must be refused")
+        }
+        XCTAssertEqual(try String(contentsOf: dir.appendingPathComponent("note.txt"), encoding: .utf8), "x",
+                       "directory contents must be untouched")
+    }
+
+    func testCoordinatedRemoveRefusesEvenAnEmptyDirectory() throws {
+        let dir = try makeDir("empty-dir")
+
+        guard case .failed = FileSafety.coordinatedRemoveFile(at: dir, fileManager: fm) else {
+            return XCTFail("directories are removeIfEmpty's job, never this primitive's")
+        }
+        XCTAssertTrue(fm.fileExists(atPath: dir.path))
+    }
 }

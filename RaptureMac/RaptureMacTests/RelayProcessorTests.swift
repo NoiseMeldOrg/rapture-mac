@@ -141,6 +141,21 @@ final class RelayProcessorTests: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: txtURL.path), "the relay copy still drains")
     }
 
+    func testLedgerHitWithVanishedRelayCopyStaysSilent() async throws {
+        let appState = makeAppState()
+        let fake = FakeFiler()
+        let processor = makeProcessor(appState: appState, filer: fake)
+        let ledger = RelayFiledLedger(stateStore: appState.state)
+        ledger.record(relayFilename: txtName)
+        // The scan saw the file, but another pass (or device) drained it first.
+        let txtURL = relay.appendingPathComponent(txtName)
+
+        await processor.process(batch: RelayScanBatch(candidates: [candidate(txtURL: txtURL)], orphanAudio: []))
+
+        XCTAssertTrue(fake.fileCalls.isEmpty)
+        XCTAssertNil(appState.relayLastError, "an already-drained copy is the goal state, not an error")
+    }
+
     // MARK: - Deferral
 
     func testPausedDefersWithoutFilingOrDeleting() async throws {

@@ -9,12 +9,12 @@ import OSLog
 /// which makes "delete a directory that still holds data" unreachable by
 /// construction.
 ///
-/// One narrow *file* deletion exists outside this funnel: `TriageProcessor`
-/// removes a root `.txt` capture, and only after its full content was durably
-/// written into a Markdown note verified present in the same operation (a ledger
-/// hit likewise drains its source only while the recorded note still exists).
-/// That invariant — never delete what hasn't been preserved — is the triage
-/// engine's version of this file's guarantee.
+/// The narrow *file* deletions — `TriageProcessor` draining a root `.txt` whose
+/// full content was durably written into a verified Markdown note, and
+/// `RelayProcessor` draining already-filed relay copies — go through
+/// `coordinatedRemoveFile`, which refuses directories so `removeIfEmpty` stays
+/// the only directory-delete primitive. That invariant — never delete what
+/// hasn't been preserved — is shared by every caller.
 enum FileSafety {
     static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "FileSafety")
 
@@ -47,6 +47,57 @@ enum FileSafety {
             log.error("removeIfEmpty: failed to remove empty \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
             return false
         }
+    }
+
+    /// Outcome of `coordinatedRemoveFile`. `alreadyGone` counts as success for
+    /// queue-draining callers: the goal state ("no file") holds regardless of
+    /// who got there first.
+    enum RemovalOutcome: Equatable, Sendable {
+        case removed
+        case alreadyGone
+        case failed(String)
+    }
+
+    /// Remove a single *file* under an `NSFileCoordinator` deletion intent.
+    ///
+    /// The processors drain queue files that live (or can live) in iCloud
+    /// containers — the relay always is one, and the destination may be iCloud
+    /// Drive. An uncoordinated delete races the file provider: right after a
+    /// wake-time materialization the daemon can still hold the file and the
+    /// delete fails transiently (observed 2026-07-23 in the relay). The
+    /// deletion intent serializes with the daemon instead of racing it.
+    ///
+    /// Blocks until the coordinator grants access, so call it off the main
+    /// actor. Directories are refused — `removeIfEmpty` remains the app's only
+    /// directory-delete primitive.
+    static func coordinatedRemoveFile(at url: URL, fileManager: FileManager = .default) -> RemovalOutcome {
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+            return .alreadyGone
+        }
+        guard !isDirectory.boolValue else {
+            log.error("coordinatedRemoveFile: refused directory \(url.lastPathComponent, privacy: .public)")
+            return .failed("\(url.lastPathComponent) is a directory")
+        }
+        var coordinationError: NSError?
+        var removalError: NSError?
+        NSFileCoordinator().coordinate(writingItemAt: url, options: .forDeleting, error: &coordinationError) { actualURL in
+            do {
+                try fileManager.removeItem(at: actualURL)
+            } catch {
+                removalError = error as NSError
+            }
+        }
+        if let error = coordinationError ?? removalError {
+            // Vanishing between the guard above and the accessor is the very race
+            // this primitive exists for; "already gone" is the goal state.
+            if error.domain == NSCocoaErrorDomain,
+               error.code == NSFileNoSuchFileError || error.code == NSFileReadNoSuchFileError {
+                return .alreadyGone
+            }
+            return .failed(error.localizedDescription)
+        }
+        return .removed
     }
 
     /// True when `url` is a directory that contains no entries (dotfiles counted).

@@ -16,6 +16,8 @@ These examples are starter configs for the automated path, for the agents users 
 
 None of these examples are tested against a running install. They're written from current agent documentation. If you find a discrepancy between an example and what your install actually does, please open an issue or PR.
 
+Everything below assumes notes are already landing in the folder. If they aren't yet, [docs/END-TO-END.md](../docs/END-TO-END.md) walks both capture paths from install to a first filed note.
+
 ## What every example does
 
 The same shape:

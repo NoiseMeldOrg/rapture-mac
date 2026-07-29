@@ -24,6 +24,8 @@ The second path starts in the Rapture iPhone app. Turn on the **Rapture Mac** de
 
 ## Install
 
+Wiring Rapture into an agentic setup? [docs/END-TO-END.md](./docs/END-TO-END.md) is the fast path: both capture paths from zero to a first note landing, then the folder contract your tooling reads.
+
 **You'll need:** an Apple silicon Mac running macOS 14 (Sonoma) or later, signed into Messages with the same Apple ID as your iPhone. (The prebuilt DMG is Apple-silicon-only; Intel users can [build from source](#build-from-source).)
 
 1. Download the latest DMG from the [Releases page](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest).

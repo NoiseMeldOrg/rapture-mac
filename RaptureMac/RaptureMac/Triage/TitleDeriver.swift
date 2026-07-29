@@ -12,7 +12,10 @@ enum TitleDeriver {
     // MARK: - Voice notes
 
     nonisolated static func voiceNoteTitle(from text: String) -> String {
-        let words = text
+        // Invisible scalars (U+FFFC attachment placeholders, format characters)
+        // are not words: an attachment-only capture must fall through to
+        // `fallback`, not become a literal "\u{FFFC}" filename.
+        let words = CaptureText.strippingInvisibles(text)
             .split(whereSeparator: { $0.isWhitespace || $0.isNewline })
             .prefix(maxWords)
         var title = words.joined(separator: " ")

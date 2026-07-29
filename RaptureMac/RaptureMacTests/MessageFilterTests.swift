@@ -70,7 +70,11 @@ final class MessageFilterTests: XCTestCase {
 
     // MARK: - End-to-end: MessageFilter.decide drops these on self-chat
 
-    private func appConfirmationEvent(text: String, handle: String = "+15555550199") -> MessageEvent {
+    private func appConfirmationEvent(
+        text: String,
+        handle: String = "+15555550199",
+        attachments: [AttachmentRef] = []
+    ) -> MessageEvent {
         MessageEvent(
             rowid: 1,
             guid: "test-guid",
@@ -78,13 +82,40 @@ final class MessageFilterTests: XCTestCase {
             attributedBody: nil,
             dateAppleNs: 0,
             isFromMe: false,
-            cacheHasAttachments: false,
+            cacheHasAttachments: !attachments.isEmpty,
             service: "iMessage",
             handleId: handle,
             chatGuid: "iMessage;-;chat-guid",
             chatStyle: 45,
-            attachments: []
+            attachments: attachments
         )
+    }
+
+    // MARK: - Content-free text (U+FFFC attachment placeholders)
+
+    func testFilterDropsPlaceholderOnlyTextWithNoAttachments() {
+        // Text that is only U+FFFC and no attachment rows: nothing to file.
+        let event = appConfirmationEvent(text: "\u{FFFC}")
+        let decision = MessageFilter.decide(event: event, selfHandles: ["+15555550199"], settings: Settings())
+
+        if case .drop(let reason) = decision {
+            XCTAssertEqual(reason, .tapbackOrEmpty)
+        } else {
+            XCTFail("Expected drop(.tapbackOrEmpty)")
+        }
+    }
+
+    func testFilterCapturesPlaceholderTextWhenAttachmentsExist() {
+        // The attachment IS the content; the placeholder text must not block it.
+        let movie = AttachmentRef(sourcePath: "/tmp/clip.mov", mimeType: "video/quicktime", transferName: "clip.mov")
+        let event = appConfirmationEvent(text: "\u{FFFC}", attachments: [movie])
+        let decision = MessageFilter.decide(event: event, selfHandles: ["+15555550199"], settings: Settings())
+
+        if case .capture = decision {
+            // expected
+        } else {
+            XCTFail("Expected capture — an attachment-only message is a real capture")
+        }
     }
 
     func testFilterDropsAppConfirmationFromSelfChat() {

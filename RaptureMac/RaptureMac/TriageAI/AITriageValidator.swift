@@ -66,6 +66,11 @@ enum AITriageValidator {
             title = TitleDeriver.truncateAtWordBoundary(title, limit: titleMaxChars)
         }
         guard !title.isEmpty else { return nil }
+        // A model with nothing to work from echoes the instructions' one
+        // concrete example title (2026-07-25 incident); discard it so the
+        // deterministic title applies. If the author genuinely dictated these
+        // words, the deterministic first-words title is the same string.
+        guard title.caseInsensitiveCompare(AITriagePrompt.exampleTaskTitle) != .orderedSame else { return nil }
         return title.prefix(1).uppercased() + title.dropFirst()
     }
 

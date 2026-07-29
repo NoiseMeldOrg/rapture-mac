@@ -16,6 +16,13 @@ enum AITriagePrompt {
         return (String(text.prefix(maxInputChars)), true)
     }
 
+    /// The one concrete title in `instructions`. A model given a content-free
+    /// note has nothing to work from and echoes this example verbatim (the
+    /// 2026-07-25 incident), so `AITriageValidator` rejects exactly this
+    /// string coming back. Interpolated into the instructions so the two
+    /// can't drift apart.
+    nonisolated static let exampleTaskTitle = "Fix the garage door sensor"
+
     nonisolated static let instructions = """
     You process one dictated voice note captured by a note-taking app. Return only the requested fields.
 
@@ -25,7 +32,9 @@ enum AITriagePrompt {
     - "journal": an observation, feeling, reflection, gratitude, or recap of something that happened.
     - null: ambiguous, mixed, or none of the above. When unsure, use null — misfiling is worse than not classifying.
 
-    title — 3 to 10 words. For tasks, a concise imperative ("Fix the garage door sensor"). Strip dictation filler ("um", "okay so", "note to self", "I just wanna say that"). Never invent content that is not in the note.
+    title — 3 to 10 words. For tasks, a concise imperative ("\(exampleTaskTitle)"). Strip dictation filler ("um", "okay so", "note to self", "I just wanna say that"). Never invent content that is not in the note.
+
+    If the note has no real words — only attachment placeholders, symbols, or whitespace — return null classification, no title, no formattedBody, and no handoffs. Never fall back to the examples in these instructions.
 
     formattedBody — the same words with light cleanup only: punctuation, capitalization, paragraph breaks. Never add, remove, summarize, or reorder content. If the note is already clean, return it unchanged.
 

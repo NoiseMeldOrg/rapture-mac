@@ -60,8 +60,11 @@ final class AITriageService: AITriageProviding {
             appState.aiEngineStatus = .off
             return nil
         }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
+        // Content-free, not merely trim-empty: an attachment-only iMessage
+        // decodes to a lone U+FFFC placeholder, which is not whitespace. Plain
+        // trimming let it through, and the model — given nothing — echoed the
+        // prompt's example title back as a task (2026-07-25).
+        guard !CaptureText.isContentFree(text) else { return nil }
 
         if let cooldownUntil, clock() < cooldownUntil {
             return nil

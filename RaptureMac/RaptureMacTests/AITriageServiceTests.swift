@@ -70,6 +70,20 @@ final class AITriageServiceTests: XCTestCase {
         XCTAssertEqual(appState.aiEngineStatus, .off)
     }
 
+    func testAttachmentPlaceholderTextReturnsNilWithZeroEngineContact() async {
+        // The 2026-07-25 incident: an attachment-only iMessage's text is a lone
+        // U+FFFC — not whitespace — and reached the engine, which echoed the
+        // prompt's example title. Content-free input must never leave this gate.
+        enableAI()
+        let apple = FakeAITriageEngine(kind: .apple, behavior: .draft(goodDraft))
+        let service = makeService(apple: apple)
+
+        let result = await service.analyze(text: "\u{FFFC}", capturedAt: now)
+
+        XCTAssertNil(result)
+        XCTAssertTrue(apple.analyzeCalls.isEmpty)
+    }
+
     func testEmptyTextReturnsNilWithZeroEngineContact() async {
         enableAI()
         let apple = FakeAITriageEngine(kind: .apple, behavior: .draft(goodDraft))

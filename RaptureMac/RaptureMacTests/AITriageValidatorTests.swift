@@ -25,6 +25,18 @@ final class AITriageValidatorTests: XCTestCase {
 
     // MARK: - Classification
 
+    func testTitleRejectsPromptExampleEcho() {
+        // A model with nothing to work from echoes the instructions' one
+        // concrete example title (2026-07-25 incident). Exactly that string —
+        // any casing — must be discarded so the deterministic title applies.
+        XCTAssertNil(AITriageValidator.validTitle(AITriagePrompt.exampleTaskTitle))
+        XCTAssertNil(AITriageValidator.validTitle("fix the garage door sensor"))
+        XCTAssertNil(AITriageValidator.validTitle("  Fix   the garage door sensor "))
+        // Nearby-but-different titles still pass.
+        XCTAssertEqual(AITriageValidator.validTitle("Fix the garage door"), "Fix the garage door")
+        XCTAssertEqual(AITriageValidator.validTitle("Fix the garage door sensor today"), "Fix the garage door sensor today")
+    }
+
     func testClassificationAcceptsThreeClasses() {
         XCTAssertEqual(AITriageValidator.validClassification("task"), .task)
         XCTAssertEqual(AITriageValidator.validClassification("Idea"), .idea)
@@ -43,7 +55,9 @@ final class AITriageValidatorTests: XCTestCase {
     // MARK: - Title
 
     func testTitleSanitizedAndCapitalized() {
-        XCTAssertEqual(AITriageValidator.validTitle("fix the garage door sensor"), "Fix the garage door sensor")
+        // Not "fix the garage door sensor": that exact string is the prompt's
+        // example title and is now rejected as an echo (see the test above).
+        XCTAssertEqual(AITriageValidator.validTitle("call the plumber about the leak"), "Call the plumber about the leak")
     }
 
     func testTitleStripsFilesystemHostileCharacters() {

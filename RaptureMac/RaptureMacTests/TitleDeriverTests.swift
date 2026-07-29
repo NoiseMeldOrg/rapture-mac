@@ -27,6 +27,17 @@ final class TitleDeriverTests: XCTestCase {
         XCTAssertEqual(TitleDeriver.voiceNoteTitle(from: "buy   bacon\nand ground beef"), "Buy bacon and ground beef")
     }
 
+    func testAttachmentPlaceholderOnlyFallsBackToNote() {
+        // An attachment-only iMessage decodes to a lone U+FFFC; it must never
+        // become a literal "￼" title/filename (2026-07-25 incident, AI-off leg).
+        XCTAssertEqual(TitleDeriver.voiceNoteTitle(from: "\u{FFFC}"), "Note")
+        XCTAssertEqual(TitleDeriver.voiceNoteTitle(from: "\u{FFFC} \u{FFFC}"), "Note")
+    }
+
+    func testAttachmentPlaceholderStrippedFromMixedText() {
+        XCTAssertEqual(TitleDeriver.voiceNoteTitle(from: "check this \u{FFFC} out"), "Check this out")
+    }
+
     func testFilesystemHostileCharactersSanitized() {
         XCTAssertEqual(TitleDeriver.voiceNoteTitle(from: "either/or: a plan"), "Either or a plan")
     }

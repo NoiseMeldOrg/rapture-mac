@@ -22,7 +22,11 @@ enum MessageFilter {
 
         let decodedText = event.text ?? AttributedBodyDecoder.decode(event.attributedBody) ?? ""
         let trimmed = decodedText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty && event.attachments.isEmpty {
+        // Content-free, not merely trim-empty: a message whose text is a lone
+        // U+FFFC attachment placeholder has no dictated content. With
+        // attachments it still captures (the attachment is the content);
+        // without, it's noise and drops here.
+        if CaptureText.isContentFree(decodedText) && event.attachments.isEmpty {
             return .drop(.tapbackOrEmpty)
         }
 

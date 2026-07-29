@@ -4,6 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.119] - 2026-07-29: A backup watchdog, and AI triage stops making things up
+
+Built from commit `274ef3b`. SHA-256: `016df31482d465c72c247e82c97fa006e3f0af360ca4abe77b6b1a9fe0d9d651`.
+
 A backup-health watchdog for git-backed vaults, and two fixes: AI triage can no longer invent a task out of an attachment-only message, and relay cleanup no longer races iCloud sync. Also new in the repo: [docs/END-TO-END.md](./docs/END-TO-END.md), a verified walkthrough from voice capture to an agent reading the folder. 799 tests.
 
 ### Added

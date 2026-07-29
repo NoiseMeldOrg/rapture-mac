@@ -4,6 +4,18 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+A backup-health watchdog for git-backed vaults, and two fixes: AI triage can no longer invent a task out of an attachment-only message, and relay cleanup no longer races iCloud sync. Also new in the repo: [docs/END-TO-END.md](./docs/END-TO-END.md), a verified walkthrough from voice capture to an agent reading the folder. 799 tests.
+
+### Added
+
+- **Rapture can warn you when the notes folder's backup falls behind.** If the output folder is a git repository backed up by something else (obsidian-git, a scheduled push, hand commits), Settings → General now shows a passive backup-status line whenever the destination is a repo — and an opt-in **"Warn me when the notes folder isn't backed up"** toggle (off by default) adds a loud menu-bar warning when uncommitted or unpushed notes are older than a day. Detection is read-only local git (`status`, `rev-list`, `log`): the app never commits, pushes, or fetches, and adds zero networking — a successful push by whatever tool you use moves the local tracking ref, which is visible without touching the network, so PRIVACY's enumerated outbound paths are unchanged. Nested destinations resolve to the enclosing repository root; a non-repo destination shows nothing and warns about nothing.
+
+### Fixed
+
+- **AI triage could invent a task out of an attachment-only message.** Send yourself a bare video or photo and iMessage represents the text as a lone U+FFFC OBJECT REPLACEMENT CHARACTER — which is a symbol, not whitespace, so it slipped past the AI tier's emptiness guard. Handed a note with no words, the model echoed the only concrete title in its instructions and the capture filed as a task titled "Fix the garage door sensor" — words that appear nowhere in anything you sent (observed live, 2026-07-25, twice). Content-free text is now recognized at every layer: it never reaches an AI engine, the deterministic title falls back to "Note" instead of a literal placeholder character, a placeholder-only message with no actual attachments is dropped as empty, the prompt states the no-real-words case explicitly, and the validator rejects the instructions' example title if a model ever echoes it back (if you genuinely dictate those words, the deterministic title is the same string, so the guard costs nothing). Attachment-only messages still capture — the attachment is the content; it just files under an honest name now.
+
+- **Relay-copy cleanup no longer races iCloud sync.** When the Mac wakes and a pending iPhone capture materializes, filing it worked but deleting the relay copy could fail transiently — the file provider still held the freshly-downloaded file, and the uncoordinated delete lost the race (observed 2026-07-23; the next scan's retry self-healed within seconds, so no notes were affected). Single-file deletes in the relay and of triaged sources now run under a file-coordination deletion intent, so they cooperate with the sync daemon instead of racing it. Directories remain deletable only via the verified-empty primitive.
+
 ## [1.0.112] - 2026-07-17: The app stops talking to itself, for good
 
 Built from commit `1a98890`. SHA-256: `319093cbd4440f11c8f87d00e7380f82fb2919dc94c5f753ed36cfe59b80dfd9`.

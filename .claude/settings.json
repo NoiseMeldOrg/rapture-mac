@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild test *)",
+      "Bash(/usr/bin/log show *)"
+    ]
+  }
+}

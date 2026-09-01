@@ -1,8 +1,8 @@
 # Product Roadmap
 
-> Last Updated: 2026-07-29
-> Version: 1.2.4
-> Status: v1 shipped — latest public release v1.0.119 (2026-07-29): the vault backup-health watchdog (shipped from `_build_plan/vault-backup/`, 1/1) + the content-free-capture triage fix. Next planned work: destination onboarding (`_build_plan/destination-onboarding/`, 0/3 milestones).
+> Last Updated: 2026-09-01
+> Version: 1.2.5
+> Status: v1 shipped — latest public release v1.0.121 (2026-09-01): instant transcript dispatch (enriched YouTube captures handed to the user's local Claude Code CLI). Next planned work: destination onboarding (`_build_plan/destination-onboarding/`, 0/3 milestones).
 
 Faithful 14-phase plan from `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/plan.md`. Effort is shaped as `XS` (1 day), `S` (2–3 days), `M` (1 week), `L` (2 weeks).
 

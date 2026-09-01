@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.121] - 2026-09-01: Your YouTube captures transcribe themselves
+
+Built from commit `f51dfcb`. SHA-256: `8581c272b8faf0866c4f1b83ffc34d10f2750de9fb25dd8d12e5922caf485664`.
+
+One feature: the gap between "a YouTube link landed in the vault" and "its transcript is ready" drops from overnight to minutes, with the app spawning the work instead of a nightly cron finding it. 839 tests.
+
 ### Added
 
 - **An enriched YouTube capture can now go straight to your own transcript pipeline.** The moment link enrichment finishes a YouTube capture, the app can hand it to your own locally installed Claude Code CLI — one headless session at a time, working in your agent repo — to run your transcript pipeline, save the polished transcript as a Markdown file beside the raw captions (`Links/Media/<note> Transcript.md`), and append a `Transcript:` link to the note. Rapture contains none of the pipeline: no YouTube API, no summarizing — it only launches your tool with the URL and the file paths, then watches the note for the link. A per-video ledger in `state.json` guarantees a video is never dispatched twice (across restarts, iCloud replays, and re-captures); a wedged session is killed after 15 minutes; failures appear in Settings → Triage → Link Enrichment with a **Retry failed** button and never touch the capture itself. The nested **"Auto-transcribe YouTube captures"** toggle defaults on because the feature is a strict no-op unless that agent setup exists on your Mac — and the app itself still opens no connection for any of this (PRIVACY's grep check still returns exactly three files; the spawned CLI networks under your own account, like running it in Terminal).

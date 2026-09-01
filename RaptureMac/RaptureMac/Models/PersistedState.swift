@@ -20,6 +20,7 @@ struct PersistedState: Codable, Sendable, Equatable {
     var spoolFiledRecords: [SpoolFiledEntry]
     var handoffRecords: [HandoffEntry]
     var enrichedLinkRecords: [EnrichedLinkEntry]
+    var transcriptDispatchRecords: [TranscriptDispatchEntry]
 
     init(
         chatDbWatermark: Int64 = 0,
@@ -37,7 +38,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         spoolNextSeq: Int = 1,
         spoolFiledRecords: [SpoolFiledEntry] = [],
         handoffRecords: [HandoffEntry] = [],
-        enrichedLinkRecords: [EnrichedLinkEntry] = []
+        enrichedLinkRecords: [EnrichedLinkEntry] = [],
+        transcriptDispatchRecords: [TranscriptDispatchEntry] = []
     ) {
         self.chatDbWatermark = chatDbWatermark
         self.selfHandlesCacheTs = selfHandlesCacheTs
@@ -55,6 +57,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.spoolFiledRecords = spoolFiledRecords
         self.handoffRecords = handoffRecords
         self.enrichedLinkRecords = enrichedLinkRecords
+        self.transcriptDispatchRecords = transcriptDispatchRecords
     }
 
     enum CodingKeys: String, CodingKey {
@@ -74,6 +77,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         case spoolFiledRecords
         case handoffRecords
         case enrichedLinkRecords
+        case transcriptDispatchRecords
     }
 
     init(from decoder: Decoder) throws {
@@ -94,6 +98,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.spoolFiledRecords = try c.decodeIfPresent([SpoolFiledEntry].self, forKey: .spoolFiledRecords) ?? []
         self.handoffRecords = try c.decodeIfPresent([HandoffEntry].self, forKey: .handoffRecords) ?? []
         self.enrichedLinkRecords = try c.decodeIfPresent([EnrichedLinkEntry].self, forKey: .enrichedLinkRecords) ?? []
+        self.transcriptDispatchRecords = try c.decodeIfPresent([TranscriptDispatchEntry].self, forKey: .transcriptDispatchRecords) ?? []
     }
 
     /// Returns todayCount when `todayDate` falls on the same calendar day as `now`; 0 otherwise.

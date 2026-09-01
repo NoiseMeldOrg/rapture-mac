@@ -49,6 +49,12 @@ struct Settings: Codable, Sendable, Equatable {
     /// status line shows whenever the destination is a git repo, regardless. Reads
     /// local git state read-only; adds no networking (see `VaultBackup/`).
     var vaultBackupWarningsEnabled: Bool
+    /// When on, an enriched YouTube capture is additionally handed to the user's
+    /// own locally installed Claude Code CLI to run the external transcript
+    /// pipeline (see `TranscriptDispatch/`). On by default because it is a
+    /// strict no-op unless the pipeline repo exists on this machine AND link
+    /// enrichment is on; the app itself adds no networking.
+    var autoTranscribeYouTube: Bool
 
     init(
         outputFolder: URL? = nil,
@@ -66,7 +72,8 @@ struct Settings: Codable, Sendable, Equatable {
         calendarID: String? = nil,
         aiTriageEnabled: Bool = false,
         linkEnrichmentEnabled: Bool = false,
-        vaultBackupWarningsEnabled: Bool = false
+        vaultBackupWarningsEnabled: Bool = false,
+        autoTranscribeYouTube: Bool = true
     ) {
         self.outputFolder = outputFolder
         self.allowedHandles = allowedHandles
@@ -84,12 +91,13 @@ struct Settings: Codable, Sendable, Equatable {
         self.aiTriageEnabled = aiTriageEnabled
         self.linkEnrichmentEnabled = linkEnrichmentEnabled
         self.vaultBackupWarningsEnabled = vaultBackupWarningsEnabled
+        self.autoTranscribeYouTube = autoTranscribeYouTube
     }
 
     enum CodingKeys: String, CodingKey {
         case outputFolder, allowedHandles, allowSMS, launchAtLogin, paused, replyMode, seedScaffold, relayEnabled, triageMode
         case remindersHandoffEnabled, calendarHandoffEnabled, remindersListID, calendarID, aiTriageEnabled
-        case linkEnrichmentEnabled, vaultBackupWarningsEnabled
+        case linkEnrichmentEnabled, vaultBackupWarningsEnabled, autoTranscribeYouTube
     }
 
     init(from decoder: Decoder) throws {
@@ -123,5 +131,8 @@ struct Settings: Codable, Sendable, Equatable {
         linkEnrichmentEnabled = try c.decodeIfPresent(Bool.self, forKey: .linkEnrichmentEnabled) ?? false
         // Absent in pre-existing settings.json → backup warnings off (explicit opt-in).
         vaultBackupWarningsEnabled = try c.decodeIfPresent(Bool.self, forKey: .vaultBackupWarningsEnabled) ?? false
+        // Absent in pre-existing settings.json → default on (opt-out, like relayEnabled:
+        // a no-op unless the agentic repo exists and enrichment is on).
+        autoTranscribeYouTube = try c.decodeIfPresent(Bool.self, forKey: .autoTranscribeYouTube) ?? true
     }
 }

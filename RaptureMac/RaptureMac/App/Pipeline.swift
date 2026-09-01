@@ -34,6 +34,16 @@ final class Pipeline {
         client: appState.eventKit,
         ledger: handoffLedger
     )
+    // The post-enrichment transcript dispatcher (see TranscriptDispatch/):
+    // hands enriched YouTube captures to the user's own local Claude Code CLI.
+    // Construction is inert (no subprocess until an eligible capture enriches
+    // with the toggle on). Exposed for the Settings UI (Retry button) via
+    // `.environment(...)`.
+    private(set) lazy var transcriptDispatch = TranscriptDispatchService(
+        appState: appState,
+        ledger: TranscriptDispatchLedger(stateStore: appState.state),
+        launcher: ClaudeProcessSessionLauncher(loginPath: appState.loginPath)
+    )
     // One shared enrichment service across all four filing seams, so the dedup
     // ledger, in-flight coalescing, and cooldown see every link capture.
     // Construction is inert (no network until a link files with the toggle on).
@@ -41,7 +51,8 @@ final class Pipeline {
         appState: appState,
         fetcher: URLSessionLinkFetcher(),
         ledger: EnrichedLinkLedger(stateStore: appState.state),
-        triageLedger: triageLedger
+        triageLedger: triageLedger,
+        transcriptDispatch: transcriptDispatch
     )
     private lazy var replier = Replier(
         sender: sender,
@@ -92,6 +103,9 @@ final class Pipeline {
         startDestinationMonitor()
         // Backup-health watchdog; read-only local git state, no FDA, no network.
         startBackupHealthMonitor()
+        // Transcript dispatch drain loop; no FDA, no networking of its own
+        // (spawns the user's local claude CLI at most).
+        transcriptDispatch.start()
         await attemptStart()
     }
 
@@ -106,6 +120,7 @@ final class Pipeline {
         destinationMonitor?.stop()
         backupHealthMonitor?.stop()
         linkEnrichment.stop()
+        transcriptDispatch.stop()
         resolver?.stop()
         selfChatResolver?.stop()
         fdaPollTask = nil

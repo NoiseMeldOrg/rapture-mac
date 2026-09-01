@@ -49,6 +49,9 @@ struct RaptureMacApp: App {
                 // key save, enable flow) — the same instance the pipeline's
                 // composers consult.
                 .environment(pipeline.aiTriage)
+                // The Link Enrichment section's Retry button drives the same
+                // dispatcher the enrichment seam feeds.
+                .environment(pipeline.transcriptDispatch)
         }
         .windowResizability(.contentSize)
     }

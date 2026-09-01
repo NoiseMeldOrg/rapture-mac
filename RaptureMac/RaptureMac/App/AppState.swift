@@ -69,6 +69,10 @@ final class AppState {
     /// Last link-enrichment give-up. Same rule again: Settings only, never the
     /// menu bar — the link note filed fine and is complete without enrichment.
     var enrichmentLastError: String?
+    /// Last transcript-dispatch failure (see `TranscriptDispatch/`). Same rule
+    /// again: Settings only, never the menu bar — the note filed and enriched
+    /// fine; only the external pipeline handoff misfired.
+    var transcriptDispatchLastError: String?
 
     let settings: SettingsStore
     let state: StateStore
@@ -88,6 +92,11 @@ final class AppState {
     /// Serializes capture writes against an output-folder relocation. See `CaptureGate`.
     let captureGate = CaptureGate()
 
+    /// The login-shell PATH captured once at launch (see `LoginShellPath`).
+    /// Shared by `IntegrationRunner` and `ClaudeProcessSessionLauncher` so
+    /// spawned tools resolve from `/opt/homebrew/bin` etc.
+    let loginPath: String
+
     /// Volume-absence classifier used before relocations. Injectable for tests.
     private let destinationGuard: DestinationGuard
 
@@ -106,6 +115,7 @@ final class AppState {
         self.eventKit = eventKit ?? SystemEventKitClient()
         self.credentials = credentials ?? KeychainStore()
         let loginPath = LoginShellPath.capture()
+        self.loginPath = loginPath
         let runner = IntegrationRunner(loginPath: loginPath)
         self.integrations = IntegrationsState(
             runner: runner,
@@ -175,6 +185,7 @@ final class AppState {
                 if let report, !report.renamedNotes.isEmpty {
                     TriageLedger(stateStore: state).remap(report.renamedNotes)
                     EnrichedLinkLedger(stateStore: state).remap(report.renamedNotes)
+                    TranscriptDispatchLedger(stateStore: state).remap(report.renamedNotes)
                 }
                 OutputFolderSidecar.write(new)
                 // Opt-in; no-op unless the new folder ended up empty + CLAUDE.md-less.

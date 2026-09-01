@@ -45,6 +45,10 @@ final class LinkEnrichmentService: LinkEnriching {
     private let ledger: EnrichedLinkLedger
     private let triageLedger: TriageLedger
     private let destinationGuard: DestinationGuard
+    /// Optional post-enrichment seam (nil in tests that don't care): told the
+    /// final note identity the moment a link finishes enriching. Enqueue-only —
+    /// it is called inside the capture gate.
+    private let transcriptDispatch: (any TranscriptDispatching)?
     private let clock: @Sendable () -> Date
     private let retrySpacing: [TimeInterval]
     private let sleeper: @Sendable (TimeInterval) async -> Void
@@ -60,6 +64,7 @@ final class LinkEnrichmentService: LinkEnriching {
         ledger: EnrichedLinkLedger,
         triageLedger: TriageLedger,
         destinationGuard: DestinationGuard = DestinationGuard(),
+        transcriptDispatch: (any TranscriptDispatching)? = nil,
         clock: @escaping @Sendable () -> Date = { Date() },
         retrySpacing: [TimeInterval] = [30, 120],
         sleeper: @escaping @Sendable (TimeInterval) async -> Void = { try? await Task.sleep(for: .seconds($0)) }
@@ -69,6 +74,7 @@ final class LinkEnrichmentService: LinkEnriching {
         self.ledger = ledger
         self.triageLedger = triageLedger
         self.destinationGuard = destinationGuard
+        self.transcriptDispatch = transcriptDispatch
         self.clock = clock
         self.retrySpacing = retrySpacing
         self.sleeper = sleeper
@@ -274,10 +280,17 @@ final class LinkEnrichmentService: LinkEnriching {
                 let artifactURL = folder.appendingPathComponent(entry.artifactRelativePath)
                 guard FileManager.default.fileExists(atPath: artifactURL.path) else { return .artifactMissing }
                 let title = entry.title.isEmpty ? nil : entry.title
+                var firstFinalPath: String?
                 for notePath in existingNotes {
-                    _ = await applyToNote(
+                    let finalPath = await applyToNote(
                         relativePath: notePath, in: folder, title: title,
                         artifactFilename: artifactURL.lastPathComponent)
+                    if firstFinalPath == nil { firstFinalPath = finalPath }
+                }
+                if let firstFinalPath {
+                    transcriptDispatch?.captureEnriched(
+                        fingerprint: job.fingerprint, url: job.echo.rawMedia,
+                        noteRelativePath: firstFinalPath)
                 }
                 return .done
 
@@ -333,6 +346,11 @@ final class LinkEnrichmentService: LinkEnriching {
                     artifactRelativePath: CaptureContract.relativePath(of: artifactURL, in: folder),
                     title: title ?? ""
                 )
+                if let first = appendTargets.first {
+                    transcriptDispatch?.captureEnriched(
+                        fingerprint: job.fingerprint, url: job.echo.rawMedia,
+                        noteRelativePath: first.relativePath)
+                }
                 return .done
             }
         }
@@ -346,13 +364,14 @@ final class LinkEnrichmentService: LinkEnriching {
     }
 
     /// Dedup path: rename (when a stored title exists) + append, one note.
-    private func applyToNote(relativePath: String, in folder: URL, title: String?, artifactFilename: String) async -> Bool {
+    /// Returns the note's final (post-rename) relative path.
+    private func applyToNote(relativePath: String, in folder: URL, title: String?, artifactFilename: String) async -> String {
         let renamed = await applyRename(relativePath: relativePath, in: folder, title: title)
         await appendMediaLink(
             noteRelativePath: renamed.relativePath, in: folder,
             label: title ?? (artifactFilename as NSString).deletingPathExtension,
             artifactFilename: artifactFilename)
-        return true
+        return renamed.relativePath
     }
 
     /// One-time pair-aware collision-safe rename to `<same date> <real title>`.

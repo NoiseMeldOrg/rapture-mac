@@ -48,6 +48,8 @@ The app can make exactly **three** kinds of outbound connection, and none of the
 
 Turn all three off (auto-update off; AI triage and link enrichment are already off by default) and the app makes no network connections at all.
 
+One opt-out feature can *launch another program* without opening a connection itself: auto-transcribe (Settings → Triage → Link Enrichment) hands an enriched YouTube capture to your own locally installed Claude Code CLI, exactly as if you had run it in Terminal yourself. Any network use there is that tool's, under your own account and configuration, and it happens only if you have that agent setup installed — otherwise the feature is a strict no-op, which is why it can default on. NoiseMeld receives nothing either way, and the grep check below is unaffected.
+
 You can confirm the no-collection posture:
 
 1. **Grep the source.** Outside the Sparkle updater, the only networking in the app is the two opt-in features — `grep -RnE "URLSession\.|URLRequest|NWConnection|NWListener" RaptureMac/RaptureMac/` returns matches **only** in `TriageAI/AnthropicEngine.swift` and `TriageAI/AnthropicWire.swift` (the BYO-key Anthropic call) and `Enrichment/URLSessionLinkFetcher.swift` (the link-enrichment fetches). Nothing else in the app touches the network.

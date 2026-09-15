@@ -101,4 +101,55 @@ final class TriageClassifierTests: XCTestCase {
         let c = TriageClassifier.classify("  \n  ")
         XCTAssertEqual(c.type, .voiceNote)
     }
+
+    // MARK: - Relay heading (the iPhone puts the title above the URL)
+
+    func testRelayHeadingIsNotCommentary() {
+        // The exact shape RaptureMacDestination sends for a bare link share:
+        // a nine-word page title, a blank line, the URL. Filed as an Idea
+        // until 2026-09-15.
+        let c = TriageClassifier.classify(
+            "# The Most Valuable YouTube Training You'll Ever Watch\n\nhttps://youtube.com/watch?v=Ar2DXQorEm4&is=9jTPZgSpHriW1huG")
+        XCTAssertEqual(c.type, .youtubeLink)
+        XCTAssertEqual(c.rawMedia, "https://youtube.com/watch?v=Ar2DXQorEm4&is=9jTPZgSpHriW1huG")
+    }
+
+    func testRelayHeadingWithArticleURL() {
+        let c = TriageClassifier.classify(
+            "# I Got Laid Off... Now I Make $11,000 a Month Doing This\n\nhttps://example.com/laid-off")
+        XCTAssertEqual(c.type, .articleLink)
+        XCTAssertEqual(c.rawMedia, "https://example.com/laid-off")
+    }
+
+    func testRelayHeadingPlusLongCommentaryIsStillVoiceNote() {
+        // The heading is free; commentary under it still counts.
+        let c = TriageClassifier.classify(
+            "# Title\n\nI want to watch this one tonight because everyone keeps recommending it https://youtu.be/x1")
+        XCTAssertEqual(c.type, .voiceNote)
+        XCTAssertNil(c.rawMedia)
+    }
+
+    func testRelayHeadingOverVoiceNoteStaysVoiceNote() {
+        let c = TriageClassifier.classify("# Rent\n\nrent is due on the 5th")
+        XCTAssertEqual(c.type, .voiceNote)
+        XCTAssertNil(c.rawMedia)
+    }
+
+    func testHashtagOnFirstLineIsNotAHeading() {
+        // `#tag` (no space) is prose, and one word of it keeps the link a link.
+        let c = TriageClassifier.classify("#music https://youtu.be/x2")
+        XCTAssertEqual(c.type, .youtubeLink)
+    }
+
+    func testHeadingOnlyIsVoiceNote() {
+        XCTAssertEqual(TriageClassifier.classify("# Just a title").type, .voiceNote)
+        XCTAssertEqual(TriageClassifier.stripLeadingHeading("# Just a title"), "")
+    }
+
+    func testStripLeadingHeadingLeavesLaterHeadingsAlone() {
+        XCTAssertEqual(
+            TriageClassifier.stripLeadingHeading("# One\n\nbody\n# Two"),
+            "\n\nbody\n# Two")
+        XCTAssertEqual(TriageClassifier.stripLeadingHeading("body\n# Two"), "body\n# Two")
+    }
 }

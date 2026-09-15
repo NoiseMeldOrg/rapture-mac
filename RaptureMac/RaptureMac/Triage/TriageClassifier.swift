@@ -17,7 +17,7 @@ enum TriageClassifier {
     nonisolated static let maxCommentaryWords = 7
 
     nonisolated static func classify(_ text: String) -> Classification {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = stripLeadingHeading(text).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
               let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
             return Classification(type: .voiceNote, rawMedia: nil)
@@ -52,6 +52,22 @@ enum TriageClassifier {
 
         let type: CaptureType = isYouTubeHost(first.url) ? .youtubeLink : .articleLink
         return Classification(type: type, rawMedia: first.url.absoluteString)
+    }
+
+    /// Drops a leading Markdown H1 (`# <title>`) before the dominance count.
+    /// The iPhone relay body opens with one — the page or note title the iOS
+    /// app derived — and a title is the link's *name*, not commentary about
+    /// it. Without this, every link share whose page title ran past six
+    /// words counted as a voice note and AI triage filed it under Ideas or
+    /// Tasks, where link enrichment and the transcript pipeline never look:
+    /// 32 of them in the eight days after the share card began sending the
+    /// real title (found 2026-09-15). Only the first line, only `# ` — a
+    /// `#hashtag` or a `#` inside prose is left alone.
+    nonisolated static func stripLeadingHeading(_ text: String) -> String {
+        let leadingTrimmed = text.drop(while: { $0 == "\n" || $0 == "\r" || $0 == " " || $0 == "\t" })
+        guard leadingTrimmed.hasPrefix("# ") else { return text }
+        guard let newline = leadingTrimmed.firstIndex(where: { $0.isNewline }) else { return "" }
+        return String(leadingTrimmed[newline...])
     }
 
     nonisolated static func isYouTubeHost(_ url: URL) -> Bool {

@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.123] - 2026-09-15: Long-titled link shares are links again
+
+Built from commit `50492b7`. SHA-256: `f56a8eded13fbcc35a4d5eaeaf8930cfa05236b434a0193250184c58339719bb`.
+
+One fix, found by asking why a week of YouTube shares from the iPhone never got their transcripts: they had all been filed as ideas and tasks.
+
 ### Fixed
 
 - **A link share with a long title is a link again.** The iPhone app sends every capture as a Markdown title line above the body, and the classifier counted that title as commentary: a video whose page title ran past six words failed the "URL plus at most seven words" test, became a voice note, and AI triage filed it under Ideas or Tasks — where link enrichment and the transcript pipeline never look. Since the iOS share card began sending the real page title (2026-09-07) that was every long-titled YouTube share: 32 in eight days on the dev vault, zero exceptions. The classifier now drops a leading `# ` heading line before counting. Only the first line, only `# `; a `#hashtag` or a `#` inside prose is untouched.

@@ -8,6 +8,8 @@ struct SettingsGeneralView: View {
 
     @State private var launchAtLoginError: String?
     @State private var folderDropTargeted = false
+    /// Vaults and sync folders on this Mac, re-read while Settings is open.
+    @State private var detected: [DetectedDestination] = []
 
     var body: some View {
         Form {
@@ -65,7 +67,7 @@ struct SettingsGeneralView: View {
                         .truncationMode(.middle)
                 }
                 Spacer()
-                Button("Change…") { pickFolder() }
+                changeMenu
             }
             .padding(8)
             .background(
@@ -78,7 +80,7 @@ struct SettingsGeneralView: View {
             destinationOfflineStatusView
             backupHealthStatusView
 
-            Text("Captured notes land here. Drop a folder above to change it. Existing notes move to the new folder automatically.")
+            Text("Captured notes land here. Pick a new place from Change…, or drop a folder above. Rapture asks before it moves any notes.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -162,6 +164,52 @@ struct SettingsGeneralView: View {
         appState.settings.settings.outputFolder?.path(percentEncoded: false) ?? "—"
     }
 
+    /// Detected vaults first, then sync folders, then the default, then any
+    /// folder. A vault on a disconnected drive is listed but can't be picked.
+    @ViewBuilder
+    private var changeMenu: some View {
+        Menu("Change…") {
+            let vaults = detected.filter(\.isVault)
+            let syncRoots = detected.filter { !$0.isVault }
+            if !vaults.isEmpty {
+                Section("Obsidian Vaults") {
+                    ForEach(vaults) { vault in
+                        Button(vault.reachable ? vault.label : "\(vault.label) (drive not connected)") {
+                            choose(vault.path)
+                        }
+                        .disabled(!vault.reachable)
+                    }
+                }
+            }
+            if !syncRoots.isEmpty {
+                Section("Synced Folders") {
+                    ForEach(syncRoots) { root in
+                        Button(root.label) { choose(root.path) }
+                    }
+                }
+            }
+            Section {
+                Button("Default: \(AppSupportDirectory.defaultOutputFolder.lastPathComponent)") {
+                    choose(AppSupportDirectory.defaultOutputFolder)
+                }
+                Button("Choose Another Folder…") { pickFolder() }
+            }
+        }
+        .fixedSize()
+        .task {
+            // Re-read while Settings is open: a vault added or a drive
+            // plugged in shows up without reopening the window.
+            while !Task.isCancelled {
+                detected = await Task.detached(priority: .utility) { DestinationDetector.detect() }.value
+                try? await Task.sleep(for: .seconds(3))
+            }
+        }
+    }
+
+    private func choose(_ url: URL) {
+        Task { await DestinationChangeFlow.change(to: url, appState: appState) }
+    }
+
     private func pickFolder() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
@@ -174,7 +222,7 @@ struct SettingsGeneralView: View {
         }
         NSApp.activate(ignoringOtherApps: true)
         if panel.runModal() == .OK, let url = panel.url {
-            Task { await appState.setOutputFolder(url) }
+            choose(url)
         }
     }
 
@@ -185,7 +233,7 @@ struct SettingsGeneralView: View {
             var isDir: ObjCBool = false
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return }
             Task { @MainActor in
-                await appState.setOutputFolder(url)
+                await DestinationChangeFlow.change(to: url, appState: appState)
             }
         }
         return true

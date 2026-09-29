@@ -176,6 +176,20 @@ final class AppState {
         persistErrors()
     }
 
+    /// "Leave them behind": the notes stay in the old folder, so every
+    /// path-keyed record about them would now point at nothing in the new
+    /// folder (the ledgers store destination-relative paths). Forget them
+    /// cleanly. Relay/spool names, handoff fingerprints, and transcript
+    /// dispatch records are not path-keyed and are kept, so nothing is
+    /// re-filed, re-created, or re-dispatched.
+    func forgetFiledNotes() {
+        state.update {
+            $0.triagedRecords = []
+            $0.enrichedLinkRecords = []
+            $0.meetingRecords = []
+        }
+    }
+
     /// The Activity window's Undo: deletes a reminder or calendar event the
     /// handoff made and records that it was removed. Returns an error message
     /// for the window when the delete fails.
@@ -206,7 +220,21 @@ final class AppState {
     /// to the new location (Dropbox-style), then switches the active folder and updates the
     /// downstream-consumer sidecar. Silent on success; on failure the source is left intact
     /// and the active folder is **not** changed.
-    func setOutputFolder(_ newRaw: URL) async {
+    /// The user's answer before notes move (see `DestinationPrompts.consent`).
+    enum RelocationChoice: Equatable, Sendable {
+        case move
+        /// Switch folders; the notes stay in the old folder and the app
+        /// forgets them (their ledger records are pruned).
+        case leaveBehind
+        case cancel
+    }
+
+    typealias RelocationConsent = @MainActor (_ plan: OutputFolderMigrator.Plan, _ from: URL, _ to: URL) async -> RelocationChoice
+
+    /// - Parameter consent: asked before anything moves, with a dry-run plan,
+    ///   whenever the old folder holds files. nil (tests, programmatic calls)
+    ///   means move, the pre-consent behavior.
+    func setOutputFolder(_ newRaw: URL, consent: RelocationConsent? = nil) async {
         let new = OutputFolderMigrator.normalize(newRaw)
         let old = settings.settings.outputFolder.map(OutputFolderMigrator.normalize)
 
@@ -227,6 +255,20 @@ final class AppState {
         // but the stranded notes deserve an honest notice below.
         let oldVolumeAbsent = old.map { destinationGuard.check($0) == .volumeAbsent } ?? false
 
+        // Consent before anything moves. Placed before the gate and before any
+        // status changes, so Cancel is a clean, silent no-op.
+        var choice = RelocationChoice.move
+        var plan = OutputFolderMigrator.Plan()
+        if let consent, let old, !oldVolumeAbsent {
+            plan = await Task.detached(priority: .userInitiated) {
+                OutputFolderMigrator().plan(from: old, to: new)
+            }.value
+            if !plan.isEmpty {
+                choice = await consent(plan, old, new)
+            }
+        }
+        guard choice != .cancel else { return }
+
         isRelocating = true
         relocationStatus = .inProgress
 
@@ -237,7 +279,7 @@ final class AppState {
                 // capture writes remain blocked until the move completes.
                 let report = try await Task.detached(priority: .userInitiated) { () -> OutputFolderMigrator.MigrationReport? in
                     let migrator = OutputFolderMigrator()
-                    if let old {
+                    if let old, choice == .move {
                         return try migrator.migrate(from: old, to: new)
                     } else {
                         try FileManager.default.createDirectory(at: new, withIntermediateDirectories: true)
@@ -252,6 +294,12 @@ final class AppState {
                     EnrichedLinkLedger(stateStore: state).remap(report.renamedNotes)
                     TranscriptDispatchLedger(stateStore: state).remap(report.renamedNotes)
                     MeetingLedger(stateStore: state).remap(report.renamedNotes)
+                }
+                if choice == .leaveBehind {
+                    forgetFiledNotes()
+                    activity.record(.info, source: .app, "Notes folder changed to \(new.lastPathComponent). \(plan.noteCount) earlier \(plan.noteCount == 1 ? "note stays" : "notes stay") in \(old?.lastPathComponent ?? "the old folder").", path: new)
+                } else if plan.noteCount > 0 {
+                    activity.record(.info, source: .app, "Moved \(plan.noteCount) \(plan.noteCount == 1 ? "note" : "notes") to \(new.lastPathComponent).", path: new)
                 }
                 OutputFolderSidecar.write(new)
                 // Opt-in; no-op unless the new folder ended up empty + CLAUDE.md-less.

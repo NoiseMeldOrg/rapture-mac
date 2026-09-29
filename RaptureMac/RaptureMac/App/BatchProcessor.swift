@@ -409,7 +409,7 @@ final class BatchProcessor {
                             ai: result.ai
                         )
                     }
-                    queueReply { [replier] in
+                    queueReply { [replier, handoffOutcome] in
                         await replier.replyForWrite(
                             captured: captured, result: result, settings: settings, handoff: handoffOutcome
                         )

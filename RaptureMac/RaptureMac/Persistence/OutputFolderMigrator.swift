@@ -116,6 +116,45 @@ nonisolated struct OutputFolderMigrator {
         return report
     }
 
+    // MARK: - Dry run (consent)
+
+    /// What a relocation would do, computed without touching anything, so the
+    /// user can say yes before their notes move.
+    struct Plan: Sendable, Equatable {
+        /// Note files (`.md`/`.txt`) in the old folder, any depth.
+        var noteCount: Int = 0
+        /// Every file that would move (notes plus attachments and artifacts).
+        var fileCount: Int = 0
+        /// Files whose path already exists in the new folder: they are kept
+        /// side by side under a `-<n>` name, never overwritten.
+        var collisionCount: Int = 0
+
+        var isEmpty: Bool { fileCount == 0 }
+    }
+
+    /// Walks the old folder (hidden files included, as `migrate` moves them
+    /// too) and checks each file's relative path against the new folder.
+    func plan(from oldRaw: URL, to newRaw: URL) -> Plan {
+        let old = Self.normalize(oldRaw)
+        let new = Self.normalize(newRaw)
+        var plan = Plan()
+        guard old.path != new.path,
+              let enumerator = fileManager.enumerator(at: old, includingPropertiesForKeys: [.isRegularFileKey])
+        else { return plan }
+        for case let url as URL in enumerator {
+            guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { continue }
+            plan.fileCount += 1
+            if Self.isNoteExtension(url.pathExtension), !Self.isPreserveOnCollision(url) {
+                plan.noteCount += 1
+            }
+            let relative = CaptureContract.relativePath(of: url, in: old)
+            if fileManager.fileExists(atPath: new.appendingPathComponent(relative).path) {
+                plan.collisionCount += 1
+            }
+        }
+        return plan
+    }
+
     // MARK: - Per-item move / merge
 
     /// One directory level: pair each note with its sibling attachment folder

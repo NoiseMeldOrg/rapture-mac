@@ -86,27 +86,45 @@ private struct MenuBarLabel: View {
     // light/dark menu-bar inversion automatically.
     @ViewBuilder
     private var iconView: some View {
-        if let systemSymbol = systemIconName {
-            Image(systemName: systemSymbol)
-        } else {
-            Image("MenuBarIcon")
+        Group {
+            if let systemSymbol = systemIconName {
+                Image(systemName: systemSymbol)
+            } else {
+                Image("MenuBarIcon")
+            }
+        }
+        .accessibilityLabel(accessibilityStatus)
+    }
+
+    private var status: MenuBarStatus.Line {
+        MenuBarStatus.line(
+            permission: appState.permissionState,
+            automation: appState.automationPermissionState,
+            paused: appState.settings.settings.paused,
+            destinationOffline: appState.destinationOffline,
+            queuedCount: appState.queuedCaptureCount,
+            lastError: appState.lastError,
+            repliesOff: appState.settings.settings.replyMode == .off
+        )
+    }
+
+    /// Same priority as the menu's status line, so the icon never says "fine"
+    /// while the menu says something is wrong (an error used to show only
+    /// inside the menu).
+    private var systemIconName: String? {
+        // Before the first launch check finishes the state is .unknown; that
+        // is not a problem to flag yet.
+        if appState.permissionState == .unknown { return nil }
+        switch status.kind {
+        case .capturing: return nil
+        case .paused: return "pause.fill"
+        case .fullDiskAccessNeeded, .automationNeeded, .destinationOffline, .error:
+            return "exclamationmark.triangle.fill"
         }
     }
 
-    private var systemIconName: String? {
-        if appState.permissionState != .ok {
-            return "exclamationmark.triangle.fill"
-        }
-        if appState.automationPermissionState == .required {
-            return "exclamationmark.triangle.fill"
-        }
-        if appState.settings.settings.paused {
-            return "pause.fill"
-        }
-        if appState.destinationOffline {
-            return "exclamationmark.triangle.fill"
-        }
-        return nil
+    private var accessibilityStatus: String {
+        "Rapture: " + status.primary.replacingOccurrences(of: "⚠ ", with: "").replacingOccurrences(of: "✓ ", with: "").replacingOccurrences(of: "⏸ ", with: "")
     }
 
     private func presentPermissionsIfNeeded(_ state: AppState.PermissionState) {

@@ -37,7 +37,20 @@ final class BatchProcessor {
     /// re-delivers a single logical iMessage to chat.db once per paired device — each
     /// delivery has its own ROWID but the same `message.guid`. Without dedup, one
     /// Siri-dictated note becomes 3–4 captured files.
-    nonisolated static let recentGuidCapacity = 100
+    nonisolated static let recentGuidCapacity = 500
+
+    /// A failed capture is retried this often while it stays unresolved.
+    nonisolated static let failureRetryBackoff: TimeInterval = 60
+
+    /// After this long failing, a capture's text is rescued to
+    /// `Failed captures/` and its row released, so one bad row can't pin the
+    /// watermark (and re-read every later message) forever.
+    nonisolated static let giveUpAfter: TimeInterval = 24 * 60 * 60
+
+    /// How long batches wait for the user's own iMessage addresses to become
+    /// known, and how often the lookup is re-run meanwhile.
+    nonisolated static let selfHandleGrace: TimeInterval = 10 * 60
+    nonisolated static let selfHandleRefreshInterval: TimeInterval = 10
 
     /// Pure helper for the catch-up decision. Unit-testable in isolation.
     nonisolated static func isCatchup(batchSize: Int, isFirstNonemptyBatchSeen: Bool) -> Bool {
@@ -124,6 +137,20 @@ final class BatchProcessor {
     private var wasPausedLastBatch = false
     private var recentGuids: [String] = []
 
+    /// Captures whose write failed, keyed by `failureKey`. Their rows stay
+    /// unresolved (watermark held) and are retried after `failureRetryBackoff`.
+    private struct PendingFailure {
+        var firstAt: Date
+        var lastAt: Date
+        var attempts: Int
+    }
+    private var pendingFailures: [String: PendingFailure] = [:]
+    private let attachmentRetrier: AttachmentRetrier?
+    private let clock: @Sendable () -> Date
+    private let refreshSelfHandles: (@MainActor () async -> Set<String>)?
+    private var selfHandlesEmptySince: Date?
+    private var lastSelfHandleRefresh: Date?
+
     init(
         appState: AppState,
         writer: FileWriting,
@@ -136,7 +163,10 @@ final class BatchProcessor {
         enrichment: (any LinkEnriching)? = nil,
         selfHandlesProvider: @escaping @MainActor () -> Set<String>,
         selfChatGuidProvider: @escaping @MainActor () -> String?,
-        advanceWatermark: @escaping @MainActor (Int64) -> Void
+        advanceWatermark: @escaping @MainActor (Int64) -> Void,
+        attachmentRetrier: AttachmentRetrier? = nil,
+        refreshSelfHandles: (@MainActor () async -> Set<String>)? = nil,
+        clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.appState = appState
         self.writer = writer
@@ -150,6 +180,9 @@ final class BatchProcessor {
         self.selfHandlesProvider = selfHandlesProvider
         self.selfChatGuidProvider = selfChatGuidProvider
         self.advanceWatermark = advanceWatermark
+        self.attachmentRetrier = attachmentRetrier
+        self.clock = clock
+        self.refreshSelfHandles = refreshSelfHandles
     }
 
     @discardableResult
@@ -188,25 +221,70 @@ final class BatchProcessor {
         let isCatchup = decision.isCatchup
 
         var outcome = BatchOutcome(successCount: 0, failureCount: 0, droppedCount: 0, isCatchup: isCatchup)
-        let handles = selfHandlesProvider()
+        var handles = selfHandlesProvider()
+
+        // Own addresses not known yet (the lookup failed, or this Mac has no
+        // sent-message rows yet, as on a brand-new setup whose very first
+        // "text me" is arriving now): every self-note would drop as "not
+        // allowlisted" and the watermark would move past it for good. Hold
+        // the batch and re-run the lookup (throttled) until the sent copy of
+        // the note syncs in. Bounded: a Mac that never sends iMessages has no
+        // self rows at all, and after the grace the allowlist alone decides.
+        if handles.isEmpty, let refreshSelfHandles {
+            let now = clock()
+            let since = selfHandlesEmptySince ?? now
+            selfHandlesEmptySince = since
+            if now.timeIntervalSince(since) < Self.selfHandleGrace {
+                if lastSelfHandleRefresh.map({ now.timeIntervalSince($0) >= Self.selfHandleRefreshInterval }) ?? true {
+                    lastSelfHandleRefresh = now
+                    handles = await refreshSelfHandles()
+                }
+                if handles.isEmpty {
+                    Self.log.info("self handles unknown yet: deferring batch of \(batch.count)")
+                    return BatchOutcome(successCount: 0, failureCount: 0, droppedCount: 0, isCatchup: false)
+                }
+            }
+        }
+
+        // The watermark may only move past rows that are resolved. Once a row
+        // fails (or waits out its retry backoff), no later row may advance the
+        // watermark past it in this batch; later rows still file, and their
+        // guids keep them from filing twice when the rows replay.
+        var holdBelow: Int64?
+        func advance(_ rowid: Int64) {
+            if let holdBelow, rowid >= holdBelow { return }
+            advanceWatermark(rowid)
+        }
+        func hold(_ rowid: Int64) {
+            holdBelow = min(holdBelow ?? rowid, rowid)
+        }
+        func resolve(_ event: MessageEvent) {
+            recentGuids = Self.dedupCheck(guid: event.guid, recent: recentGuids, capacity: Self.recentGuidCapacity).updatedRecent
+            pendingFailures[Self.failureKey(event)] = nil
+        }
 
         for event in batch {
             // GUID-based dedup: iCloud sync delivers each logical message to chat.db
             // once per paired device, each with a different ROWID but the same
             // `message.guid`. Without this check, one Siri-dictated note becomes
-            // 3–4 captured files.
-            let dedup = Self.dedupCheck(
-                guid: event.guid,
-                recent: recentGuids,
-                capacity: Self.recentGuidCapacity
-            )
-            if dedup.isDuplicate {
+            // 3–4 captured files. A guid is remembered only once its row is
+            // resolved (filed, queued, or dropped) — never on a failed write, or
+            // the replay of that row would be mistaken for a duplicate and the
+            // note lost (the pre-1.0.126 bug).
+            if Self.dedupCheck(guid: event.guid, recent: recentGuids, capacity: Self.recentGuidCapacity).isDuplicate {
                 Self.log.debug("dedup-suppressed rowid=\(event.rowid) guid=\(event.guid, privacy: .public)")
-                advanceWatermark(event.rowid)
+                advance(event.rowid)
                 outcome.droppedCount += 1
                 continue
             }
-            recentGuids = dedup.updatedRecent
+
+            // A row that failed recently waits out its backoff, still unresolved.
+            let key = Self.failureKey(event)
+            if let pending = pendingFailures[key],
+               clock().timeIntervalSince(pending.lastAt) < Self.failureRetryBackoff {
+                hold(event.rowid)
+                continue
+            }
 
             let decision = MessageFilter.decide(
                 event: event,
@@ -218,14 +296,16 @@ final class BatchProcessor {
             switch decision {
             case .drop(let reason):
                 Self.log.debug("dropped rowid=\(event.rowid) reason=\(reason.rawValue, privacy: .public)")
-                advanceWatermark(event.rowid)
+                resolve(event)
+                advance(event.rowid)
                 outcome.droppedCount += 1
 
             case .capture(let captured):
                 if let chatGuid = captured.event.chatGuid,
                    echoGuard.consume(chatGuid: chatGuid, text: captured.decodedText) {
                     Self.log.debug("echo-suppressed rowid=\(event.rowid)")
-                    advanceWatermark(event.rowid)
+                    resolve(event)
+                    advance(event.rowid)
                     outcome.droppedCount += 1
                     continue
                 }
@@ -241,14 +321,20 @@ final class BatchProcessor {
                     attachmentCount: captured.event.attachments.count
                 ) {
                     Self.log.debug("content-dedup suppressed rowid=\(event.rowid)")
-                    advanceWatermark(event.rowid)
+                    resolve(event)
+                    advance(event.rowid)
                     outcome.droppedCount += 1
                     continue
                 }
 
                 guard let folder = settings.outputFolder else {
-                    appState.recordError("No output folder configured")
-                    outcome.failureCount += 1
+                    if await failed(captured, key: key, reason: "No output folder configured", result: nil, settings: settings) {
+                        resolve(event)
+                        advance(event.rowid)
+                    } else {
+                        hold(event.rowid)
+                    }
+                    outcome.failureCount += pendingFailures[key]?.attempts == 1 ? 1 : 0
                     continue
                 }
 
@@ -257,8 +343,14 @@ final class BatchProcessor {
                 // spool would break the flush's original-capture-order guarantee.
                 // The guard runs synchronously inside the capture gate, so it can't
                 // race the monitor's flush.
-                if destinationGuard.check(folder) == .volumeAbsent || !spool.isEmpty {
-                    await spoolCapture(captured, handleForDedup: handleForDedup, settings: settings, outcome: &outcome)
+                let volumeAbsent = destinationGuard.check(folder) == .volumeAbsent
+                if volumeAbsent || !spool.isEmpty {
+                    if await spoolCapture(captured, handleForDedup: handleForDedup, settings: settings, destinationOffline: volumeAbsent, outcome: &outcome) {
+                        resolve(event)
+                        advance(event.rowid)
+                    } else {
+                        hold(event.rowid)
+                    }
                     continue
                 }
 
@@ -266,19 +358,25 @@ final class BatchProcessor {
                 switch result.outcome {
                 case .success(let url):
                     Self.log.info("wrote \(url.lastPathComponent, privacy: .public) (rowid=\(event.rowid))")
-                    if !result.failedAttachments.isEmpty {
-                        appState.recordError("Some attachments missing for \(url.lastPathComponent)")
-                    } else if appState.lastError != nil {
-                        appState.clearError()
-                    }
+                    let wasRetry = pendingFailures[key] != nil
+                    resolve(event)
+                    appState.clearError(source: .capture)
                     appState.state.recordSuccess(at: Date())
-                    advanceWatermark(event.rowid)
+                    appState.activity.record(
+                        .filed, source: .iMessage,
+                        wasRetry ? "\(Self.noteName(url)) (filed on retry)" : Self.noteName(url),
+                        path: url
+                    )
+                    advance(event.rowid)
                     outcome.successCount += 1
                     contentDedupCache.track(
                         handle: handleForDedup,
                         text: captured.decodedText,
                         attachmentCount: captured.event.attachments.count
                     )
+                    if !result.failedAttachments.isEmpty {
+                        attachmentMissing(url: url, captured: captured, failedSourcePaths: result.failedAttachments, source: .iMessage)
+                    }
                     // Enrichment after the note durably filed (M5): enqueue only,
                     // never blocks the batch.
                     if let enrichment, let echo = result.link {
@@ -300,16 +398,30 @@ final class BatchProcessor {
                 case .failure(let reason):
                     if destinationGuard.check(folder) == .volumeAbsent {
                         // The unplug raced the write: the failure IS the absence.
-                        await spoolCapture(captured, handleForDedup: handleForDedup, settings: settings, outcome: &outcome)
+                        if await spoolCapture(captured, handleForDedup: handleForDedup, settings: settings, destinationOffline: true, outcome: &outcome) {
+                            resolve(event)
+                            advance(event.rowid)
+                        } else {
+                            hold(event.rowid)
+                        }
                         continue
                     }
                     Self.log.error("write failed rowid=\(event.rowid): \(reason, privacy: .public)")
-                    appState.recordError(reason)
-                    outcome.failureCount += 1
-                    await replier.replyForWrite(captured: captured, result: result, settings: settings)
+                    if await failed(captured, key: key, reason: reason, result: result, settings: settings) {
+                        resolve(event)
+                        advance(event.rowid)
+                    } else {
+                        hold(event.rowid)
+                    }
+                    if pendingFailures[key]?.attempts == 1 { outcome.failureCount += 1 }
                 case .unavailable:
                     // The writer's internal guard fired (defense in depth).
-                    await spoolCapture(captured, handleForDedup: handleForDedup, settings: settings, outcome: &outcome)
+                    if await spoolCapture(captured, handleForDedup: handleForDedup, settings: settings, destinationOffline: true, outcome: &outcome) {
+                        resolve(event)
+                        advance(event.rowid)
+                    } else {
+                        hold(event.rowid)
+                    }
                 }
             }
         }
@@ -334,8 +446,9 @@ final class BatchProcessor {
         _ captured: CapturedMessage,
         handleForDedup: String,
         settings: Settings,
+        destinationOffline: Bool,
         outcome: inout BatchOutcome
-    ) async {
+    ) async -> Bool {
         do {
             let item = try await spool.add(
                 text: captured.decodedText,
@@ -345,23 +458,121 @@ final class BatchProcessor {
             )
             Self.log.info("spooled rowid=\(captured.event.rowid) as \(item.name, privacy: .public) (destination offline)")
             appState.state.recordSuccess(at: Date())
-            advanceWatermark(captured.event.rowid)
+            appState.clearError(source: .queue)
+            appState.activity.record(.queued, source: .iMessage, Self.titleHint(captured.decodedText))
             outcome.successCount += 1
             contentDedupCache.track(
                 handle: handleForDedup,
                 text: captured.decodedText,
                 attachmentCount: captured.event.attachments.count
             )
-            await replier.replyForSpooled(captured: captured, settings: settings)
+            await replier.replyForSpooled(
+                captured: captured, settings: settings,
+                destinationOffline: destinationOffline
+            )
+            return true
         } catch {
             // Spool write failed (app-support container unwritable — should not
-            // happen). Existing failure semantics: error surfaced, watermark held,
-            // the row replays next poll.
+            // happen). The row stays unresolved: watermark held, retried after
+            // the backoff, rescued after the give-up window like a failed write.
             let reason = "Couldn't queue capture: \(error.localizedDescription)"
             Self.log.error("\(reason, privacy: .public)")
-            appState.recordError(reason)
-            outcome.failureCount += 1
+            let key = Self.failureKey(captured.event)
+            if await failed(captured, key: key, reason: reason, result: nil, settings: settings) {
+                return true
+            }
+            if pendingFailures[key]?.attempts == 1 { outcome.failureCount += 1 }
+            return false
         }
+    }
+
+    // MARK: - Failures, retries, rescue
+
+    /// Records one failed attempt for a capture. First attempt: error, activity
+    /// entry, and the ✗ reply. Later attempts: silent. Past `giveUpAfter`, the
+    /// capture's text is rescued to a file and the row is released. Returns
+    /// true when the row is resolved (rescued) and may be passed.
+    private func failed(
+        _ captured: CapturedMessage,
+        key: String,
+        reason: String,
+        result: WriteResult?,
+        settings: Settings
+    ) async -> Bool {
+        let now = clock()
+        var pending = pendingFailures[key] ?? PendingFailure(firstAt: now, lastAt: now, attempts: 0)
+        pending.attempts += 1
+        pending.lastAt = now
+
+        if now.timeIntervalSince(pending.firstAt) >= Self.giveUpAfter {
+            pendingFailures[key] = nil
+            let rescued = rescue(captured)
+            let when = captured.event.dateUTC.formatted(date: .abbreviated, time: .shortened)
+            let message = rescued.map { "Gave up filing a note from \(when). Its text is saved in \($0.lastPathComponent)." }
+                ?? "Gave up filing a note from \(when): \(reason)"
+            appState.recordError(message, source: .capture)
+            appState.activity.record(.gaveUp, source: .iMessage, message, path: rescued)
+            return rescued != nil
+        }
+
+        pendingFailures[key] = pending
+        if pending.attempts == 1 {
+            appState.recordError(reason, source: .capture)
+            appState.activity.record(
+                .failed, source: .iMessage,
+                "\(Self.titleHint(captured.decodedText)): \(reason). Retrying every minute."
+            )
+            if let result {
+                await replier.replyForWrite(captured: captured, result: result, settings: settings)
+            }
+        }
+        return false
+    }
+
+    /// Last resort after `giveUpAfter`: the capture's text (and where its
+    /// attachments were) goes to `<app support>/Failed captures/`, so giving up
+    /// on the notes folder never means losing the words.
+    private func rescue(_ captured: CapturedMessage) -> URL? {
+        do {
+            let dir = try appState.supportDirectoryURL()
+                .appendingPathComponent("Failed captures", isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let base = FileWriter.baseName(for: captured.event.dateUTC)
+            let (url, _) = FileWriter.uniqueDestination(in: dir, baseName: base)
+            let attachmentLines = captured.event.attachments.map { "- \($0.sourcePath)" }
+            let body = attachmentLines.isEmpty
+                ? captured.decodedText
+                : captured.decodedText + "\n\nAttachments (original locations):\n" + attachmentLines.joined(separator: "\n") + "\n"
+            try AtomicFile.write(Data(body.utf8), to: url)
+            return url
+        } catch {
+            Self.log.error("rescue failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    private func attachmentMissing(url: URL, captured: CapturedMessage, failedSourcePaths: [String], source: ActivityEvent.Source) {
+        let count = failedSourcePaths.count
+        let message = "\(count) \(count == 1 ? "attachment" : "attachments") not downloaded yet for \(Self.noteName(url)). Retrying."
+        appState.recordError(message, source: .attachments)
+        appState.activity.record(.attachmentMissing, source: source, message, path: url)
+        let missing = captured.event.attachments.filter { failedSourcePaths.contains($0.sourcePath) }
+        attachmentRetrier?.schedule(noteURL: url, attachments: missing)
+    }
+
+    nonisolated static func failureKey(_ event: MessageEvent) -> String {
+        event.guid.isEmpty ? "rowid:\(event.rowid)" : event.guid
+    }
+
+    nonisolated static func noteName(_ url: URL) -> String {
+        url.deletingPathExtension().lastPathComponent
+    }
+
+    /// A few words of a capture for history lines about notes that never got
+    /// a filename (failed or queued).
+    nonisolated static func titleHint(_ text: String) -> String {
+        let title = TitleDeriver.voiceNoteTitle(from: text)
+        return "\"\(title)\""
     }
 
 }

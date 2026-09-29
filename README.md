@@ -12,7 +12,7 @@ A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/r
 
 Your phone is across the room, locked, untouched. You say:
 
-> *"Hey Siri, send a text to me saying rent is due on the 5th."*
+> *"Hey Siri, text me rent is due on the 5th."*
 
 Siri transcribes and sends. No unlock, no app open, no taps. Rapture for Mac sees the message arrive, writes `Notes/2026-05-16 Rent is due on the 5th.md` to a folder you picked (local, Dropbox, Drive, all just paths), and replies in the chat:
 
@@ -39,13 +39,27 @@ Wiring Rapture into an agentic setup? [docs/END-TO-END.md](./docs/END-TO-END.md)
 
 The app will guide you through two macOS permissions. Both are needed for iMessage capture; captures from the Rapture iPhone app work without either, so relayed notes file even while this walkthrough is still pending.
 
-1. **Full Disk Access**: needed to read `~/Library/Messages/chat.db`. The app opens a sheet with an **Open System Settings** button that deep-links to the right pane. Toggle Rapture for Mac on. (If you don't see it in the list, click `+` and add it manually.) The sheet closes once access is granted — then the app asks to **quit and reopen**. Approve it: macOS applies a new Full Disk Access grant only to a freshly launched process, so capture can't start until the relaunch. This is a one-time step; the built-in updater preserves the grant from then on.
-2. **Automation → Messages**: needed for the `✅ Saved` reply. The first time the app tries to reply, you'll see a one-time pre-prompt explaining what's about to happen, then macOS shows its own permission dialog. Click **OK**.
-3. Send yourself an iMessage from another device on the same iCloud account: *"Hey Siri, text me, this is a test."*
+1. **Full Disk Access**: needed to read `~/Library/Messages/chat.db`. The app opens a window with an **Open System Settings** button that goes straight to the right pane. Find **Rapture** in the list and turn it on. (Not in the list? Click `+` and add Rapture from your Applications folder.) macOS may then offer **Quit & Reopen**. Click it. If macOS doesn't ask, a **Reopen Rapture** button appears in the app's window a few seconds after you open System Settings. Either way the app has to restart, because a running app never sees a new grant. You do this once: the built-in updater keeps the grant from then on.
+2. **Set up your iPhone.** "Text me" only works when Siri knows who you are. Open **Settings → Siri** (on newer iOS, **Settings → Apple Intelligence & Siri**), tap **My Information**, and choose your own contact card. On the same screen, turn on **Allow Siri When Locked** so the flow works with the phone locked. One more thing: a Focus mode can silence the `✅ Saved` reply on your phone. The note still saves.
+3. **Send a test note.** Say to your iPhone: *"Hey Siri, text me this is a test."*
 4. Within about a second, a Markdown note appears under `~/Documents/Rapture Notes/Notes/` (the default folder; you can change it under **Settings → General**).
-5. Within another second, you see `✅ Saved` in your iMessages thread on your phone. That's the audible-on-iPhone confirmation that the capture landed.
+5. **Allow replies.** On that first capture, a Mac alert explains the `✅ Saved` replies. Click **Continue**, then click **OK** when macOS asks to let Rapture control Messages. (Rather not get replies? Click **Don't Send Replies** and the app switches reply mode to **Never reply**.)
+6. `✅ Saved` arrives in your Messages thread on the phone. That's the audible confirmation that the capture landed.
 
-That's the whole product. Everything else (allowlist, reply modes, pause/resume) is in the menu-bar popover and the Settings window.
+That's the whole product. Rapture starts itself when you log in, so capture keeps running after a restart; turn that off with **Start Rapture when I log in** in **Settings → General**. Everything else (allowlist, reply modes, pause/resume) is in the menu-bar popover and the Settings window.
+
+### Nothing happened?
+
+| What you see | What to do |
+|---|---|
+| No note after you texted yourself | Open **Activity…** from the menu (or **Settings → Activity**) to see whether the note filed, queued, or failed. If the menu shows a warning, start there. Rapture files only messages in your own thread and messages from senders on the **Allowlist** (phone numbers work in any format), and ignores everything else. If Siri sent the text to someone else, set **My Information** on the iPhone to your own contact card (step 2). |
+| Capture stopped after you reinstalled the app by hand | Dragging a new copy into Applications makes macOS forget the Full Disk Access grant. Choose **Show permissions help…** from the menu, turn Rapture back on, and reopen the app. In-app updates keep the grant. |
+| No `✅ Saved` reply | The menu shows **Automation access needed**. Choose **Show permissions help…** and turn on Messages under Rapture, or click **Never Reply** if you don't want replies. Also check the iPhone's Focus mode, which can silence the reply. |
+| Notes from the iPhone app don't arrive | Both devices need the same Apple account with iCloud Drive on, and the Mac needs to be awake. **Settings → General → iPhone App** shows the relay status. If a note waits on iCloud for more than 10 minutes, the menu says so: open the Rapture app on your iPhone while it's on Wi-Fi. |
+| `✅ Saved · 1 attachment missing` | The photo hadn't reached the Mac yet. Rapture keeps trying for about 30 minutes and adds it to the note when it arrives. |
+| A `✗` reply, or an error in the menu | The note couldn't be saved (often a full disk or an unwritable folder). Rapture retries every minute and sends the `✗` reply only once. After 24 hours of failing it saves the note's text to `~/Library/Application Support/Rapture for Mac/Failed captures/`, and the error says so. |
+
+When something is wrong, the menu-bar icon turns into a warning triangle and the menu shows the newest error with its age and a **Dismiss** button. **Settings → Activity** lists every open error at the top, with a **Dismiss All** button.
 
 ## Capture from the Rapture iPhone app
 
@@ -67,7 +81,20 @@ Worth knowing:
 
 ## Using your captures
 
-The folder is the entire integration surface. The captures are plain Markdown files with a small YAML header (`captured`, `source`, `type`, `raw_media`) — or raw `.txt` files if you choose raw mode in **Settings → Triage**. With **link enrichment** on (**Settings → Triage**, off by default), a captured YouTube or article link also gets its transcript or readable text fetched into `Links/Media/` and the note renamed to the real title. The folder can live on an external drive (an Obsidian vault on an SSD, say): while the drive is unplugged, new captures queue inside the app and the menu bar shows "Destination offline — N queued"; plug it back in and they file automatically, in order, with their original capture times. If that folder is a git repository backed up by something else (obsidian-git, a scheduled `git push`, hand-commits), Rapture can warn you when the backup falls behind — turn on **"Warn me when the notes folder isn't backed up"** in **Settings → General** and the menu bar flags uncommitted or unpushed work that's older than a day. It only ever *reads* local git state (no commit, push, or network); the actual backing up stays with whatever tool you already use. You can:
+The folder is the entire integration surface. What you'll find there:
+
+- **One Markdown note per capture**, with a small YAML header (`captured`, `source`, `type`, `raw_media`). Prefer raw `.txt` files? Choose raw mode in **Settings → Triage**.
+- **Link details, if you want them.** Turn on **link enrichment** in **Settings → Triage** (off by default) and a captured YouTube or article link also gets its transcript or readable text saved into `Links/Media/`, with the note renamed to the real title.
+- **Meetings** recorded in the Rapture iPhone app, in `Meetings/`, one note per meeting. When you make a summary on the iPhone, it replaces the note's text and renames the note. If you had edited the note first, your version is kept in the note's attachment folder as `Your edits before the summary.md`. Meetings skip AI triage and Reminders/Calendar handoff.
+
+To check what the app did, choose **Show Last Note** in the menu to reveal the newest note in Finder, or open **Activity…** for the full history: notes filed and where they came from, queued captures, failures and retries, missing attachments, reminders and events created, link details saved, and meetings filed or updated. That history stays on your Mac and never includes note text (see [PRIVACY.md](./PRIVACY.md)).
+
+Two more things the folder can do:
+
+- **Live on an external drive** (an Obsidian vault on an SSD, say). While the drive is unplugged, new captures queue inside the app and the menu bar shows "Destination offline" with the number of queued captures. Plug it back in and they file automatically, in order, with their original capture times.
+- **Warn you when its git backup falls behind.** If the folder is a git repository backed up by something else (obsidian-git, a scheduled `git push`, hand-commits), turn on **"Warn me when the notes folder isn't backed up"** in **Settings → General**. The menu bar then flags uncommitted or unpushed work older than a day. Rapture only reads local git state. It never commits, pushes, or touches the network; the backing up stays with whatever tool you already use.
+
+Once notes are landing, you can:
 
 - **Use them manually** when you're back at your computer. Open the folder, triage by hand, file what matters.
 - **Hand them off to an AI agent or assistant** to read and process automatically, according to your own rules.
@@ -80,6 +107,26 @@ Starter configs for the automated path live in [`examples/`](./examples) — all
 - [`examples/cli/`](./examples/cli) — vendor-neutral shell script that pipes each note into any LLM CLI
 
 Pick whichever agent you already use. Rapture doesn't care.
+
+## Why the app isn't sandboxed
+
+The app asks for **Full Disk Access** and **Automation → Messages**, which are unusual permissions on macOS. That's not a corner being cut. It's the only way the product can work:
+
+- **Reading `~/Library/Messages/chat.db` requires Full Disk Access**, period. No entitlement gets a sandboxed app into that file; this is an Apple privacy guarantee, not a configuration option. Without that read, the app has nothing to capture.
+- **Sending the `✅ Saved` reply requires spawning `osascript` and controlling Messages.app**, both of which the Mac App Store sandbox forbids for arbitrary apps.
+
+So the app ships outside the sandbox by structural necessity, which is also why it isn't (and can't be) on the Mac App Store. In exchange, the code carries no telemetry and no network calls beyond three features you control: auto-update (on by default, opt-out), BYO-key AI, and link enrichment (both opt-in). See [PRIVACY.md](./PRIVACY.md) for the full posture and how to verify it yourself with two shell commands.
+
+## Verify the download
+
+Before opening the DMG:
+
+```sh
+xcrun stapler validate ~/Downloads/Rapture-*.dmg
+spctl --assess --type install ~/Downloads/Rapture-*.dmg
+```
+
+Both should succeed. The DMG is Developer ID signed (team `P8PLTH44DF`) and Apple-notarized. See [SECURITY.md](./SECURITY.md) for full details and how to report issues.
 
 ## v1 scope
 
@@ -97,26 +144,6 @@ A short list of things you might expect but don't get; for the full rationale se
 - Mac App Store distribution (structurally impossible; see [shape.md](./agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/shape.md))
 - Analytics or telemetry (the only outbound network calls are the optional, opt-out auto-update check, the opt-in BYO-key AI engine, and the opt-in link-enrichment fetches — see [PRIVACY.md](./PRIVACY.md))
 
-## Why the app isn't sandboxed
-
-The app asks for **Full Disk Access** and **Automation → Messages**, which are unusual permissions on macOS. That's not a corner being cut. It's the only way the product can work:
-
-- **Reading `~/Library/Messages/chat.db` requires Full Disk Access**, period. No entitlement gets a sandboxed app into that file; this is an Apple privacy guarantee, not a configuration option. Without that read, the app has nothing to capture.
-- **Sending the `✅ Saved` reply requires spawning `osascript` and controlling Messages.app**, both of which the Mac App Store sandbox forbids for arbitrary apps.
-
-So the app ships outside the sandbox by structural necessity, which is also why it isn't (and can't be) on the Mac App Store. In exchange, the code carries no telemetry and no network calls beyond the three opt-in/opt-out features above (auto-update, BYO-key AI, link enrichment). See [PRIVACY.md](./PRIVACY.md) for the full posture and how to verify it yourself with two shell commands.
-
-## Verify the download
-
-Before opening the DMG:
-
-```sh
-xcrun stapler validate ~/Downloads/Rapture-*.dmg
-spctl --assess --type install ~/Downloads/Rapture-*.dmg
-```
-
-Both should succeed. The DMG is Developer ID signed (team `P8PLTH44DF`) and Apple-notarized. See [SECURITY.md](./SECURITY.md) for full details and how to report issues.
-
 ## Build from source
 
 ```sh
@@ -128,7 +155,9 @@ xcodebuild \
   build test
 ```
 
-All tests should pass. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the longer walkthrough, the `_build_plan/` directory for the milestone-by-milestone build log, and `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` for the canonical technical spec.
+This builds a Debug build and runs the test suite; all tests should pass. The app lands at `/tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app`. A Debug build keeps its own settings in `~/Library/Application Support/Rapture for Mac (Debug)/` and files notes into `~/Documents/Rapture Notes (Debug)/`, so it never touches an installed copy's settings or notes. If you only want to use Rapture on an Apple silicon Mac, install the signed DMG from [Releases](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest) instead.
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the longer walkthrough, the `_build_plan/` directory for the milestone-by-milestone build log, and `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` for the canonical technical spec.
 
 ## Sibling repos
 

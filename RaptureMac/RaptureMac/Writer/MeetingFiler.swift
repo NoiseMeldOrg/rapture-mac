@@ -41,6 +41,7 @@ final class MeetingFiler {
         audioURL: URL?,
         mode: TriageMode,
         to folder: URL,
+        keepUserEdits: Bool = false,
         timeZone: TimeZone = .current
     ) async -> WriteResult {
         guard destinationGuard.check(folder) != .volumeAbsent else {
@@ -80,6 +81,13 @@ final class MeetingFiler {
             }
             let attachmentDir = targetDir.appendingPathComponent(attachmentName, isDirectory: true)
 
+            // The user edited the note since the app last wrote it: keep their
+            // version in the note's attachment folder (it moves with the note
+            // and the footer links it) before the new text replaces it.
+            if keepUserEdits, let existing = existingNote {
+                try Self.keepCopy(of: existing, reason: "Your edits before the summary")
+            }
+
             // The attachment folder follows its note.
             var movedFrom: URL?
             if let existing = existingNote {
@@ -95,7 +103,7 @@ final class MeetingFiler {
                 failed.append(audioURL.path)
             }
 
-            let files = Self.attachmentFiles(in: attachmentDir)
+            let files = NoteFooter.attachmentFiles(in: attachmentDir)
             let content: String
             if full {
                 let note = CaptureContract.Note(
@@ -140,6 +148,20 @@ final class MeetingFiler {
         }
     }
 
+    /// Copies `note` into its own attachment folder as `<label>.<ext>` (or
+    /// `<label>-N`), never overwriting an earlier kept copy.
+    nonisolated static func keepCopy(of note: URL, reason label: String) throws {
+        let dir = note.deletingPathExtension()
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let (copyURL, _) = FileWriter.uniqueDestination(in: dir, baseName: label, fileExtension: note.pathExtension)
+        try FileManager.default.copyItem(at: note, to: copyURL)
+    }
+
+    /// Hash of a note file as it is on disk now (nil when unreadable).
+    nonisolated static func fileHash(_ url: URL) -> String? {
+        (try? Data(contentsOf: url)).map(MeetingLedger.hash(of:))
+    }
+
     // MARK: - Late audio
 
     /// Adds relay audio to an already-filed meeting note (the transcript part
@@ -159,8 +181,8 @@ final class MeetingFiler {
         do {
             let text = String(decoding: try Data(contentsOf: note), as: UTF8.self)
             let folderName = attachmentDir.lastPathComponent
-            let files = Self.attachmentFiles(in: attachmentDir)
-            let updated = Self.replacingFooter(in: text, isMarkdown: note.pathExtension == "md", folder: folderName, files: files)
+            let files = NoteFooter.attachmentFiles(in: attachmentDir)
+            let updated = NoteFooter.replacing(in: text, isMarkdown: note.pathExtension == "md", folder: folderName, files: files)
             try AtomicFile.write(Data(updated.utf8), to: note)
             return WriteResult(outcome: .success(note), failedAttachments: [])
         } catch {
@@ -201,30 +223,6 @@ final class MeetingFiler {
         return !suffix.isEmpty && suffix.allSatisfy(\.isNumber)
     }
 
-    /// Strips a well-formed trailing footer (either format) and appends one
-    /// listing `files`. With no files the footer is simply dropped.
-    nonisolated static func replacingFooter(in text: String, isMarkdown: Bool, folder: String, files: [String]) -> String {
-        if isMarkdown {
-            var head = text
-            if let range = text.range(of: "\nAttachments:\n", options: .backwards),
-               isMarkdownFooter(text[range.upperBound...]) {
-                // The match starts at the second newline of the blank line
-                // before the footer, so the head keeps its own trailing newline.
-                head = String(text[..<range.lowerBound])
-            }
-            guard !files.isEmpty else { return head }
-            let lines = files.map { "- [\($0)](<\(folder)/\($0)>)" }
-            return head + (head.isEmpty ? "" : "\n") + "Attachments:\n" + lines.joined(separator: "\n") + "\n"
-        }
-        let body = CaptureContract.parseFooter(text)?.bodyWithoutFooter ?? text
-        return FileWriter.composeBody(text: body, copiedAttachments: files.map { (folder: folder, filename: $0) })
-    }
-
-    nonisolated static func isMarkdownFooter(_ footer: Substring) -> Bool {
-        let lines = footer.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        return !lines.isEmpty && lines.allSatisfy { $0.hasPrefix("- [") && $0.contains("](<") && $0.hasSuffix(">)") }
-    }
-
     // MARK: - I/O helpers
 
     /// Copies relay audio into the attachment folder. Already present (same
@@ -242,13 +240,6 @@ final class MeetingFiler {
         if await RelayFiler.copyWithRetry(from: audioURL, to: destination) { return true }
         FileSafety.removeIfEmpty(dir)
         return false
-    }
-
-    nonisolated static func attachmentFiles(in dir: URL) -> [String] {
-        guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return [] }
-        return names
-            .filter { !$0.hasPrefix(".") && !isDirectory(dir.appendingPathComponent($0)) }
-            .sorted()
     }
 
     nonisolated static func isDirectory(_ url: URL) -> Bool {

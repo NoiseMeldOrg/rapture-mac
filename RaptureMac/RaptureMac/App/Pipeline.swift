@@ -1,6 +1,7 @@
 import Foundation
 import GRDB
 import OSLog
+import ServiceManagement
 
 @MainActor
 final class Pipeline {
@@ -25,6 +26,7 @@ final class Pipeline {
     private lazy var contentDedupCache = ContentDedupCache(stateStore: appState.state)
     private lazy var triageLedger = TriageLedger(stateStore: appState.state)
     private lazy var meetingLedger = MeetingLedger(stateStore: appState.state)
+    private lazy var attachmentRetrier = AttachmentRetrier(appState: appState)
     private lazy var spoolStore = SpoolStore(stateStore: appState.state)
     private lazy var spoolFiledLedger = SpoolFiledLedger(stateStore: appState.state)
     private lazy var handoffLedger = HandoffLedger(stateStore: appState.state)
@@ -93,6 +95,7 @@ final class Pipeline {
         guard !started else { return }
         started = true
         appState.settings.ensureDefaultOutputFolder()
+        seedLaunchAtLogin()
         // Relay capture needs no chat.db, so it starts before (and independent of)
         // the FDA-gated iMessage path: relayed notes still file while FDA is pending.
         startRelay()
@@ -122,6 +125,7 @@ final class Pipeline {
         backupHealthMonitor?.stop()
         linkEnrichment.stop()
         transcriptDispatch.stop()
+        attachmentRetrier.cancelAll()
         resolver?.stop()
         selfChatResolver?.stop()
         fdaPollTask = nil
@@ -140,6 +144,26 @@ final class Pipeline {
         batchProcessor = nil
         dbPool = nil
         started = false
+    }
+
+    /// Applies the `launchAtLogin` default (on) to the system login item once.
+    /// Before 1.0.126 the default was saved but never registered, so capture
+    /// stopped after every reboot until the user found the toggle. Runs once
+    /// per install (then the system's own Login Items list is the truth), and
+    /// never for DEBUG builds, which must not become login items.
+    private func seedLaunchAtLogin() {
+        guard !appState.state.state.launchAtLoginSeeded else { return }
+        appState.state.update { $0.launchAtLoginSeeded = true }
+        guard !AppSupportDirectory.isDebugContainer,
+              appState.settings.settings.launchAtLogin,
+              LaunchAtLoginController.status == .notRegistered
+        else { return }
+        do {
+            try LaunchAtLoginController.setEnabled(true)
+            appState.activity.record(.info, source: .app, "Rapture now starts when you log in, so capture keeps running after a restart. Change it in Settings → General.")
+        } catch {
+            Self.log.error("login item registration failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func startRelay() {
@@ -164,6 +188,9 @@ final class Pipeline {
             },
             onStatus: { status in
                 await MainActor.run { appState.relayStatus = status }
+            },
+            onWaitingSince: { date in
+                await MainActor.run { appState.relayWaitingSince = date }
             }
         )
 
@@ -304,6 +331,10 @@ final class Pipeline {
             },
             advanceWatermark: { [weak self] rowid in
                 self?.advanceWatermark(to: rowid)
+            },
+            attachmentRetrier: attachmentRetrier,
+            refreshSelfHandles: { [weak resolver] in
+                await resolver?.refreshNow() ?? []
             }
         )
         self.batchProcessor = batchProcessor
@@ -312,9 +343,32 @@ final class Pipeline {
         self.watcher = watcher
 
         let appState = self.appState
-        let stream = watcher.events {
-            await MainActor.run { appState.state.state.chatDbWatermark }
-        }
+        let stream = watcher.events(
+            watermarkProvider: {
+                await MainActor.run { appState.state.state.chatDbWatermark }
+            },
+            onHealth: { error in
+                await MainActor.run {
+                    guard let error else {
+                        appState.clearError(source: .messagesDatabase)
+                        if appState.permissionState == .fullDiskAccessRequired {
+                            appState.permissionState = .ok
+                        }
+                        return
+                    }
+                    if ChatDB.looksLikePermissionError(error) {
+                        // Full Disk Access was taken away (often by a manual
+                        // reinstall): show the permission flow again.
+                        appState.permissionState = .fullDiskAccessRequired
+                    }
+                    appState.recordError(
+                        "Can't read your Messages, so new texts aren't being captured: \(error.localizedDescription)",
+                        source: .messagesDatabase
+                    )
+                    appState.activity.record(.warning, source: .iMessage, "Stopped being able to read Messages: \(error.localizedDescription)")
+                }
+            }
+        )
 
         consumerTask = Task { [weak self] in
             for await batch in stream {

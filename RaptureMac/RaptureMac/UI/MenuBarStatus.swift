@@ -26,12 +26,14 @@ enum MenuBarStatus {
         paused: Bool,
         destinationOffline: Bool = false,
         queuedCount: Int = 0,
-        lastError: String?
+        lastError: String?,
+        repliesOff: Bool = false
     ) -> Line {
         if permission == .fullDiskAccessRequired {
             return Line(kind: .fullDiskAccessNeeded, primary: "⚠ Full Disk Access needed", iconName: "exclamationmark.triangle.fill")
         }
-        if automation == .required {
+        // With replies off, a blocked Messages permission changes nothing.
+        if automation == .required && !repliesOff {
             return Line(kind: .automationNeeded, primary: "⚠ Automation access needed", iconName: "exclamationmark.triangle.fill")
         }
         if paused {

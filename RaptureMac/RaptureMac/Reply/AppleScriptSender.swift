@@ -39,6 +39,11 @@ final class AppleScriptSender: AppleScriptSending {
 
     nonisolated static let osascriptPath = "/usr/bin/osascript"
 
+    /// A reply runs while captures wait (the capture lock is held), so a hung
+    /// Messages.app must not stall capture forever. Past this, osascript is
+    /// killed and the reply counts as failed; the note itself already filed.
+    nonisolated static let timeout: TimeInterval = 20
+
     nonisolated func send(text: String, toChatGuid chatGuid: String) async throws {
         try await Task.detached(priority: .userInitiated) {
             try Self.runOsascript(text: text, chatGuid: chatGuid)
@@ -56,13 +61,20 @@ final class AppleScriptSender: AppleScriptSending {
         process.standardError = stderrPipe
         process.standardOutput = Pipe()
 
+        let exited = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in exited.signal() }
         try process.run()
 
         let scriptData = Data(script.utf8)
         try stdinPipe.fileHandleForWriting.write(contentsOf: scriptData)
         try stdinPipe.fileHandleForWriting.close()
 
-        process.waitUntilExit()
+        if exited.wait(timeout: .now() + timeout) == .timedOut {
+            process.terminate()
+            _ = exited.wait(timeout: .now() + 2)
+            log.error("osascript timed out after \(timeout, privacy: .public)s")
+            throw AppleScriptSendError(exitCode: -1, stderr: "Messages didn't respond within \(Int(timeout)) seconds")
+        }
 
         let stderrData = (try? stderrPipe.fileHandleForReading.readToEnd()) ?? Data()
         let stderrString = String(data: stderrData, encoding: .utf8) ?? ""

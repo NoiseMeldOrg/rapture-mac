@@ -29,7 +29,7 @@ struct SettingsIntegrationsView: View {
 
     @ViewBuilder
     private var emptyState: some View {
-        Text("No integrations discovered in examples/. Add a folder under examples/ in the repo and rebuild the app.")
+        Text("No integrations are included in this version of Rapture. Your notes folder still works with any AI assistant that can read files.")
             .font(.callout)
             .foregroundStyle(.secondary)
             .padding()

@@ -33,25 +33,45 @@ it to Applications.
 `~/Library/Messages/chat.db`, which is where Messages stores everything
 locally. macOS gates that behind FDA. Nothing works without it.
 
-**3. Send yourself a note.** With the phone locked, in your pocket:
+Click **Open System Settings**, find **Rapture** in the list, and turn it on.
+macOS may offer **Quit & Reopen**: click it. If it doesn't ask, click the
+**Reopen Rapture** button that appears in the app's window a few seconds later.
+The restart is required, because a running app never sees a new grant.
+
+**3. Set up your iPhone.** On the phone, open Settings → Siri (on newer iOS,
+Apple Intelligence & Siri):
+
+- Set **My Information** to your own contact card. "Text me" only works when
+  Siri knows who "me" is.
+- Turn on **Allow Siri When Locked**, or the locked-phone flow won't work.
+
+A Focus mode can silence the reply sound on the phone. The note still saves.
+
+**4. Send yourself a note.** With the phone locked, in your pocket:
 
 > "Hey Siri, text me the auth middleware should use row level security"
 
-**4. Check the folder.** Within a second or two:
+**5. Check the folder.** Within a second or two:
 
 ```
 ~/Documents/Rapture Notes/Notes/2026-07-29 The auth middleware should use row level security.md
 ```
 
-Default titling is mechanical — the first words of the dictation, verbatim. The
+Default titling is mechanical: the first words of the dictation, verbatim. The
 opt-in AI tier writes condensed titles instead.
 
-The app also replies in the Messages thread, so you get confirmation on the
-phone without looking at the Mac.
+**6. Allow replies.** On this first capture, a Mac alert explains that Rapture
+replies in the Messages thread. Click **Continue**, then **OK** when macOS asks
+to let Rapture control Messages. From then on every capture gets a `✅ Saved`
+reply, so you get confirmation on the phone without looking at the Mac. (Click
+**Don't Send Replies** instead to switch replies off.)
 
-**If nothing lands**, it is almost always Full Disk Access. Check System
-Settings, Privacy & Security, Full Disk Access, and confirm Rapture for Mac is
-listed and enabled. Quit and reopen the app after granting it.
+**If nothing lands**, open **Activity…** from the Rapture menu to see what
+happened, then work through the
+[troubleshooting table in the README](../README.md#nothing-happened). The usual
+causes are Full Disk Access (confirm **Rapture** is listed and enabled under
+System Settings → Privacy & Security → Full Disk Access, then reopen the app)
+and Siri's My Information pointing at the wrong contact card.
 
 That is the entire free path. No iPhone app, no account, no purchase.
 
@@ -104,6 +124,10 @@ the bytes.
 **If notes are not arriving**, check that the Mac is awake and signed into the
 same iCloud account, and that Settings, General, iPhone App is on in the Mac
 app. It is on by default and is a no-op until the relay folder first appears.
+The same section shows the relay status. If a note waits on iCloud for more
+than 10 minutes, the Mac menu says so; open the Rapture app on the iPhone while
+it is on Wi-Fi. More in the
+[README troubleshooting table](../README.md#nothing-happened).
 
 ---
 
@@ -118,7 +142,8 @@ This is the part that matters if you are integrating.
 │   └── Media/      fetched transcripts and article text (opt-in)
 ├── Tasks/          )
 ├── Ideas/          ) only with the opt-in AI tier
-└── Journal/        )
+├── Journal/        )
+└── Meetings/       meetings recorded in the iOS app, one note each
 ```
 
 Find the folder programmatically rather than assuming the default. The app
@@ -151,15 +176,23 @@ raw_media: https://example.com/some-article
 
 The fields:
 
-- `captured` — the UTC instant, ISO 8601. The filename carries the local
+- `captured`: the UTC instant, ISO 8601. The filename carries the local
   calendar date; this field is the precise one.
-- `source` — which app captured it: `rapture-mac` (the iMessage path — named
+- `source`: which app captured it. One of `rapture-mac` (the iMessage path, named
   for the app that does the capturing), `rapture-ios`, or `rapture-android`
   (the app relay). Optional: a note recovered from an old backlog can lack it.
-- `type` — one of `voice-note`, `youtube-link`, `article-link`, `task`,
-  `idea`, `journal`. The last three appear only with the AI tier on.
-- `raw_media` — link notes only: the URL as captured, stable even after
+- `type`: one of `voice-note`, `youtube-link`, `article-link`, `task`,
+  `idea`, `journal`, `meeting`. `task`, `idea` and `journal` appear only with
+  the AI tier on; `meeting` comes only from the iOS app's meeting mode.
+- `raw_media`: on link notes only, the URL as captured, stable even after
   enrichment renames the note. Absent on everything else.
+- `meeting_id`: on meeting notes only, the iOS app's id for the recording. A
+  meeting is filed first as a transcript. When you make a summary on the
+  phone, the summary replaces the note's text and renames the note, so key
+  meeting notes by `meeting_id`, not by path. If you edited the note before
+  the summary arrived, your version is kept in the note's attachment folder as
+  `Your edits before the summary.md`. Meetings get no AI triage and no
+  Reminders or Calendar handoff.
 
 When a formatter changed the body — the AI tier, or the iOS app's structuring —
 the verbatim transcription is preserved under a `## Raw` heading in the same
@@ -188,7 +221,8 @@ The shape they all share:
 
 1. Resolve the output folder from the sidecar above.
 2. Watch the triaged subfolders for new `.md` files. Skip `Links/Media/`, which
-   holds fetched artifacts rather than notes.
+   holds fetched artifacts rather than notes. Expect `Meetings/` notes to be
+   rewritten and renamed later.
 3. Read the frontmatter, act on `type`.
 4. Record the note as handled so it is not acted on twice.
 

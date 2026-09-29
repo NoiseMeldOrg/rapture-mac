@@ -18,7 +18,7 @@ enum AllowlistInput {
         } else {
             stripped = trimmed
         }
-        return stripped.isEmpty ? nil : stripped
+        return stripped.isEmpty ? nil : AllowlistMatch.canonical(stripped)
     }
 
     /// Append `value` to `existing` if (1) it normalizes to non-empty and (2) is not already a

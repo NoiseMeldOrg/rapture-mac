@@ -181,6 +181,34 @@ final class RelayProcessorMeetingTests: XCTestCase {
         XCTAssertTrue(handoff.calls.isEmpty, "summary to-dos never become Reminders")
     }
 
+    func testUserEditsBeforeTheSummaryAreKeptBesideTheNote() async throws {
+        let appState = makeAppState()
+        let processor = makeProcessor(appState: appState)
+        await run(processor, [try writeRelay(transcriptBase, marker("transcript") + transcriptBody, audio: true)])
+        let original = try onlyNote()
+        let edited = original.text.replacingOccurrences(of: "Sounds good.", with: "Sounds good. MY OWN NOTE: ask about Q3.")
+        try edited.write(to: original.url, atomically: true, encoding: .utf8)
+
+        await run(processor, [try writeRelay(summaryBase, marker("summary") + summaryBody)])
+
+        let note = try onlyNote()
+        XCTAssertTrue(note.text.contains("## Overview"), "the summary still lands")
+        let folder = note.url.deletingPathExtension()
+        let kept = folder.appendingPathComponent("Your edits before the summary.md")
+        XCTAssertEqual(try String(contentsOf: kept, encoding: .utf8), edited, "the user's version survives intact")
+        XCTAssertTrue(note.text.contains("Your edits before the summary.md"), "and the note links to it")
+        XCTAssertTrue(fm.fileExists(atPath: folder.appendingPathComponent(transcriptBase + ".m4a").path))
+    }
+
+    func testUneditedNoteIsReplacedWithoutACopy() async throws {
+        let appState = makeAppState()
+        let processor = makeProcessor(appState: appState)
+        await run(processor, [try writeRelay(transcriptBase, marker("transcript") + transcriptBody)])
+        await run(processor, [try writeRelay(summaryBase, marker("summary") + summaryBody)])
+        let note = try onlyNote()
+        XCTAssertFalse(fm.fileExists(atPath: note.url.deletingPathExtension().path), "no edits, nothing to keep")
+    }
+
     func testRedoSummaryWithSameRelayNameStillReplaces() async throws {
         let appState = makeAppState()
         let processor = makeProcessor(appState: appState)

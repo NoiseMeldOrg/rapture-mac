@@ -44,6 +44,12 @@ final class SelfHandleResolver {
 
     func currentHandlesSnapshot() -> Set<String> { handles }
 
+    /// Re-runs the lookup now (used while no handles are known yet).
+    func refreshNow() async -> Set<String> {
+        await refresh()
+        return handles
+    }
+
     private func update(handles: Set<String>) {
         self.handles = handles
     }

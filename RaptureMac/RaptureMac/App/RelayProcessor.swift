@@ -44,6 +44,9 @@ final class RelayProcessor {
     private let clock: @Sendable () -> Date
 
     private var lastFailureAt: [String: Date] = [:]
+    /// Failed attempts per relay name, shown in the error so a file that
+    /// fails every minute doesn't look like a one-off.
+    private var failureCounts: [String: Int] = [:]
     private var reportedOversized: Set<String> = []
 
     init(
@@ -150,6 +153,7 @@ final class RelayProcessor {
         switch result.outcome {
         case .success(let url):
             Self.log.info("filed relay note \(url.lastPathComponent, privacy: .public)")
+            appState.activity.record(.filed, source: .iPhoneApp, url.deletingPathExtension().lastPathComponent, path: url)
             let audioCopied = candidate.audioURL != nil && result.failedAttachments.isEmpty
             // One read serves both the triage-ledger hash and the handoff text;
             // the relay copy still exists here (deleted below).
@@ -191,7 +195,7 @@ final class RelayProcessor {
                 )
             }
             appState.state.recordSuccess(at: clock())
-            lastFailureAt[name] = nil
+            markSucceeded(name)
             if !result.failedAttachments.isEmpty {
                 recordRelayError("Audio for \(name) could not be copied yet, it will be retried")
             } else {
@@ -199,8 +203,7 @@ final class RelayProcessor {
             }
         case .failure(let reason):
             Self.log.error("relay filing failed for \(name, privacy: .public): \(reason, privacy: .public)")
-            lastFailureAt[name] = clock()
-            recordRelayError(reason)
+            fail(name, reason)
         case .unavailable:
             // The volume vanished between the batch guard and this write: silent
             // defer, no backoff — the relay copy stays and the next scan retries.
@@ -234,13 +237,16 @@ final class RelayProcessor {
             switch result.outcome {
             case .success:
                 Self.log.info("filed late meeting audio into \(note.lastPathComponent, privacy: .public)")
+                var updated = meeting
+                updated.noteRelativePath = CaptureContract.relativePath(of: note, in: folder)
+                updated.noteHash = MeetingFiler.fileHash(note)
+                meetingLedger.upsert(updated)
                 ledger.record(relayFilename: name)
                 await removeRelayFile(url)
-                lastFailureAt[name] = nil
+                markSucceeded(name)
             case .failure(let reason):
                 Self.log.error("meeting audio filing failed for \(name, privacy: .public): \(reason, privacy: .public)")
-                lastFailureAt[name] = clock()
-                recordRelayError(reason)
+                fail(name, reason)
             case .unavailable:
                 Self.log.debug("meeting audio deferred for \(name, privacy: .public): destination offline")
             }
@@ -261,13 +267,12 @@ final class RelayProcessor {
             Self.log.info("filed orphan relay audio into \(destination.deletingLastPathComponent().lastPathComponent, privacy: .public)/")
             ledger.record(relayFilename: name)
             await removeRelayFile(url)
-            lastFailureAt[name] = nil
+            markSucceeded(name)
             // No recordSuccess: the today count counts notes, and the note already
             // counted when its txt filed.
         case .failure(let reason):
             Self.log.error("orphan audio filing failed for \(name, privacy: .public): \(reason, privacy: .public)")
-            lastFailureAt[name] = clock()
-            recordRelayError(reason)
+            fail(name, reason)
         case .unavailable:
             Self.log.debug("orphan audio deferred for \(name, privacy: .public): destination offline")
         }
@@ -324,8 +329,7 @@ final class RelayProcessor {
         do {
             data = try Data(contentsOf: candidate.txtURL)
         } catch {
-            lastFailureAt[name] = clock()
-            recordRelayError("Couldn't read \(name): \(error.localizedDescription)")
+            fail(name, "Couldn't read \(name): \(error.localizedDescription)")
             return
         }
         let text = String(decoding: data, as: UTF8.self)
@@ -364,6 +368,7 @@ final class RelayProcessor {
                 relayFilenames: [], appliedSummaryHashes: [], updatedAt: clock())
             if let note = existingNote {
                 updated.noteRelativePath = CaptureContract.relativePath(of: note, in: folder)
+                if audioAttached { updated.noteHash = MeetingFiler.fileHash(note) }
             }
             if !updated.relayFilenames.contains(name) { updated.relayFilenames.append(name) }
             meetingLedger.upsert(updated)
@@ -375,12 +380,13 @@ final class RelayProcessor {
             if audioAttached, let audioURL = candidate.audioURL {
                 await removeRelayFile(audioURL)
             }
-            lastFailureAt[name] = nil
+            markSucceeded(name)
             Self.log.info("drained meeting \(header.part.rawValue, privacy: .public) \(name, privacy: .public): already filed")
             return
         }
 
         let capturedAt = RelayWatcher.parseRelayTimestamp(name) ?? clock()
+        let keepEdits = Self.userEdited(existingNote, entry: entry)
         let result = await meetingFiler.write(
             meeting,
             rawText: text,
@@ -389,16 +395,31 @@ final class RelayProcessor {
             existingNote: existingNote,
             audioURL: candidate.audioURL,
             mode: mode,
-            to: folder
+            to: folder,
+            keepUserEdits: keepEdits
         )
         switch result.outcome {
         case .success(let url):
             Self.log.info("\(existingNote == nil ? "filed" : "replaced", privacy: .public) meeting note \(url.lastPathComponent, privacy: .public)")
+            appState.activity.record(
+                existingNote == nil ? .meetingFiled : .meetingUpdated, source: .iPhoneApp,
+                existingNote == nil
+                    ? "\(url.deletingPathExtension().lastPathComponent) (meeting \(header.part.rawValue))"
+                    : "\(url.deletingPathExtension().lastPathComponent) (meeting summary replaced the earlier text)",
+                path: url
+            )
+            if keepEdits {
+                appState.activity.record(
+                    .warning, source: .iPhoneApp,
+                    "You had edited \(url.deletingPathExtension().lastPathComponent). Your version is kept next to it as \"Your edits before the summary\".",
+                    path: url)
+            }
             let audioCopied = candidate.audioURL != nil && result.failedAttachments.isEmpty
             var updated = entry ?? MeetingEntry(
                 meetingId: id, noteRelativePath: "", part: header.part,
                 relayFilenames: [], appliedSummaryHashes: [], updatedAt: clock())
             updated.noteRelativePath = CaptureContract.relativePath(of: url, in: folder)
+            updated.noteHash = MeetingFiler.fileHash(url)
             updated.part = header.part
             if !updated.relayFilenames.contains(name) { updated.relayFilenames.append(name) }
             if header.part == .summary {
@@ -419,7 +440,7 @@ final class RelayProcessor {
             if existingNote == nil {
                 appState.state.recordSuccess(at: clock())
             }
-            lastFailureAt[name] = nil
+            markSucceeded(name)
             if !result.failedAttachments.isEmpty {
                 recordRelayError("Audio for \(name) could not be copied yet, it will be retried")
             } else {
@@ -427,11 +448,18 @@ final class RelayProcessor {
             }
         case .failure(let reason):
             Self.log.error("meeting filing failed for \(name, privacy: .public): \(reason, privacy: .public)")
-            lastFailureAt[name] = clock()
-            recordRelayError(reason)
+            fail(name, reason)
         case .unavailable:
             Self.log.debug("meeting filing deferred for \(name, privacy: .public): destination offline")
         }
+    }
+
+    /// True when the meeting note on disk differs from what the app last
+    /// wrote: the user edited it. Unknown (no hash recorded) counts as not
+    /// edited, so pre-1.0.126 meetings keep the old replace behavior.
+    private static func userEdited(_ note: URL?, entry: MeetingEntry?) -> Bool {
+        guard let note, let recorded = entry?.noteHash else { return false }
+        return MeetingFiler.fileHash(note) != recorded
     }
 
     // MARK: - Helpers
@@ -462,16 +490,35 @@ final class RelayProcessor {
         (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int
     }
 
+    private func fail(_ name: String, _ reason: String) {
+        lastFailureAt[name] = clock()
+        let attempts = (failureCounts[name] ?? 0) + 1
+        failureCounts[name] = attempts
+        if attempts == 1 {
+            appState.activity.record(.failed, source: .iPhoneApp, "\(Self.displayName(name)): \(reason). Retrying every minute.")
+        }
+        recordRelayError(attempts == 1 ? reason : "\(reason) (tried \(attempts) times)")
+    }
+
+    private func markSucceeded(_ name: String) {
+        lastFailureAt[name] = nil
+        failureCounts[name] = nil
+    }
+
+    /// A relay filename without its timestamp and extension: the iPhone title.
+    nonisolated static func displayName(_ relayFilename: String) -> String {
+        let base = (relayFilename as NSString).deletingPathExtension
+        return TitleDeriver.relayTitle(fromBaseName: base) ?? base
+    }
+
     private func recordRelayError(_ message: String) {
         appState.relayLastError = message
-        appState.recordError(message)
+        appState.recordError(message, source: .relay)
     }
 
     private func clearRelayError() {
+        appState.clearError(source: .relay)
         guard appState.relayLastError != nil else { return }
         appState.relayLastError = nil
-        if appState.lastError != nil {
-            appState.clearError()
-        }
     }
 }

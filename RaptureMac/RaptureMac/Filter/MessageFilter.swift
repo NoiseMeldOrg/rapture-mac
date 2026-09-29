@@ -34,7 +34,11 @@ enum MessageFilter {
 
         let normalizedHandle = SelfHandleResolver.normalize(handleId)
         let isSelfChat = selfHandles.contains(normalizedHandle)
-        let allowed = settings.allowedHandles.contains { $0 == handleId || SelfHandleResolver.normalize($0) == normalizedHandle }
+        let allowed = settings.allowedHandles.contains {
+            $0 == handleId
+                || SelfHandleResolver.normalize($0) == normalizedHandle
+                || AllowlistMatch.phonesMatch($0, handleId)
+        }
 
         guard isSelfChat || allowed else { return .drop(.notAllowlisted) }
 
@@ -86,6 +90,8 @@ enum MessageFilter {
 
         // ✅ Queued — destination offline   (Replier.composeSpooledReplyText)
         if trimmed == "✅ Queued — destination offline" { return true }
+        // ✅ Queued — waiting for an earlier note (spool non-empty, drive online)
+        if trimmed == "✅ Queued — waiting for an earlier note" { return true }
 
         // ✓ Saved: 2026-05-20T19-16-54Z.txt
         // ✓ Saved: 2026-05-20T19-16-54Z-3.txt

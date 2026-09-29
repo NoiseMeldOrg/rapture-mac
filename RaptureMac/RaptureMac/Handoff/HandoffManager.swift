@@ -98,6 +98,7 @@ final class HandoffManager: HandoffProcessing {
                     fingerprints.forEach { ledger.record(fingerprint: $0) }
                     outcome.reminderCreated = true
                     noteSuccess(.reminder)
+                    appState.activity.record(.reminderCreated, source: .app, "Reminder created: \(title)")
                     Self.log.info("reminder created: \(title, privacy: .private)")
                 } catch {
                     reportError("Couldn't create reminder: \(error.localizedDescription)")
@@ -129,6 +130,9 @@ final class HandoffManager: HandoffProcessing {
                     fingerprints.forEach { ledger.record(fingerprint: $0) }
                     outcome.eventCreated = true
                     noteSuccess(.event)
+                    appState.activity.record(
+                        .eventCreated, source: .app,
+                        "Calendar event created: \(title), \(start.formatted(date: .abbreviated, time: .shortened))")
                     Self.log.info("event created: \(title, privacy: .private)")
                 } catch {
                     reportError("Couldn't create event: \(error.localizedDescription)")

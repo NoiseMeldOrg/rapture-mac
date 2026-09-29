@@ -1,33 +1,39 @@
 import AppKit
 import SwiftUI
 
+/// Settings tabs. The selection lives on `AppState` so the menu can open a
+/// specific tab (its "Activity…" row).
+enum SettingsTab: Hashable { case general, triage, allowlist, activity, integrations, about }
+
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
 
-    private enum Tab: Hashable { case general, triage, allowlist, integrations, about }
-    @State private var tab: Tab = .general
-
     var body: some View {
-        TabView(selection: $tab) {
+        @Bindable var appState = appState
+        TabView(selection: $appState.settingsTab) {
             SettingsGeneralView()
                 .tabItem { Label("General", systemImage: "gearshape") }
-                .tag(Tab.general)
+                .tag(SettingsTab.general)
 
             SettingsTriageView()
                 .tabItem { Label("Triage", systemImage: "tray.full") }
-                .tag(Tab.triage)
+                .tag(SettingsTab.triage)
 
             SettingsAllowlistView()
                 .tabItem { Label("Allowlist", systemImage: "person.crop.circle.badge.checkmark") }
-                .tag(Tab.allowlist)
+                .tag(SettingsTab.allowlist)
+
+            SettingsActivityView()
+                .tabItem { Label("Activity", systemImage: "clock.arrow.circlepath") }
+                .tag(SettingsTab.activity)
 
             SettingsIntegrationsView()
                 .tabItem { Label("Integrations", systemImage: "puzzlepiece.extension") }
-                .tag(Tab.integrations)
+                .tag(SettingsTab.integrations)
 
             SettingsAboutView()
                 .tabItem { Label("About", systemImage: "info.circle") }
-                .tag(Tab.about)
+                .tag(SettingsTab.about)
         }
         .padding(20)
         .frame(width: 620, height: 560)

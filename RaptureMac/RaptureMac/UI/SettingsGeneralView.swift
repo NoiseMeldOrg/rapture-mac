@@ -21,6 +21,15 @@ struct SettingsGeneralView: View {
             relaySection
         }
         .formStyle(.grouped)
+        .onChange(of: appState.settings.settings.replyMode) { _, newValue in
+            // "Never reply" means a blocked Messages permission no longer matters.
+            if newValue == .off {
+                if appState.automationPermissionState == .required {
+                    appState.automationPermissionState = .unknown
+                }
+                appState.clearError(source: .reply)
+            }
+        }
     }
 
     // MARK: - Debug isolation marker
@@ -276,7 +285,12 @@ struct SettingsGeneralView: View {
         case .watching:
             return "Watching the iCloud relay folder. New notes are filed into your notes folder and removed from the relay."
         case .waitingForDownload(let count):
-            return "Waiting for iCloud to download \(count) \(count == 1 ? "item" : "items")."
+            let items = "\(count) \(count == 1 ? "item" : "items")"
+            if let since = appState.relayWaitingSince, Date().timeIntervalSince(since) >= 60 {
+                let minutes = Int(Date().timeIntervalSince(since) / 60)
+                return "Waiting \(minutes) min for iCloud to download \(items). If it stays stuck, open the Rapture app on your iPhone while it's on Wi-Fi."
+            }
+            return "Waiting for iCloud to download \(items)."
         }
     }
 }

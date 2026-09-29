@@ -4,6 +4,31 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Added
+
+- **An Activity history: what happened to each capture.** Settings has a new **Activity** tab, and the menu has **Activity…** and **Show Last Note**. The history lists every note filed and where it came from (iMessage, the iPhone app, the notes folder, or the offline queue). It also lists queued captures, failures and retries, missing attachments, reminders and calendar events created, link details saved, and meetings filed or updated. Rows with a file have a Show in Finder button. Anything still wrong is listed at the top with its time and a **Dismiss All** button. The history stays on this Mac in `activity.jsonl` next to `state.json`. It keeps titles and file locations only, never note text, and sends nothing anywhere.
+
+### Fixed
+
+- **A note that failed to save was lost.** When writing an iMessage note failed (for example, the disk was full), the app sent "✗" once and then treated the retry as a duplicate, so the note was never filed. A failed note is now retried every minute, with the "✗" reply sent only once. Later notes still file, and nothing is skipped. After 24 hours of failures, the note's text is saved to `Failed captures/` in the app's support folder and the error says where.
+- **Rapture did not start after a restart.** "Start Rapture when I log in" showed as on, but it was never registered with macOS, so capture stopped after every reboot. The app now registers once on first launch. You can still turn it off in Settings → General.
+- **A brand-new user's first "text me" could be dropped.** Until the app knew your own iMessage address, a note to yourself looked like a message from a stranger. The app now waits and looks the address up again, for up to 10 minutes, instead of dropping the note.
+- **The menu said "✓ Capturing" when it could not read Messages.** If reading the Messages database kept failing (for example, Full Disk Access was removed), the error went only to the log. The menu now says so after five seconds and shows the Full Disk Access steps when that is the cause.
+- **A missing photo still said "✅ Saved".** If a photo or video had not downloaded yet, the note filed without it and the warning disappeared at the next capture. The reply now says "✅ Saved · 1 attachment missing". The app retries for about 30 minutes and adds the file to the note when it arrives.
+- **Editing a meeting note before its summary lost your edits.** When the summary replaces the note, your edited version is now kept in the note's attachment folder as "Your edits before the summary.md", and the note links to it.
+- **One error could hide another.** The menu kept a single error line, and any success cleared it, so a stuck iPhone note could vanish from view when an iMessage note filed. Each part of the app now keeps its own error, with its real time, even across a relaunch.
+- **A hung Messages app could stall capture.** A reply now gives up after 20 seconds. The note is already saved at that point.
+- **"Queued: destination offline" while the drive was connected.** Captures also queue behind an older queued note that will not file. The reply now says "✅ Queued — waiting for an earlier note", and the menu shows how many are waiting.
+- **An iPhone note stuck in iCloud waited silently.** After 10 minutes the menu warns and suggests opening the Rapture iPhone app on Wi-Fi. Settings → General shows how long it has waited, and a relay error shows how many times it was tried.
+- **Allowlisted phone numbers typed with punctuation never matched.** "(555) 555-0123", "555.555.0123" and "+1 555 555 0123" now match. The Allowlist tab warns when an entry is neither a phone number nor an email address.
+
+### Changed
+
+- **Permission help fits the problem.** "Show permissions help…" opened the Full Disk Access steps even when the problem was replies (Automation). It now shows the right steps, with a **Never Reply** button. The Full Disk Access window now tells you to click Quit & Reopen, and offers a **Reopen Rapture** button when macOS does not ask. Choosing "Never reply" clears the Automation warning.
+- **The first-reply prompt no longer offers only "Quit".** Its buttons are now **Continue** and **Don't Send Replies**.
+- **The menu-bar icon shows problems.** It turns into a warning triangle whenever the menu reports a problem. The menu shows how long ago an error happened, with a **Dismiss** button. VoiceOver reads the icon as the current status, and ⌘, and ⌘Q work in the menu.
+- **Wording.** The first-reply prompt says "✅ Saved" (the real reply). New installs no longer see the "captures now file as Markdown" notice meant for people updating. Folder lists include Meetings/. The Integrations tab no longer tells you to rebuild the app.
+
 ## [1.0.125] - 2026-09-29: Meetings from your iPhone file as one note
 
 Built from commit `618c7ba`. SHA-256: `f76345aa44a26157d8f1039ee20b8f29af182cb72971adc6357d0eb733f3ce44`.

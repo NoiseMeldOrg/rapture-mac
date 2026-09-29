@@ -15,10 +15,15 @@ struct SettingsAllowlistView: View {
                     Button("Add", action: addDraft)
                         .disabled(AllowlistInput.normalize(draftEntry) == nil)
                 }
+                if let cleaned = AllowlistInput.normalize(draftEntry), !AllowlistMatch.looksLikeHandle(cleaned) {
+                    Label("This doesn't look like a phone number or an email address, so messages may never match it.", systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             } header: {
                 Text("Allowed Senders")
             } footer: {
-                Text("Messages to yourself are always captured. Add other phone numbers (e.g. +15555550123) or Apple ID emails here to capture from them too.")
+                Text("Messages to yourself are always captured. Add other people's phone numbers (any format, e.g. (555) 555-0123) or Apple ID emails here to capture from them too.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

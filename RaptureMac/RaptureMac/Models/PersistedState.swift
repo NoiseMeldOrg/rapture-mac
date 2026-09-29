@@ -22,6 +22,13 @@ struct PersistedState: Codable, Sendable, Equatable {
     var enrichedLinkRecords: [EnrichedLinkEntry]
     var transcriptDispatchRecords: [TranscriptDispatchEntry]
     var meetingRecords: [MeetingEntry]
+    /// Unresolved errors, one per `ErrorSource`. Replaces the single
+    /// `lastError` string (still decoded from older files, see below).
+    var errorRecords: [ErrorRecord]
+    /// True once the app has applied the `launchAtLogin` default to the
+    /// system login item. Before 1.0.126 the default was stored as "on" but
+    /// never registered, so capture silently stopped after every reboot.
+    var launchAtLoginSeeded: Bool
 
     init(
         chatDbWatermark: Int64 = 0,
@@ -41,7 +48,9 @@ struct PersistedState: Codable, Sendable, Equatable {
         handoffRecords: [HandoffEntry] = [],
         enrichedLinkRecords: [EnrichedLinkEntry] = [],
         transcriptDispatchRecords: [TranscriptDispatchEntry] = [],
-        meetingRecords: [MeetingEntry] = []
+        meetingRecords: [MeetingEntry] = [],
+        errorRecords: [ErrorRecord] = [],
+        launchAtLoginSeeded: Bool = false
     ) {
         self.chatDbWatermark = chatDbWatermark
         self.selfHandlesCacheTs = selfHandlesCacheTs
@@ -61,6 +70,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.enrichedLinkRecords = enrichedLinkRecords
         self.transcriptDispatchRecords = transcriptDispatchRecords
         self.meetingRecords = meetingRecords
+        self.errorRecords = errorRecords
+        self.launchAtLoginSeeded = launchAtLoginSeeded
     }
 
     enum CodingKeys: String, CodingKey {
@@ -82,6 +93,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         case enrichedLinkRecords
         case transcriptDispatchRecords
         case meetingRecords
+        case errorRecords
+        case launchAtLoginSeeded
     }
 
     init(from decoder: Decoder) throws {
@@ -104,6 +117,16 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.enrichedLinkRecords = try c.decodeIfPresent([EnrichedLinkEntry].self, forKey: .enrichedLinkRecords) ?? []
         self.transcriptDispatchRecords = try c.decodeIfPresent([TranscriptDispatchEntry].self, forKey: .transcriptDispatchRecords) ?? []
         self.meetingRecords = try c.decodeIfPresent([MeetingEntry].self, forKey: .meetingRecords) ?? []
+        self.launchAtLoginSeeded = try c.decodeIfPresent(Bool.self, forKey: .launchAtLoginSeeded) ?? false
+        if let records = try c.decodeIfPresent([ErrorRecord].self, forKey: .errorRecords) {
+            self.errorRecords = records
+        } else if let legacy = self.lastError, !legacy.isEmpty {
+            // Pre-1.0.126 state: one untimed string. Keep it visible; "now" is
+            // the honest upper bound for when it happened.
+            self.errorRecords = [ErrorRecord(source: .capture, message: legacy, at: Date())]
+        } else {
+            self.errorRecords = []
+        }
     }
 
     /// Returns todayCount when `todayDate` falls on the same calendar day as `now`; 0 otherwise.

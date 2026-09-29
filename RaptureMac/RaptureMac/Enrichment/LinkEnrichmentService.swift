@@ -207,6 +207,7 @@ final class LinkEnrichmentService: LinkEnriching {
             }
         }
         appState.enrichmentLastError = message
+        appState.activity.record(.warning, source: .app, message)
         Self.log.info("enrichment gave up on \(job.fingerprint, privacy: .public)")
         if !queue.isEmpty { queue.removeFirst() }
     }
@@ -347,6 +348,10 @@ final class LinkEnrichmentService: LinkEnriching {
                     title: title ?? ""
                 )
                 if let first = appendTargets.first {
+                    appState.activity.record(
+                        .enriched, source: .app,
+                        "Link details saved: \(title ?? artifactURL.deletingPathExtension().lastPathComponent)",
+                        path: folder.appendingPathComponent(first.relativePath))
                     transcriptDispatch?.captureEnriched(
                         fingerprint: job.fingerprint, url: job.echo.rawMedia,
                         noteRelativePath: first.relativePath)

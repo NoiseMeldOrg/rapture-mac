@@ -16,9 +16,20 @@ final class StateStore {
     /// in the debug container broke ledger-emptiness assertions).
     @ObservationIgnored private let directory: URL?
 
+    /// True when no state.json existed at launch: a brand-new install.
+    @ObservationIgnored let isFreshInstall: Bool
+
     init(directory: URL? = nil) {
         self.directory = directory
-        self.state = Self.load(from: directory) ?? PersistedState()
+        if let loaded = Self.load(from: directory) {
+            self.state = loaded
+            self.isFreshInstall = false
+        } else {
+            // A new user has no pre-triage habits to retire, so the one-time
+            // "captures now file as Markdown" notice is for updaters only.
+            self.state = PersistedState(triageIntroShown: true)
+            self.isFreshInstall = true
+        }
     }
 
     func update(_ mutate: (inout PersistedState) -> Void) {

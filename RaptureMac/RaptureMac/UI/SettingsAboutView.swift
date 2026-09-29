@@ -91,6 +91,7 @@ struct SettingsAboutView: View {
             row("Output folder", value: appState.settings.settings.outputFolder?.path(percentEncoded: false) ?? "—")
             row("Settings file", value: filePath("settings.json"))
             row("State file", value: filePath("state.json"))
+            row("Activity log", value: filePath(ActivityLog.fileName))
 
             if let err = appState.lastError {
                 Divider()

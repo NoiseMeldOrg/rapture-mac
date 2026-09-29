@@ -258,6 +258,7 @@ final class TriageProcessor {
                     meetingId: id, noteRelativePath: "", part: meeting.header.part,
                     relayFilenames: [], appliedSummaryHashes: [], updatedAt: clock())
                 entry.noteRelativePath = CaptureContract.relativePath(of: mdURL, in: folder)
+                entry.noteHash = MeetingFiler.fileHash(mdURL)
                 entry.part = meeting.header.part
                 meetingLedger.upsert(entry)
             }
@@ -265,6 +266,7 @@ final class TriageProcessor {
             lastFailureAt[name] = nil
             clearTriageError()
             Self.log.info("triaged \(name, privacy: .public) → \(mdURL.lastPathComponent, privacy: .public)")
+            appState.activity.record(.filed, source: .folder, mdURL.deletingPathExtension().lastPathComponent, path: mdURL)
             // Enrichment (M5): link captures only — enqueue is non-blocking, so
             // calling it while this processor holds the capture gate is safe.
             if let enrichment, let rawMedia = classification.rawMedia,
@@ -308,6 +310,9 @@ final class TriageProcessor {
 
     private func fail(name: String, reason: String) {
         Self.log.error("\(reason, privacy: .public)")
+        if lastFailureAt[name] == nil {
+            appState.activity.record(.failed, source: .folder, reason)
+        }
         lastFailureAt[name] = clock()
         recordTriageError(reason)
     }
@@ -322,14 +327,12 @@ final class TriageProcessor {
 
     private func recordTriageError(_ message: String) {
         appState.triageLastError = message
-        appState.recordError(message)
+        appState.recordError(message, source: .triage)
     }
 
     private func clearTriageError() {
+        appState.clearError(source: .triage)
         guard appState.triageLastError != nil else { return }
         appState.triageLastError = nil
-        if appState.lastError != nil {
-            appState.clearError()
-        }
     }
 }

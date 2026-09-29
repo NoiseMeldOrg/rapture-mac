@@ -4,13 +4,15 @@ Rapture for Mac is built so this section can be honestly short.
 
 ## What stays on your Mac
 
-**Everything, with two opt-in exceptions you control.** Captured messages, their attachments, the app's settings, the app's runtime state. None of it leaves your computer unless you explicitly turn on **AI triage** running on your own Anthropic API key (which sends voice-note text to Anthropic) or **link enrichment** (which sends the URLs you capture to the sites they point at). Both are off by default. With both off, nothing about your captures ever leaves.
+**Everything, with two opt-in exceptions you control.** Captured messages, their attachments, the app's settings, its runtime state, and its activity history. None of it leaves your computer unless you explicitly turn on **AI triage** running on your own Anthropic API key (which sends voice-note text to Anthropic) or **link enrichment** (which sends the URLs you capture to the sites they point at). Both are off by default. With both off, nothing about your captures ever leaves.
 
-- Captured notes go into the folder *you* picked (default `~/Documents/Rapture Notes/`) as plain Markdown files with a small metadata header — or raw `.txt` files if you choose raw mode in **Settings → Triage**. Either way they're plain text. You own them. You can move, delete, encrypt, or sync them wherever you want. Triage (classification, titling, filing into `Notes/` and `Links/`) is deterministic string-matching that happens on your Mac by default: no AI, no network, and the verbatim transcription is never discarded.
+- Captured notes go into the folder *you* picked (default `~/Documents/Rapture Notes/`) as plain Markdown files with a small metadata header, or raw `.txt` files if you choose raw mode in **Settings → Triage**. Either way they're plain text. You own them. You can move, delete, encrypt, or sync them wherever you want. Triage (classification, titling, filing into `Notes/` and `Links/`) is deterministic string-matching that happens on your Mac by default: no AI, no network, and the verbatim transcription is never discarded. Meetings recorded in the Rapture iPhone app file into `Meetings/`, one note per meeting, and are never sent to any AI engine.
 - `~/Library/Application Support/Rapture for Mac/settings.json`: your preferences (output folder, allowlist, reply mode, etc.).
-- `~/Library/Application Support/Rapture for Mac/state.json`: runtime bookkeeping (the chat.db ROWID watermark, recent self-handle cache, last-error string).
+- `~/Library/Application Support/Rapture for Mac/state.json`: runtime bookkeeping (the chat.db ROWID watermark, recent self-handle cache, the errors shown in the menu).
+- `~/Library/Application Support/Rapture for Mac/activity.jsonl`: the history behind **Settings → Activity** and the menu's **Show Last Note**. Each line records what the app did (a note filed, a failure, a reminder created), when, where the capture came from, a note title or short status, and a file path. It never holds note text, and it is never sent anywhere. The app trims it once it passes about 1 MB.
+- `~/Library/Application Support/Rapture for Mac/Failed captures/`: exists only if a note has failed to save for 24 hours. The app then writes that note's text here as a plain file so it isn't lost, and tells you in the menu.
 
-Both files are plain JSON. You can `cat` them and see exactly what's in there. Your optional Anthropic API key is in **neither** — it lives in the macOS Keychain.
+All of these are plain text. You can `cat` them and see exactly what's in there. Your optional Anthropic API key is in **none** of them. It lives in the macOS Keychain.
 
 ## AI triage (optional, off by default)
 

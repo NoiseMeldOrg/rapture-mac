@@ -13,21 +13,43 @@ final class ChatDBWatcher {
         self.dbPool = dbPool
     }
 
-    func events(watermarkProvider: @escaping @Sendable () async -> Int64) -> AsyncStream<[MessageEvent]> {
+    /// Consecutive failed polls before the failure is reported. One failed
+    /// poll is normal (Messages briefly locks the database); five in a row
+    /// (five seconds) means capture has stopped.
+    nonisolated static let failureReportThreshold = 5
+
+    /// `onHealth` receives nil when polling recovers and the error once polls
+    /// have failed `failureReportThreshold` times in a row. Before 1.0.126 a
+    /// failing poll was only logged, and the menu bar kept saying "Capturing".
+    func events(
+        watermarkProvider: @escaping @Sendable () async -> Int64,
+        onHealth: @escaping @Sendable (Error?) async -> Void = { _ in }
+    ) -> AsyncStream<[MessageEvent]> {
         let (stream, continuation) = AsyncStream<[MessageEvent]>.makeStream(bufferingPolicy: .unbounded)
         let pool = dbPool
         pollTask = Task.detached(priority: .utility) {
+            var consecutiveFailures = 0
             while !Task.isCancelled {
                 let watermark = await watermarkProvider()
                 do {
                     let events = try await pool.read { db in
                         try Self.fetchEvents(db: db, watermark: watermark)
                     }
+                    if consecutiveFailures >= Self.failureReportThreshold {
+                        await onHealth(nil)
+                    }
+                    consecutiveFailures = 0
                     if !events.isEmpty {
                         continuation.yield(events)
                     }
                 } catch {
-                    Self.log.error("Poll failed: \(error.localizedDescription, privacy: .public)")
+                    consecutiveFailures += 1
+                    if consecutiveFailures == 1 || consecutiveFailures % 60 == 0 {
+                        Self.log.error("Poll failed (\(consecutiveFailures)x): \(error.localizedDescription, privacy: .public)")
+                    }
+                    if consecutiveFailures == Self.failureReportThreshold {
+                        await onHealth(error)
+                    }
                 }
                 try? await Task.sleep(for: .seconds(1))
             }

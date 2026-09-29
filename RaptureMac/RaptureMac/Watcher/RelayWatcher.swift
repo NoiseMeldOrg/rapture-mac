@@ -61,7 +61,8 @@ final class RelayWatcher {
     /// the scan. `onStatus` receives deduplicated status changes.
     func batches(
         enabledProvider: @escaping @Sendable () async -> Bool,
-        onStatus: @escaping @Sendable (RelayStatus) async -> Void
+        onStatus: @escaping @Sendable (RelayStatus) async -> Void,
+        onWaitingSince: @escaping @Sendable (Date?) async -> Void = { _ in }
     ) -> AsyncStream<RelayScanBatch> {
         // Newest-only buffering: each batch is a full re-derivable snapshot, so a
         // stale queued snapshot is worthless once a newer one exists.
@@ -70,7 +71,17 @@ final class RelayWatcher {
         pollTask = Task.detached(priority: .utility) {
             var firstSeen: [String: Date] = [:]
             var lastPosted: RelayStatus?
+            var lastWaitingSince: Date??
             var loggedNudgeFailures: Set<String> = []
+
+            // When the oldest still-undownloaded relay item was first seen;
+            // posted only on change. Lets the menu bar warn about an iPhone
+            // note stuck in iCloud instead of waiting silently forever.
+            func postWaitingSince(_ date: Date?) async {
+                guard lastWaitingSince != .some(date) else { return }
+                lastWaitingSince = .some(date)
+                await onWaitingSince(date)
+            }
 
             func post(_ status: RelayStatus) async {
                 guard status != lastPosted else { return }
@@ -82,6 +93,7 @@ final class RelayWatcher {
                 if await !enabledProvider() {
                     firstSeen = [:]
                     await post(.off)
+                    await postWaitingSince(nil)
                 } else if let entries = try? FileManager.default.contentsOfDirectory(atPath: folder.path) {
                     let plan = Self.plan(entries: entries, firstSeen: firstSeen, now: Date())
                     firstSeen = plan.newFirstSeen
@@ -96,6 +108,7 @@ final class RelayWatcher {
                     } else {
                         await post(.waitingForDownload(count: plan.placeholdersToNudge.count))
                     }
+                    await postWaitingSince(plan.placeholdersToNudge.compactMap { plan.newFirstSeen[$0] }.min())
                     let batch = RelayScanBatch(
                         candidates: plan.readyTxt.map { ready in
                             RelayCandidate(
@@ -115,6 +128,7 @@ final class RelayWatcher {
                     // iPhone send, so this is the normal idle state, not an error.
                     firstSeen = [:]
                     await post(.waitingForFolder)
+                    await postWaitingSince(nil)
                 }
                 try? await Task.sleep(for: .seconds(Self.pollInterval))
             }

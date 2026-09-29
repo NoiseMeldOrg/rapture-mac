@@ -23,8 +23,8 @@ Everything below assumes notes are already landing in the folder. If they aren't
 The same shape:
 
 1. Find the output folder via Rapture's sidecar file (`~/Library/Application Support/Rapture for Mac/output-folder.path`), falling back to `~/Documents/Rapture Notes/`.
-2. Watch the triaged subfolders (`Notes/`, `Links/`, `Tasks/`, `Ideas/`, `Journal/`) for new `.md` files. Skip `Links/Media/` — those are fetched transcript/article artifacts, not notes. `Meetings/` is different: a meeting note is first filed as a transcript, then rewritten and renamed when the user makes a summary (days later, possibly more than once). Key meeting notes by their `meeting_id` frontmatter, not by path, if you act on them.
-3. For each new note, read the YAML frontmatter (`captured`, `type`, and the optional `source` and `raw_media` fields) and act on the note: file a task, summarize a link, review a journal entry, whatever your rules say.
+2. Watch the triaged subfolders (`Notes/`, `Links/`, `Tasks/`, `Ideas/`, `Journal/`, `Meetings/`) for new `.md` files. Skip `Links/Media/`: those are fetched transcript/article artifacts, not notes. `Meetings/` is different: a meeting note is first filed as a transcript, then rewritten and renamed when the user makes a summary (days later, possibly more than once). Key meeting notes by their `meeting_id` frontmatter, not by path, if you act on them.
+3. For each new note, read the YAML frontmatter (`captured`, `type`, and the optional `source`, `raw_media`, and `meeting_id` fields) and act on the note: file a task, summarize a link, review a journal entry, whatever your rules say.
 4. Record the note as handled (a log file, not a move) so it isn't acted on twice.
 
 The app already did the classifying, so the interesting work moves up a level: not "what is this note?" but "what should happen because of it?" Each example sketches starter actions per `type`; tune them to your own workflow.
@@ -41,7 +41,7 @@ type: voice-note
 Rent is due on the 5th.
 ```
 
-`type` is one of `voice-note`, `youtube-link`, `article-link`, `task`, `idea`, `journal` (the last three appear only with the AI tier on). When formatting changed the body, the verbatim dictation is preserved under a `## Raw` section. Attachments live in a sibling folder named after the note, linked from an `Attachments:` footer. With the opt-in Link enrichment toggle, link notes also carry a `Media:` link to a fetched transcript or readable-text file in `Links/Media/`, and the note is renamed to the real video or page title.
+`type` is one of `voice-note`, `youtube-link`, `article-link`, `task`, `idea`, `journal`, `meeting`. `task`, `idea`, and `journal` appear only with the AI tier on. `meeting` notes come from the Rapture iPhone app's meeting mode, file into `Meetings/`, and also carry a `meeting_id` field. When formatting changed the body, the verbatim dictation is preserved under a `## Raw` section. Attachments live in a sibling folder named after the note, linked from an `Attachments:` footer. With the opt-in Link enrichment toggle, link notes also carry a `Media:` link to a fetched transcript or readable-text file in `Links/Media/`, and the note is renamed to the real video or page title.
 
 ### The root is an inbox
 

@@ -20,14 +20,16 @@ final class Replier {
         notifications: NotificationDispatching,
         stateStore: StateStore,
         appState: AppState,
-        prePromptHandler: @MainActor @escaping () -> Bool = { AutomationPrompt.showPrePrompt() == .proceed }
+        prePromptHandler: (@MainActor () -> Bool)? = nil
     ) {
         self.sender = sender
         self.echoGuard = echoGuard
         self.notifications = notifications
         self.stateStore = stateStore
         self.appState = appState
-        self.prePromptHandler = prePromptHandler
+        self.prePromptHandler = prePromptHandler ?? { [weak appState] in
+            AutomationPrompt.showPrePrompt(settings: appState?.settings) == .proceed
+        }
     }
 
     /// Per-message reply gated by reply mode and isCatchup. `handoff` suffixes
@@ -45,7 +47,8 @@ final class Replier {
         }
 
         guard let text = Self.composeReplyText(
-            replyMode: settings.replyMode, outcome: result.outcome, handoff: handoff
+            replyMode: settings.replyMode, outcome: result.outcome, handoff: handoff,
+            missingAttachments: result.failedAttachments.count
         ) else {
             return
         }
@@ -54,13 +57,13 @@ final class Replier {
 
     /// Reply for a capture spooled while the destination volume is absent.
     /// Same catch-up and chatGuid gating as `replyForWrite`.
-    func replyForSpooled(captured: CapturedMessage, settings: Settings) async {
+    func replyForSpooled(captured: CapturedMessage, settings: Settings, destinationOffline: Bool = true) async {
         guard !captured.isCatchup else { return }
         guard let chatGuid = captured.event.chatGuid else {
             Self.log.debug("Skipping spooled reply: no chatGuid")
             return
         }
-        guard let text = Self.composeSpooledReplyText(replyMode: settings.replyMode) else {
+        guard let text = Self.composeSpooledReplyText(replyMode: settings.replyMode, destinationOffline: destinationOffline) else {
             return
         }
         await sendChat(chatGuid: chatGuid, text: text)
@@ -97,7 +100,8 @@ final class Replier {
     nonisolated static func composeReplyText(
         replyMode: ReplyMode,
         outcome: WriteResult.Outcome,
-        handoff: HandoffOutcome = .none
+        handoff: HandoffOutcome = .none,
+        missingAttachments: Int = 0
     ) -> String? {
         switch (replyMode, outcome) {
         case (.off, _):
@@ -105,7 +109,7 @@ final class Replier {
         case (.errorsOnly, .success):
             return nil
         case (.all, .success):
-            return "✅ Saved" + Self.handoffSuffix(handoff)
+            return "✅ Saved" + Self.handoffSuffix(handoff) + Self.missingAttachmentSuffix(missingAttachments)
         case (_, .failure(let reason)):
             return "✗ \(reason)"
         case (_, .unavailable):
@@ -125,13 +129,22 @@ final class Replier {
         }
     }
 
+    /// "✅ Saved" must not claim a photo that didn't make it: the note filed,
+    /// but an attachment was not downloaded yet (it is retried in the background).
+    nonisolated static func missingAttachmentSuffix(_ count: Int) -> String {
+        guard count > 0 else { return "" }
+        return " · \(count) \(count == 1 ? "attachment" : "attachments") missing"
+    }
+
     /// Honest confirmation for a capture queued in the internal spool while the
     /// destination volume is absent: durable, but not in the notes folder yet.
     /// Success-tier, so `.errorsOnly` and `.off` stay silent; no second reply
     /// fires when the spool flushes.
-    nonisolated static func composeSpooledReplyText(replyMode: ReplyMode) -> String? {
+    nonisolated static func composeSpooledReplyText(replyMode: ReplyMode, destinationOffline: Bool = true) -> String? {
         guard replyMode == .all else { return nil }
-        return "✅ Queued — destination offline"
+        // Captures also queue behind an older queued capture that won't file
+        // (order is kept), with the drive online. Saying "offline" then is wrong.
+        return destinationOffline ? "✅ Queued — destination offline" : "✅ Queued — waiting for an earlier note"
     }
 
     nonisolated static func composeCatchupText(successCount: Int, failureCount: Int) -> String {
@@ -165,7 +178,9 @@ final class Replier {
             let proceed = prePromptHandler()
             stateStore.update { $0.automationPrePromptShown = true }
             guard proceed else {
-                appState.automationPermissionState = .required
+                // "Don't Send Replies" switched reply mode to Never: that is a
+                // choice, not a missing permission, so no warning.
+                appState.automationPermissionState = appState.settings.settings.replyMode == .off ? .unknown : .required
                 return
             }
             appState.automationPermissionState = .unknown
@@ -175,6 +190,7 @@ final class Replier {
             try await sender.send(text: text, toChatGuid: chatGuid)
             echoGuard.track(chatGuid: chatGuid, text: text)
             appState.automationPermissionState = .ok
+            appState.clearError(source: .reply)
             Self.log.info("Sent reply to chat=\(chatGuid, privacy: .public)")
         } catch let err as AppleScriptSendError {
             if err.isPermissionDenied {
@@ -182,14 +198,14 @@ final class Replier {
                     appState.automationPermissionState = .required
                     AutomationPrompt.showDenied()
                 }
-                appState.recordError("Automation permission needed for Messages")
+                appState.recordError("Automation permission needed for Messages", source: .reply)
             } else {
                 Self.log.error("Send failed: \(err.userFacingMessage, privacy: .public)")
-                appState.recordError("Reply failed: \(err.userFacingMessage)")
+                appState.recordError("Reply failed: \(err.userFacingMessage)", source: .reply)
             }
         } catch {
             Self.log.error("Send failed: \(error.localizedDescription, privacy: .public)")
-            appState.recordError("Reply failed: \(error.localizedDescription)")
+            appState.recordError("Reply failed: \(error.localizedDescription)", source: .reply)
         }
     }
 }

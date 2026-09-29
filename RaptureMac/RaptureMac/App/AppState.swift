@@ -19,8 +19,20 @@ final class AppState {
 
     var permissionState: PermissionState = .unknown
     var automationPermissionState: AutomationPermissionState = .unknown
-    var lastError: String?
-    var lastErrorAt: Date?
+    /// Unresolved errors, one per source (see `ErrorSource`). Mirrored to
+    /// state.json so they survive a relaunch with their real timestamps.
+    private(set) var errors: [ErrorRecord] = []
+
+    /// The newest unresolved error: what the menu bar shows.
+    var newestError: ErrorRecord? { errors.max { $0.at < $1.at } }
+    var lastError: String? { newestError?.message }
+    var lastErrorAt: Date? { newestError?.at }
+
+    /// Which Settings tab is showing. Transient; lets the menu open a tab.
+    var settingsTab: SettingsTab = .general
+
+    /// Local, human-readable history of what the app did (see `ActivityLog`).
+    let activity: ActivityLog
 
     /// True while notes are being moved between folders. The capture pipeline treats this
     /// like `paused` (defers new batches) so writes don't race the move. Transient.
@@ -32,6 +44,9 @@ final class AppState {
     /// Last relay filing error. Kept separate from `relayStatus` so a per-tick status
     /// post can never clobber an error the user hasn't seen yet. Transient.
     var relayLastError: String?
+    /// When the oldest relay item still waiting for iCloud to download was
+    /// first seen; nil when nothing is waiting. Transient.
+    var relayWaitingSince: Date?
 
     /// Transient status of the triage engine (see `TriageWatcher`/`TriageProcessor`).
     var triageStatus: TriageStatus = .off
@@ -97,6 +112,18 @@ final class AppState {
     /// spawned tools resolve from `/opt/homebrew/bin` etc.
     let loginPath: String
 
+    /// Where settings.json/state.json/activity.jsonl live; nil = the app-support container.
+    private let supportDirectory: URL?
+
+    /// The support directory as a real URL (created if needed).
+    func supportDirectoryURL() throws -> URL {
+        if let supportDirectory {
+            try FileManager.default.createDirectory(at: supportDirectory, withIntermediateDirectories: true)
+            return supportDirectory
+        }
+        return try AppSupportDirectory.url()
+    }
+
     /// Volume-absence classifier used before relocations. Injectable for tests.
     private let destinationGuard: DestinationGuard
 
@@ -109,8 +136,10 @@ final class AppState {
         eventKit: (any EventKitClient)? = nil,
         credentials: (any CredentialStore)? = nil
     ) {
+        self.supportDirectory = supportDirectory
         self.settings = SettingsStore(directory: supportDirectory)
         self.state = StateStore(directory: supportDirectory)
+        self.activity = ActivityLog(directory: supportDirectory)
         self.destinationGuard = destinationGuard
         self.eventKit = eventKit ?? SystemEventKitClient()
         self.credentials = credentials ?? KeychainStore()
@@ -122,19 +151,37 @@ final class AppState {
             examplesRoot: Bundle.main.examplesURL,
             scriptsRoot: Bundle.main.scriptsURL
         )
-        self.lastError = state.state.lastError
+        self.errors = state.state.errorRecords
     }
 
-    func recordError(_ message: String) {
-        lastError = message
-        lastErrorAt = Date()
-        state.update { $0.lastError = message }
+    /// Records (or replaces) the error for `source`. Other sources' errors stay.
+    func recordError(_ message: String, source: ErrorSource = .capture, at date: Date = Date()) {
+        errors.removeAll { $0.source == source }
+        errors.append(ErrorRecord(source: source, message: message, at: date))
+        persistErrors()
     }
 
-    func clearError() {
-        lastError = nil
-        lastErrorAt = nil
-        state.update { $0.lastError = nil }
+    /// Clears only `source`'s error: a success in one part of the app says
+    /// nothing about another part.
+    func clearError(source: ErrorSource) {
+        guard errors.contains(where: { $0.source == source }) else { return }
+        errors.removeAll { $0.source == source }
+        persistErrors()
+    }
+
+    /// The user's Dismiss button: they have seen every error.
+    func dismissAllErrors() {
+        guard !errors.isEmpty else { return }
+        errors.removeAll()
+        persistErrors()
+    }
+
+    private func persistErrors() {
+        let snapshot = errors
+        state.update {
+            $0.errorRecords = snapshot
+            $0.lastError = snapshot.max { $0.at < $1.at }?.message
+        }
     }
 
     /// The single entry point for changing the output folder. Moves the existing notes tree
@@ -154,7 +201,7 @@ final class AppState {
         guard destinationGuard.check(new) != .volumeAbsent else {
             let message = "The drive for \"\(new.lastPathComponent)\" isn't connected."
             relocationStatus = .failed(message)
-            recordError("Couldn't move notes: \(message)")
+            recordError("Couldn't move notes: \(message)", source: .folder)
             return
         }
         // Relocating AWAY FROM an absent volume: nothing can be moved off an
@@ -195,14 +242,14 @@ final class AppState {
                 }
                 relocationStatus = .idle
                 if oldVolumeAbsent {
-                    recordError("Your previous notes are still on the disconnected drive. Reconnect it and switch the folder back to move them.")
-                } else if lastError != nil {
-                    clearError()
+                    recordError("Your previous notes are still on the disconnected drive. Reconnect it and switch the folder back to move them.", source: .folder)
+                } else {
+                    clearError(source: .folder)
                 }
             } catch {
                 let message = error.localizedDescription
                 relocationStatus = .failed(message)
-                recordError("Couldn't move notes: \(message)")
+                recordError("Couldn't move notes: \(message)", source: .folder)
             }
         }
 

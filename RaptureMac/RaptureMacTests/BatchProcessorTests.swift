@@ -178,8 +178,10 @@ final class BatchProcessorTests: XCTestCase {
         XCTAssertFalse(r2.isDuplicate, "Empty-vs-empty must NOT dedup")
     }
 
-    func testDedupCapacityValueIsOneHundred() {
-        XCTAssertEqual(BatchProcessor.recentGuidCapacity, 100)
+    func testDedupCapacityValue() {
+        // Rows after a failed row replay until it resolves; their guids must
+        // stay remembered meanwhile, so the window is wider than a live burst.
+        XCTAssertEqual(BatchProcessor.recentGuidCapacity, 500)
     }
 
     // MARK: - pause persists across batches

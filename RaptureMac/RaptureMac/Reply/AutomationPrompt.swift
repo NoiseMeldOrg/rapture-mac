@@ -7,27 +7,28 @@ enum AutomationPrompt {
 
     enum PrePromptResult {
         case proceed
-        case quit
+        /// The user doesn't want replies: reply mode is switched to Never.
+        case noReplies
     }
 
     @discardableResult
-    static func showPrePrompt() -> PrePromptResult {
+    static func showPrePrompt(settings: SettingsStore? = nil) -> PrePromptResult {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = "Rapture is about to reply in your Messages thread"
         alert.informativeText = """
-            So you'll get a "✓ Saved" confirmation on your iPhone after each capture, Rapture sends a short reply in the Messages thread the note arrived on.
+            So you'll get a "✅ Saved" confirmation on your iPhone after each capture, Rapture sends a short reply in the Messages thread the note arrived on.
 
-            macOS will ask whether to allow that. Click OK on the next prompt.
+            macOS will ask whether to allow that. Click OK on the next prompt. Your note is already saved either way.
             """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Continue")
-        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "Don't Send Replies")
 
         let response = alert.runModal()
         if response == .alertSecondButtonReturn {
-            NSApp.terminate(nil)
-            return .quit
+            settings?.update { $0.replyMode = .off }
+            return .noReplies
         }
         return .proceed
     }

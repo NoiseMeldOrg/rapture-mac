@@ -129,8 +129,12 @@ final class DestinationMonitor {
                         : nil
                     spool.remove(item)
                     lastFlushFailureAt = nil
+                    appState.clearError(source: .queue)
+                    appState.activity.record(.filed, source: .queue, url.deletingPathExtension().lastPathComponent, path: url)
                     if !result.failedAttachments.isEmpty {
-                        appState.recordError("Some attachments missing for \(url.lastPathComponent)")
+                        let message = "Some attachments missing for \(url.lastPathComponent)"
+                        appState.recordError(message, source: .attachments)
+                        appState.activity.record(.attachmentMissing, source: .queue, message, path: url)
                     }
                     if let handoff, let handoffText {
                         // capturedAt comes verbatim from the item's metadata —
@@ -155,7 +159,11 @@ final class DestinationMonitor {
                     return
                 case .failure(let reason):
                     // FIFO-strict: never skip ahead of a failing item.
-                    appState.recordError("Couldn't file queued capture: \(reason)")
+                    let message = "Couldn't file queued capture: \(reason)"
+                    if appState.errors.first(where: { $0.source == .queue })?.message != message {
+                        appState.activity.record(.failed, source: .queue, "\(message). Newer captures wait behind it to keep their order.")
+                    }
+                    appState.recordError(message, source: .queue)
                     lastFlushFailureAt = clock()
                     return
                 }

@@ -105,14 +105,14 @@ final class MeetingMarkerTests: XCTestCase {
 
     func testReplacingMarkdownFooterRebuildsItFromFiles() {
         let note = "---\ntype: meeting\n---\n\n# T\nbody\n\nAttachments:\n- [a.m4a](<Old/a.m4a>)\n"
-        let updated = MeetingFiler.replacingFooter(in: note, isMarkdown: true, folder: "New", files: ["a.m4a", "b.m4a"])
+        let updated = NoteFooter.replacing(in: note, isMarkdown: true, folder: "New", files: ["a.m4a", "b.m4a"])
         XCTAssertEqual(updated, "---\ntype: meeting\n---\n\n# T\nbody\n\nAttachments:\n- [a.m4a](<New/a.m4a>)\n- [b.m4a](<New/b.m4a>)\n")
-        let added = MeetingFiler.replacingFooter(in: "---\n---\n\nbody\n", isMarkdown: true, folder: "F", files: ["a.m4a"])
+        let added = NoteFooter.replacing(in: "---\n---\n\nbody\n", isMarkdown: true, folder: "F", files: ["a.m4a"])
         XCTAssertEqual(added, "---\n---\n\nbody\n\nAttachments:\n- [a.m4a](<F/a.m4a>)\n")
     }
 
     func testReplacingPlainFooter() {
-        let updated = MeetingFiler.replacingFooter(in: "body", isMarkdown: false, folder: "F", files: ["a.m4a"])
+        let updated = NoteFooter.replacing(in: "body", isMarkdown: false, folder: "F", files: ["a.m4a"])
         XCTAssertEqual(updated, "body\n\nAttachments:\n- F/a.m4a\n")
     }
 

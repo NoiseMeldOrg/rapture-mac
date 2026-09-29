@@ -13,7 +13,8 @@ struct MenuBarView: View {
             paused: appState.settings.settings.paused,
             destinationOffline: appState.destinationOffline,
             queuedCount: appState.queuedCaptureCount,
-            lastError: appState.lastError
+            lastError: appState.lastError,
+            repliesOff: appState.settings.settings.replyMode == .off
         )
 
         VStack(alignment: .leading, spacing: 10) {
@@ -43,6 +44,33 @@ struct MenuBarView: View {
                 Text("Triaging notes… \(done) of \(total)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            if status.kind == .error, let newest = appState.newestError {
+                HStack(spacing: 6) {
+                    Text(errorCaption(newest))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Dismiss") { appState.dismissAllErrors() }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                }
+            }
+
+            if !appState.destinationOffline, appState.queuedCaptureCount > 0 {
+                Text("\(appState.queuedCaptureCount) \(appState.queuedCaptureCount == 1 ? "capture is" : "captures are") queued behind one that can't file yet. They file in order once it does.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let since = appState.relayWaitingSince,
+               Date().timeIntervalSince(since) >= Self.relayStuckWarning {
+                Text("A note from your iPhone has waited \(Int(Date().timeIntervalSince(since) / 60)) min for iCloud. Open the Rapture app on your iPhone while it's on Wi-Fi.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if status.kind == .destinationOffline {
@@ -79,7 +107,7 @@ struct MenuBarView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("New: captures now file as Markdown notes")
                         .font(.caption)
-                    Text("Sorted into Notes/ and Links/. If you ran your own scripts against raw .txt files, retire them — or switch back in Settings → Triage.")
+                    Text("Sorted into folders like Notes/, Links/ and Meetings/. If you used your own scripts on the old .txt files, update them, or switch back in Settings → Triage.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -144,13 +172,30 @@ struct MenuBarView: View {
             .buttonStyle(.plain)
             .disabled(appState.settings.settings.outputFolder == nil)
 
+            if let last = appState.activity.lastNote, let path = last.path {
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                } label: {
+                    rowLabel("Show Last Note", symbol: "doc.text.magnifyingglass")
+                }
+                .buttonStyle(.plain)
+                .help(last.summary)
+            }
+
             Button {
-                NSApp.activate(ignoringOtherApps: true)
-                openWindow(id: "settings")
+                openSettings(tab: .activity)
+            } label: {
+                rowLabel("Activity…", symbol: "clock.arrow.circlepath")
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                openSettings(tab: nil)
             } label: {
                 rowLabel("Settings…", symbol: "gearshape")
             }
             .buttonStyle(.plain)
+            .keyboardShortcut(",", modifiers: .command)
 
             Button(action: { updater.checkForUpdates() }) {
                 rowLabel("Check for Updates…", symbol: "arrow.down.circle")
@@ -165,6 +210,7 @@ struct MenuBarView: View {
                 rowLabel("Quit Rapture", symbol: "power")
             }
             .buttonStyle(.plain)
+            .keyboardShortcut("q", modifiers: .command)
         }
     }
 
@@ -178,6 +224,23 @@ struct MenuBarView: View {
             Spacer()
         }
         .contentShape(Rectangle())
+    }
+
+    /// An iPhone note waiting this long for iCloud gets a menu warning.
+    static let relayStuckWarning: TimeInterval = 10 * 60
+
+    private func errorCaption(_ error: ErrorRecord) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        let when = formatter.localizedString(for: error.at, relativeTo: Date())
+        let others = appState.errors.count - 1
+        return others > 0 ? "\(when) · \(others) more in Activity" : when
+    }
+
+    private func openSettings(tab: SettingsTab?) {
+        if let tab { appState.settingsTab = tab }
+        NSApp.activate(ignoringOtherApps: true)
+        openWindow(id: "settings")
     }
 
     private func openOutputFolder() {

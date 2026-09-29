@@ -23,4 +23,9 @@ struct MeetingEntry: Codable, Sendable, Equatable {
     /// summary, and must never roll the note back to older text.
     var appliedSummaryHashes: [String]
     var updatedAt: Date
+    /// Hash of the note file exactly as the app last wrote it. If the file on
+    /// disk no longer matches when a summary arrives, the user edited it, and
+    /// their version is kept beside the note instead of being overwritten.
+    /// nil for entries written before 1.0.126 (no check possible).
+    var noteHash: String? = nil
 }

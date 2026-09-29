@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.127] - 2026-09-29: Nothing gets lost, and you can see what happened
+
+Built from commit `e60d1f5`. SHA-256: `f3faf4dac67b96eeeb93ac4c13e8895168eea856bdef1df7641a696ceabd75df`.
+
+The fixes from a review of the whole app from a user's point of view. A note that fails to save is now retried instead of lost, Rapture starts after a restart, and a new Activity history shows what happened to every capture. 892 tests.
+
 ### Added
 
 - **An Activity history: what happened to each capture.** Settings has a new **Activity** tab, and the menu has **Activity…** and **Show Last Note**. The history lists every note filed and where it came from (iMessage, the iPhone app, the notes folder, or the offline queue). It also lists queued captures, failures and retries, missing attachments, reminders and calendar events created, link details saved, and meetings filed or updated. Rows with a file have a Show in Finder button. Anything still wrong is listed at the top with its time and a **Dismiss All** button. The history stays on this Mac in `activity.jsonl` next to `state.json`. It keeps titles and file locations only, never note text, and sends nothing anywhere.

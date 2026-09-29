@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.136] - 2026-09-29: Rapture asks where your notes should go
+
+Built from commit `eb6603b`. SHA-256: `f8ed1d827afd51506ec19c280fe85ac4e981fa773c3117d5e9b3d1279a496c13`.
+
+Destination onboarding, all three parts: vault-aware folder picking, a first-run question, and a nudge off the default folder. 925 tests.
+
 ### Added
 
 - **Rapture asks where your notes should go.** After Full Disk Access is on, a new user sees the Obsidian vaults and synced folders (iCloud Drive, Dropbox, Google Drive, OneDrive) found on the Mac, plus **Choose Another Folder…** and **Keep the Default**. Keep the Default is a real answer and is never asked again. Nothing waits on the answer: notes that arrive first land in the default folder and move with the rest.

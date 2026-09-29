@@ -4,6 +4,17 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Added
+
+- **Rapture asks where your notes should go.** After Full Disk Access is on, a new user sees the Obsidian vaults and synced folders (iCloud Drive, Dropbox, Google Drive, OneDrive) found on the Mac, plus **Choose Another Folder…** and **Keep the Default**. Keep the Default is a real answer and is never asked again. Nothing waits on the answer: notes that arrive first land in the default folder and move with the rest.
+- **Change… knows your vaults.** **Settings → General → Change…** is now a menu listing vaults by name, synced folders, the default, and any folder. A vault on an unplugged drive is listed as "drive not connected", never hidden.
+- **Rapture's folders stay in one place.** Picking a folder that has your own files, or any Obsidian vault, offers to put Rapture's `Notes/`, `Links/`, `Tasks/`… inside one subfolder, **Rapture Inbox** by default, with an editable name. A name already used by other files is refused and the next free name suggested.
+- **Rapture asks before it moves notes.** Changing folders now shows how many notes will move, from where to where, and how many get a number added because a file with the same name is already there. You choose **Move Them**, **Leave Them Behind**, or **Cancel**. Leave Them Behind switches folders, keeps the old notes where they are, and makes Rapture forget them cleanly.
+- **A nudge off the default folder.** If you are still on the default folder and have a vault, the menu offers once to move there. Dismissing it is permanent; **Settings → General** keeps a quiet line about it.
+- **Gather loose folders out of a vault.** If your notes folder is a vault's top level and Rapture's folders sit loose among your own, the menu offers to gather them into **Rapture Inbox**. It moves only folders whose every note is a Rapture note, never your own files, and offers nothing if a folder mixes the two. The app's records keep pointing at the right notes afterwards.
+
+No new network use: the network check in PRIVACY.md still returns exactly the three documented files.
+
 ## [1.0.131] - 2026-09-29: Choose Claude Sonnet 5.5 for AI sorting
 
 Built from commit `22daa90`. SHA-256: `913093fedc00a67bf46d58f4b27387fa48e875ef0aa1eb058d31d62feb4876d4`.

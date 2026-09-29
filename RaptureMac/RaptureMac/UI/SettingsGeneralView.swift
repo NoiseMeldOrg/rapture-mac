@@ -76,6 +76,17 @@ struct SettingsGeneralView: View {
             )
             .onDrop(of: [.fileURL], isTargeted: $folderDropTargeted, perform: handleDrop)
 
+            if DestinationNudge.isDefault(appState.settings.settings.outputFolder, defaultFolder: AppSupportDirectory.defaultOutputFolder) {
+                // Permanent and quiet: survives dismissing the menu notice, so
+                // the offer stays findable without nagging.
+                Label {
+                    Text("Notes are going to the default folder. Use Change… to pick your notes vault or a synced folder.")
+                        .font(.caption)
+                } icon: {
+                    Image(systemName: "info.circle")
+                }
+                .foregroundStyle(.secondary)
+            }
             relocationStatusView
             destinationOfflineStatusView
             backupHealthStatusView

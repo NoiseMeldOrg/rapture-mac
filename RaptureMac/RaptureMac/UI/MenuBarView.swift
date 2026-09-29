@@ -6,6 +6,11 @@ struct MenuBarView: View {
     @Environment(UpdaterController.self) private var updater
     @Environment(\.openWindow) private var openWindow
 
+    /// Vaults and sync folders found on this Mac; re-read each time the menu opens.
+    @State private var detected: [DetectedDestination] = []
+    /// A vault-root rescue to offer; re-checked each time the menu opens.
+    @State private var rescueOffer: VaultRootRescue.Offer?
+
     var body: some View {
         let status = MenuBarStatus.line(
             permission: appState.permissionState,
@@ -20,12 +25,108 @@ struct MenuBarView: View {
         VStack(alignment: .leading, spacing: 10) {
             statusBlock(status: status)
             triageIntroNotice
+            destinationNudge
+            vaultRootRescueNotice
             Divider()
             actions(status: status)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 14)
         .frame(width: 300, alignment: .leading)
+        .task {
+            let folder = appState.settings.settings.outputFolder
+            let (found, offer) = await Task.detached(priority: .userInitiated) { () -> ([DetectedDestination], VaultRootRescue.Offer?) in
+                (DestinationDetector.detect(), folder.flatMap { VaultRootRescue.offer(for: $0) })
+            }.value
+            detected = found
+            rescueOffer = offer
+        }
+    }
+
+    // MARK: - Destination notices (onboarding M3)
+
+    /// Still on the default folder while a vault exists: offer to move.
+    /// Never switches anything itself; dismissing settles it for good.
+    @ViewBuilder
+    private var destinationNudge: some View {
+        let state = appState.state.state
+        if let vault = DestinationNudge.vaultToOffer(
+            outputFolder: appState.settings.settings.outputFolder,
+            defaultFolder: AppSupportDirectory.defaultOutputFolder,
+            detected: detected,
+            dismissed: state.defaultDestinationNudgeDismissed,
+            choicePending: state.destinationChoicePending
+        ) {
+            notice(
+                symbol: "books.vertical",
+                title: "Your notes are going to the default folder",
+                detail: "Move them into “\(vault.name)” so they sit with the rest of your notes?",
+                action: "Move…",
+                onAction: { Task { await DestinationChangeFlow.change(to: vault.path, appState: appState) } },
+                onDismiss: { appState.state.update { $0.defaultDestinationNudgeDismissed = true } }
+            )
+        }
+    }
+
+    /// Rapture's folders loose in a vault root: offer to gather them.
+    @ViewBuilder
+    private var vaultRootRescueNotice: some View {
+        if let offer = rescueOffer, !appState.state.state.vaultRootRescueDismissed {
+            let container = rescueContainerName(in: offer.root)
+            notice(
+                symbol: "tray.2",
+                title: "Rapture's folders are mixed in with your vault",
+                detail: "Gather \(offer.items.prefix(3).joined(separator: ", "))\(offer.items.count > 3 ? "…" : "") into “\(container)”? Your own files stay where they are.",
+                action: "Gather",
+                onAction: {
+                    Task {
+                        await appState.rescueVaultRoot(offer, containerName: container)
+                        rescueOffer = nil
+                    }
+                },
+                onDismiss: { appState.state.update { $0.vaultRootRescueDismissed = true } }
+            )
+        }
+    }
+
+    private func rescueContainerName(in root: URL) -> String {
+        let name = Containment.defaultContainerName
+        let entries = DestinationChangeFlow.liveList(root.appendingPathComponent(name))
+        return Containment.checkContainer(entries: entries) == .adopt
+            ? name
+            : DestinationChangeFlow.nextFreeName(after: name, in: root, listDirectory: DestinationChangeFlow.liveList)
+    }
+
+    /// Same shape as the triage-intro notice.
+    @ViewBuilder
+    private func notice(
+        symbol: String, title: String, detail: String, action: String,
+        onAction: @escaping () -> Void, onDismiss: @escaping () -> Void
+    ) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: symbol)
+                .frame(width: 16)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.caption)
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(action, action: onAction)
+                    .buttonStyle(.link)
+                    .font(.caption)
+            }
+            Spacer()
+            Button(action: onDismiss) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(.top, 2)
     }
 
     @ViewBuilder

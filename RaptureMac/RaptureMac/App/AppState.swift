@@ -176,6 +176,45 @@ final class AppState {
         persistErrors()
     }
 
+    /// Vault-root rescue (onboarding M3): gathers Rapture's loose folders into
+    /// `<vault>/<containerName>` and makes that the notes folder. Ledger paths
+    /// are relative to the notes folder, and each moved item keeps its path
+    /// under the container, so they keep resolving; collision renames are
+    /// remapped. The vault's own content is never touched. Returns an error
+    /// message, or nil on success.
+    @discardableResult
+    func rescueVaultRoot(_ offer: VaultRootRescue.Offer, containerName: String = Containment.defaultContainerName) async -> String? {
+        let container = offer.root.appendingPathComponent(containerName, isDirectory: true)
+        isRelocating = true
+        relocationStatus = .inProgress
+        defer { isRelocating = false }
+        return await captureGate.withLock {
+            do {
+                let renames = try await Task.detached(priority: .userInitiated) {
+                    try VaultRootRescue.gather(offer, into: containerName)
+                }.value
+                settings.update { $0.outputFolder = container }
+                if !renames.isEmpty {
+                    TriageLedger(stateStore: state).remap(renames)
+                    EnrichedLinkLedger(stateStore: state).remap(renames)
+                    TranscriptDispatchLedger(stateStore: state).remap(renames)
+                    MeetingLedger(stateStore: state).remap(renames)
+                }
+                OutputFolderSidecar.write(container)
+                state.update { $0.vaultRootRescueDismissed = true }
+                relocationStatus = .idle
+                clearError(source: .folder)
+                activity.record(.info, source: .app, "Gathered Rapture's folders (\(offer.items.joined(separator: ", "))) into \(containerName). Your vault's own files were not touched.", path: container)
+                return nil
+            } catch {
+                let message = "Couldn't gather Rapture's folders: \(error.localizedDescription)"
+                relocationStatus = .failed(message)
+                recordError(message, source: .folder)
+                return message
+            }
+        }
+    }
+
     /// "Leave them behind": the notes stay in the old folder, so every
     /// path-keyed record about them would now point at nothing in the new
     /// folder (the ledgers store destination-relative paths). Forget them

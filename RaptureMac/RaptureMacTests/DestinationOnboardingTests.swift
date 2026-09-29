@@ -328,4 +328,112 @@ final class DestinationOnboardingTests: XCTestCase {
         XCTAssertFalse(moved)
         XCTAssertTrue(appState.state.state.destinationChoicePending)
     }
+
+    // MARK: - M3: nudge
+
+    private func vault(_ name: String, reachable: Bool = true) -> DetectedDestination {
+        DetectedDestination(name: name, path: URL(fileURLWithPath: "/tmp/\(name)"), source: .obsidian, reachable: reachable)
+    }
+
+    func testNudgeShowsOnlyOnTheDefaultWithAVaultAndAnOpenQuestion() {
+        let def = URL(fileURLWithPath: "/Users/me/Documents/Rapture Notes")
+        let vaults = [vault("Second Brain")]
+        XCTAssertEqual(DestinationNudge.vaultToOffer(outputFolder: def, defaultFolder: def, detected: vaults, dismissed: false, choicePending: false)?.name, "Second Brain")
+        XCTAssertNil(DestinationNudge.vaultToOffer(outputFolder: def, defaultFolder: def, detected: [], dismissed: false, choicePending: false), "no vault, nothing to offer")
+        XCTAssertNil(DestinationNudge.vaultToOffer(outputFolder: def, defaultFolder: def, detected: vaults, dismissed: true, choicePending: false), "settled")
+        XCTAssertNil(DestinationNudge.vaultToOffer(outputFolder: def, defaultFolder: def, detected: vaults, dismissed: false, choicePending: true), "the first-run window asks instead")
+        XCTAssertNil(DestinationNudge.vaultToOffer(outputFolder: URL(fileURLWithPath: "/tmp/Second Brain/Rapture Inbox"), defaultFolder: def, detected: vaults, dismissed: false, choicePending: false), "already off the default")
+        XCTAssertNil(DestinationNudge.vaultToOffer(outputFolder: def, defaultFolder: def, detected: [vault("Offline", reachable: false)], dismissed: false, choicePending: false))
+        XCTAssertTrue(DestinationNudge.isDefault(URL(fileURLWithPath: "/Users/me/Documents/Rapture Notes/"), defaultFolder: def), "trailing slash is the same folder")
+    }
+
+    func testNudgeDismissalSurvivesRelaunch() {
+        let support = temp.appendingPathComponent("nudge")
+        let appState = AppState(supportDirectory: support)
+        appState.state.update { $0.defaultDestinationNudgeDismissed = true }
+        XCTAssertTrue(AppState(supportDirectory: support).state.state.defaultDestinationNudgeDismissed)
+    }
+
+    // MARK: - M3: vault-root rescue
+
+    private func captureNote(_ path: String, type: String = "voice-note") throws {
+        try file(path, "---\ncaptured: 2026-09-29T12:00:00Z\nsource: rapture-ios\ntype: \(type)\n---\n\nbody\n")
+    }
+
+    private func scatteredVault() throws -> URL {
+        let root = try dir("ScatteredVault")
+        try dir("ScatteredVault/.obsidian")
+        try file("ScatteredVault/.obsidian/app.json", "{}")
+        try file("ScatteredVault/Projects/My plan.md", "# my own note")
+        try file("ScatteredVault/Welcome.md", "# my own")
+        try captureNote("ScatteredVault/Notes/2026-09-29 Buy stamps.md")
+        try file("ScatteredVault/Notes/2026-09-29 Buy stamps/photo.jpg")
+        try captureNote("ScatteredVault/Links/2026-09-29 YouTube abc.md", type: "youtube-link")
+        try file("ScatteredVault/Links/Media/2026-09-29 Some talk.md", "---\nsource: x\nfetched: y\n---\n")
+        try file("ScatteredVault/2026-09-29T10-00-00Z.txt", "raw capture")
+        return root
+    }
+
+    func testRescueOffersOnlyRapturesOwnItems() throws {
+        let root = try scatteredVault()
+        let offer = try XCTUnwrap(VaultRootRescue.offer(for: root))
+        XCTAssertEqual(offer.items, ["Notes", "Links", "2026-09-29T10-00-00Z.txt"])
+        XCTAssertNil(VaultRootRescue.offer(for: try dir("NotAVault")), "no .obsidian, no offer")
+    }
+
+    func testRescueRefusesWhenAFolderMixesTheUsersOwnNotes() throws {
+        let root = try scatteredVault()
+        try file("ScatteredVault/Notes/My handwritten note.md", "# mine, no capture header")
+        XCTAssertNil(VaultRootRescue.offer(for: root), "all or nothing: the user's own Notes is never touched")
+    }
+
+    func testRescueGathersKeepsLedgersResolvingAndLeavesTheVaultAlone() async throws {
+        let root = try scatteredVault()
+        let appState = AppState(supportDirectory: temp.appendingPathComponent("rescue"))
+        appState.settings.update { $0.outputFolder = root }
+        appState.state.update {
+            $0.triagedRecords = [TriagedEntry(sourceFilename: "a.txt", contentHash: "h", mdRelativePath: "Notes/2026-09-29 Buy stamps.md", triagedAt: Date())]
+            $0.enrichedLinkRecords = [EnrichedLinkEntry(fingerprint: "yt:abc", artifactRelativePath: "Links/Media/2026-09-29 Some talk.md", title: "t", fetchedAt: Date())]
+        }
+        let offer = try XCTUnwrap(VaultRootRescue.offer(for: root))
+
+        let error = await appState.rescueVaultRoot(offer)
+        XCTAssertNil(error)
+
+        let container = root.appendingPathComponent("Rapture Inbox")
+        XCTAssertEqual(appState.settings.settings.outputFolder?.standardizedFileURL, container.standardizedFileURL)
+        for record in appState.state.state.triagedRecords {
+            XCTAssertTrue(fm.fileExists(atPath: container.appendingPathComponent(record.mdRelativePath).path), record.mdRelativePath)
+        }
+        for record in appState.state.state.enrichedLinkRecords {
+            XCTAssertTrue(fm.fileExists(atPath: container.appendingPathComponent(record.artifactRelativePath).path), record.artifactRelativePath)
+        }
+        XCTAssertTrue(fm.fileExists(atPath: container.appendingPathComponent("Notes/2026-09-29 Buy stamps/photo.jpg").path))
+        XCTAssertTrue(fm.fileExists(atPath: container.appendingPathComponent("2026-09-29T10-00-00Z.txt").path))
+        // The vault's own content is untouched.
+        for own in [".obsidian/app.json", "Projects/My plan.md", "Welcome.md"] {
+            XCTAssertTrue(fm.fileExists(atPath: root.appendingPathComponent(own).path), own)
+        }
+        XCTAssertFalse(fm.fileExists(atPath: root.appendingPathComponent("Notes").path))
+        XCTAssertTrue(appState.state.state.vaultRootRescueDismissed)
+        XCTAssertNil(VaultRootRescue.offer(for: root), "nothing left to gather")
+    }
+
+    func testRescueMergesIntoAnExistingContainerAndRemapsRenames() async throws {
+        let root = try scatteredVault()
+        try captureNote("ScatteredVault/Rapture Inbox/Notes/2026-09-29 Buy stamps.md")
+        let appState = AppState(supportDirectory: temp.appendingPathComponent("rescue2"))
+        appState.settings.update { $0.outputFolder = root }
+        appState.state.update {
+            $0.triagedRecords = [TriagedEntry(sourceFilename: "a.txt", contentHash: "h", mdRelativePath: "Notes/2026-09-29 Buy stamps.md", triagedAt: Date())]
+        }
+        let offer = try XCTUnwrap(VaultRootRescue.offer(for: root))
+        let error = await appState.rescueVaultRoot(offer)
+        XCTAssertNil(error)
+        let container = root.appendingPathComponent("Rapture Inbox")
+        let path = try XCTUnwrap(appState.state.state.triagedRecords.first?.mdRelativePath)
+        XCTAssertEqual(path, "Notes/2026-09-29 Buy stamps-1.md", "the moved note was renamed, and the ledger follows")
+        XCTAssertTrue(fm.fileExists(atPath: container.appendingPathComponent(path).path))
+        XCTAssertTrue(fm.fileExists(atPath: container.appendingPathComponent("Notes/2026-09-29 Buy stamps.md").path), "the existing note is not overwritten")
+    }
 }

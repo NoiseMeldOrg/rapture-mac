@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.129] - 2026-09-29: Activity gets its own window
+
+Built from commit `152ee12`. SHA-256: `5c0e46e6dd8e0d83abd1d4dcb9dc8ad713c5c6dca5d408fd87e533dec4a8ae09`.
+
+A layout fix for 1.0.127's new Activity history. 892 tests.
+
 ### Changed
 
 - **Activity has its own window.** In 1.0.127 it was a sixth Settings tab, which no longer fit: macOS hid the tabs behind a "»" menu. The menu's **Activity…** row now opens a separate Activity window, and Settings is back to five tabs.

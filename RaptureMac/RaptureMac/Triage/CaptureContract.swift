@@ -18,6 +18,9 @@ enum CaptureContract {
         /// Verbatim transcription when it differs from `body`; nil in M1 (nothing
         /// formats bodies yet — the invariant machinery ships ahead of M4).
         var rawBody: String?
+        /// The iOS recording id of a `meeting` note (`meeting_id` frontmatter),
+        /// the identity every later part of the meeting replaces by.
+        var meetingId: String? = nil
     }
 
     struct FooterAttachment: Equatable, Sendable {
@@ -44,6 +47,9 @@ enum CaptureContract {
             header.append("source: \(source.rawValue)")
         }
         header.append("type: \(note.type.rawValue)")
+        if let meetingId = note.meetingId {
+            header.append("meeting_id: \(meetingId)")
+        }
         if let rawMedia = note.rawMedia {
             header.append("raw_media: \(rawMedia)")
         }

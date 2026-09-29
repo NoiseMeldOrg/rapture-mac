@@ -24,6 +24,7 @@ final class Pipeline {
     private lazy var echoGuard = EchoGuard(stateStore: appState.state)
     private lazy var contentDedupCache = ContentDedupCache(stateStore: appState.state)
     private lazy var triageLedger = TriageLedger(stateStore: appState.state)
+    private lazy var meetingLedger = MeetingLedger(stateStore: appState.state)
     private lazy var spoolStore = SpoolStore(stateStore: appState.state)
     private lazy var spoolFiledLedger = SpoolFiledLedger(stateStore: appState.state)
     private lazy var handoffLedger = HandoffLedger(stateStore: appState.state)
@@ -148,7 +149,8 @@ final class Pipeline {
             ledger: RelayFiledLedger(stateStore: appState.state),
             triageLedger: triageLedger,
             handoff: handoffManager,
-            enrichment: linkEnrichment
+            enrichment: linkEnrichment,
+            meetingLedger: meetingLedger
         )
         relayProcessor = processor
 
@@ -179,7 +181,8 @@ final class Pipeline {
             ledger: triageLedger,
             handoff: handoffManager,
             ai: aiTriage,
-            enrichment: linkEnrichment
+            enrichment: linkEnrichment,
+            meetingLedger: meetingLedger
         )
         triageProcessor = processor
 

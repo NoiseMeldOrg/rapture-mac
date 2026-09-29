@@ -1,6 +1,6 @@
 # Examples
 
-The folder is the entire integration surface. Rapture for Mac triages every capture the moment it lands: each one becomes a Markdown note with YAML frontmatter, auto-titled `YYYY-MM-DD <Title>.md`, and filed into a subfolder of your output folder — `Notes/` for voice notes, `Links/` for YouTube and article links, and (with the opt-in AI tier on) `Tasks/`, `Ideas/`, and `Journal/`. Two ways to consume the result:
+The folder is the entire integration surface. Rapture for Mac triages every capture the moment it lands: each one becomes a Markdown note with YAML frontmatter, auto-titled `YYYY-MM-DD <Title>.md`, and filed into a subfolder of your output folder — `Notes/` for voice notes, `Links/` for YouTube and article links, (with the opt-in AI tier on) `Tasks/`, `Ideas/`, and `Journal/`, and `Meetings/` for meetings recorded in the Rapture iPhone app. Two ways to consume the result:
 
 - **Manually**, when you're back at your computer. Open the folder, read the notes, act on what matters.
 - **Automatically**, by setting up an AI agent or assistant to watch the folder and act on each triaged note according to your own rules.
@@ -23,7 +23,7 @@ Everything below assumes notes are already landing in the folder. If they aren't
 The same shape:
 
 1. Find the output folder via Rapture's sidecar file (`~/Library/Application Support/Rapture for Mac/output-folder.path`), falling back to `~/Documents/Rapture Notes/`.
-2. Watch the triaged subfolders (`Notes/`, `Links/`, `Tasks/`, `Ideas/`, `Journal/`) for new `.md` files. Skip `Links/Media/` — those are fetched transcript/article artifacts, not notes.
+2. Watch the triaged subfolders (`Notes/`, `Links/`, `Tasks/`, `Ideas/`, `Journal/`) for new `.md` files. Skip `Links/Media/` — those are fetched transcript/article artifacts, not notes. `Meetings/` is different: a meeting note is first filed as a transcript, then rewritten and renamed when the user makes a summary (days later, possibly more than once). Key meeting notes by their `meeting_id` frontmatter, not by path, if you act on them.
 3. For each new note, read the YAML frontmatter (`captured`, `type`, and the optional `source` and `raw_media` fields) and act on the note: file a task, summarize a link, review a journal entry, whatever your rules say.
 4. Record the note as handled (a log file, not a move) so it isn't acted on twice.
 

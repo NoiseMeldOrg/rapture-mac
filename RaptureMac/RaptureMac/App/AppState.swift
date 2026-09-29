@@ -186,6 +186,7 @@ final class AppState {
                     TriageLedger(stateStore: state).remap(report.renamedNotes)
                     EnrichedLinkLedger(stateStore: state).remap(report.renamedNotes)
                     TranscriptDispatchLedger(stateStore: state).remap(report.renamedNotes)
+                    MeetingLedger(stateStore: state).remap(report.renamedNotes)
                 }
                 OutputFolderSidecar.write(new)
                 // Opt-in; no-op unless the new folder ended up empty + CLAUDE.md-less.

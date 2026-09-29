@@ -4,7 +4,7 @@
 [![Release](https://img.shields.io/github/v/release/NoiseMeldOrg/rapture-mac?display_name=tag&sort=semver)](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest)
 [![Network: opt-in only](https://img.shields.io/badge/network-opt--in%20only-success)](./PRIVACY.md)
 
-A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Files your voice captures as Markdown notes — titled, dated, and sorted into `Notes/` and `Links/` (plus `Tasks/`, `Ideas/`, and `Journal/` with the optional AI tier) — in a folder of your choice, so voice-captured thoughts land where any AI assistant (Claude, ChatGPT, Gemini, a local Llama) can read them. Notes arrive two ways: Siri-dictated iMessages, and captures the Rapture iPhone app sends through your own iCloud. (Prefer raw timestamped `.txt` files? Flip **Settings → Triage** to raw mode.)
+A tiny menu-bar companion to the [Rapture iOS](https://github.com/NoiseMeldOrg/rapture-ios) app. Files your voice captures as Markdown notes — titled, dated, and sorted into `Notes/` and `Links/` (plus `Tasks/`, `Ideas/`, and `Journal/` with the optional AI tier, and `Meetings/` for meetings recorded in the iPhone app) — in a folder of your choice, so voice-captured thoughts land where any AI assistant (Claude, ChatGPT, Gemini, a local Llama) can read them. Notes arrive two ways: Siri-dictated iMessages, and captures the Rapture iPhone app sends through your own iCloud. (Prefer raw timestamped `.txt` files? Flip **Settings → Triage** to raw mode.)
 
 **Apache-2.0. Local by default — every network feature is opt-in (or opt-out) and listed in [PRIVACY.md](./PRIVACY.md). Vendor-neutral output: the folder is the only integration surface.**
 

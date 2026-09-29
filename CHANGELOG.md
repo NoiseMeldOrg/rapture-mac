@@ -4,6 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Added
+
+- **Meetings from the iPhone app file as one note per meeting.** Rapture iOS meeting mode sends a meeting through the relay twice: the transcript when it is ready, then a summary when you make one. Each relay file starts with a marker line (`<!-- rapture-meeting id=<UUID> part=transcript|summary -->`). The Mac strips the marker and files the meeting in `Meetings/` as `YYYY-MM-DD <title>.md`, with `type: meeting` and `meeting_id` in the frontmatter. A summary replaces the note's text and renames it to the summary's title. The transcript's audio moves with it. A re-made summary replaces the last one, even when it reuses the old relay filename. An old summary that iCloud re-syncs can never roll the note back. If the summary is already waiting when the transcript arrives, the summary files and the transcript drains into it. A transcript for a meeting that already has a note is drained, never filed twice. Meetings get no AI triage (the body stays verbatim, and a 50,000-character transcript would only fail the AI tier) and no Reminders or Calendar handoff (a "remember to" in a transcript is someone talking, not your own reminder). Raw mode keeps one verbatim `.txt` per meeting at the root, marker included. Relay files without the marker file exactly as before. No new networking.
+
 ## [1.0.123] - 2026-09-15: Long-titled link shares are links again
 
 Built from commit `50492b7`. SHA-256: `f56a8eded13fbcc35a4d5eaeaf8930cfa05236b434a0193250184c58339719bb`.

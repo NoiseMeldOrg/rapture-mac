@@ -216,7 +216,7 @@ final class RelayFiler: RelayFiling {
 
     /// Same one-retry convention as `FileWriter.copyAttachment`: iCloud may still be
     /// settling the file, so a failed copy gets one more chance after a short delay.
-    private nonisolated static func copyWithRetry(from source: URL, to destination: URL) async -> Bool {
+    nonisolated static func copyWithRetry(from source: URL, to destination: URL) async -> Bool {
         if copyIfSourceExists(from: source, to: destination) { return true }
         try? await Task.sleep(for: .seconds(audioRetryDelay))
         return copyIfSourceExists(from: source, to: destination)

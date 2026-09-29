@@ -4,6 +4,8 @@ import Foundation
 /// the first three; the AI tier (M4) may refine a voice note to task/idea/journal.
 /// Link captures keep their deterministic youtube-link/article-link typing — M5's
 /// enrichment dedups and renames by those, so AI never rewrites them.
+/// `meeting` comes only from the iOS meeting marker (`MeetingMarker`); AI
+/// triage can never assign it and never runs on it.
 enum CaptureType: String, Codable, Sendable, Equatable {
     case voiceNote = "voice-note"
     case youtubeLink = "youtube-link"
@@ -11,6 +13,7 @@ enum CaptureType: String, Codable, Sendable, Equatable {
     case task
     case idea
     case journal
+    case meeting
 
     /// Destination subfolder for this type.
     var subfolder: String {
@@ -20,6 +23,7 @@ enum CaptureType: String, Codable, Sendable, Equatable {
         case .task: return "Tasks"
         case .idea: return "Ideas"
         case .journal: return "Journal"
+        case .meeting: return "Meetings"
         }
     }
 }

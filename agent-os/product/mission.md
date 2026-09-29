@@ -81,7 +81,7 @@ Still out of scope:
 - Analytics
 - **In-app browsing / search / preview of captured notes.** The folder *is* the UI. Consumption is via Finder, Spotlight, ripgrep, or the user's AI assistant — not via a built-in note browser.
 - **Built-in AI *consumption* of notes.** The app classifies and titles captures on the way in; it never becomes the assistant that reads, answers from, or acts on the filed notes. That side stays vendor-neutral.
-- **User-editable rules engine / custom taxonomies.** The deterministic tier's behavior is fixed; the classes are `Notes`/`Links`/`Tasks`/`Ideas`/`Journal`.
+- **User-editable rules engine / custom taxonomies.** The deterministic tier's behavior is fixed; the classes are `Notes`/`Links`/`Tasks`/`Ideas`/`Journal`, plus `Meetings` for meetings recorded in the iPhone app (identified by a marker iOS writes, never by classification).
 - **Bulk re-triage.** Triage happens once, at arrival; there is no "re-run triage on old notes" button.
 - **Audio capture of Siri dictations.** Text only from iMessage. (Captures from the Rapture iPhone app can carry their audio file when enabled there.)
 - **Multi-folder destinations.** One output folder per install. Source-splitting is a downstream concern for whatever AI consumes the folder.

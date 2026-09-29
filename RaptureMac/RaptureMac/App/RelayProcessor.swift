@@ -37,6 +37,10 @@ final class RelayProcessor {
     /// Link enrichment (M5), enqueued once per freshly-filed link note (never
     /// on ledger-hit ghost drains).
     private let enrichment: (any LinkEnriching)?
+    /// Meeting parts (iOS meeting mode) bypass `filer` entirely: one note per
+    /// meeting id, no AI, no handoffs, no enrichment. See `MeetingFiler`.
+    private let meetingFiler: MeetingFiler
+    private let meetingLedger: MeetingLedger
     private let clock: @Sendable () -> Date
 
     private var lastFailureAt: [String: Date] = [:]
@@ -50,6 +54,8 @@ final class RelayProcessor {
         destinationGuard: DestinationGuard = DestinationGuard(),
         handoff: (any HandoffProcessing)? = nil,
         enrichment: (any LinkEnriching)? = nil,
+        meetingFiler: MeetingFiler? = nil,
+        meetingLedger: MeetingLedger? = nil,
         clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.appState = appState
@@ -59,6 +65,8 @@ final class RelayProcessor {
         self.destinationGuard = destinationGuard
         self.handoff = handoff
         self.enrichment = enrichment
+        self.meetingFiler = meetingFiler ?? MeetingFiler(destinationGuard: destinationGuard)
+        self.meetingLedger = meetingLedger ?? MeetingLedger(stateStore: appState.state, clock: clock)
         self.clock = clock
     }
 
@@ -99,8 +107,13 @@ final class RelayProcessor {
         }
 
         let mode = settings.triageMode
-        for candidate in batch.candidates {
-            await processCandidate(candidate, folder: folder, mode: mode)
+        let peeked = batch.candidates.map { ($0, MeetingMarker.peek(fileAt: $0.txtURL)) }
+        for (candidate, meeting) in Self.meetingOrdered(peeked, modifiedAt: Self.modificationDate(of:)) {
+            if let meeting {
+                await processMeeting(candidate, header: meeting, folder: folder, mode: mode)
+            } else {
+                await processCandidate(candidate, folder: folder, mode: mode)
+            }
         }
         for orphanURL in batch.orphanAudio {
             await processOrphanAudio(orphanURL, folder: folder)
@@ -211,8 +224,30 @@ final class RelayProcessor {
         // the note may have filed before a mode flip. Only honored while the note
         // still exists: audio for a note the user deleted must not resurrect its
         // folder, and falls back to the legacy root placement instead.
-        var preferredDirectory: URL?
         let pairedTxt = RelayWatcher.pairedTxtName(forAudio: name)
+
+        // Audio of a meeting's transcript part joins the meeting note, wherever
+        // later summaries renamed or moved it, and the note's footer lists it.
+        if let meeting = meetingLedger.entry(relayFilename: pairedTxt),
+           let note = MeetingFiler.locateNote(meetingId: meeting.meetingId, recordedPath: meeting.noteRelativePath, in: folder) {
+            let result = await meetingFiler.attachAudio(url, toNote: note, in: folder)
+            switch result.outcome {
+            case .success:
+                Self.log.info("filed late meeting audio into \(note.lastPathComponent, privacy: .public)")
+                ledger.record(relayFilename: name)
+                await removeRelayFile(url)
+                lastFailureAt[name] = nil
+            case .failure(let reason):
+                Self.log.error("meeting audio filing failed for \(name, privacy: .public): \(reason, privacy: .public)")
+                lastFailureAt[name] = clock()
+                recordRelayError(reason)
+            case .unavailable:
+                Self.log.debug("meeting audio deferred for \(name, privacy: .public): destination offline")
+            }
+            return
+        }
+
+        var preferredDirectory: URL?
         if let entry = triageLedger.entry(sourceFilename: pairedTxt) {
             let noteURL = folder.appendingPathComponent(entry.mdRelativePath)
             if FileManager.default.fileExists(atPath: noteURL.path) {
@@ -238,6 +273,167 @@ final class RelayProcessor {
         }
     }
 
+    // MARK: - Meetings
+
+    /// Batch order for meeting parts: summaries first (oldest file first, so
+    /// the newest summary is applied last and wins), then everything else in
+    /// scan order. A summary already waiting in the relay therefore files
+    /// before its transcript, and the transcript then drains into it instead
+    /// of filing first and being replaced a moment later.
+    nonisolated static func meetingOrdered(
+        _ items: [(RelayCandidate, MeetingMarker.Header?)],
+        modifiedAt: (URL) -> Date?
+    ) -> [(RelayCandidate, MeetingMarker.Header?)] {
+        let summaries = items.enumerated()
+            .filter { $0.element.1?.part == .summary }
+            .sorted { lhs, rhs in
+                let l = modifiedAt(lhs.element.0.txtURL) ?? .distantPast
+                let r = modifiedAt(rhs.element.0.txtURL) ?? .distantPast
+                return l == r ? lhs.offset < rhs.offset : l < r
+            }
+            .map(\.element)
+        let rest = items.filter { $0.1?.part != .summary }
+        return summaries + rest
+    }
+
+    /// Files one meeting relay part. Identity is the meeting id, never the
+    /// relay filename, so the name-based `ledger` is not consulted up front: a
+    /// re-made summary may reuse an old relay name and must still apply.
+    ///
+    /// - transcript, meeting unknown: files a new meeting note.
+    /// - transcript, meeting known: drained, never filed (its audio still
+    ///   joins the note).
+    /// - summary, bytes not applied before: files a new note, or rewrites and
+    ///   renames the existing one.
+    /// - summary, bytes already applied: an iCloud re-sync; drained, so an old
+    ///   copy can never roll the note back.
+    private func processMeeting(_ candidate: RelayCandidate, header: MeetingMarker.Header, folder: URL, mode: TriageMode) async {
+        let name = candidate.relayFilename
+        guard Self.shouldAttempt(name: name, lastFailureAt: lastFailureAt, now: clock()) else { return }
+
+        if let size = fileSize(of: candidate.txtURL), size > Self.maxTxtBytes {
+            if !reportedOversized.contains(name) {
+                reportedOversized.insert(name)
+                recordRelayError("Relay note \(name) is too large to file automatically")
+            }
+            return
+        }
+        guard FileManager.default.fileExists(atPath: candidate.txtURL.path) else { return }
+
+        let data: Data
+        do {
+            data = try Data(contentsOf: candidate.txtURL)
+        } catch {
+            lastFailureAt[name] = clock()
+            recordRelayError("Couldn't read \(name): \(error.localizedDescription)")
+            return
+        }
+        let text = String(decoding: data, as: UTF8.self)
+        // The file changed under us since the peek; the next scan re-derives.
+        guard let meeting = MeetingMarker.parse(text), meeting.header == header else { return }
+
+        let id = header.meetingId
+        let entry = meetingLedger.entry(meetingId: id)
+        let existingNote = MeetingFiler.locateNote(meetingId: id, recordedPath: entry?.noteRelativePath, in: folder)
+        let hash = MeetingLedger.hash(of: data)
+
+        let drain: Bool
+        switch header.part {
+        case .transcript:
+            drain = entry != nil || existingNote != nil
+        case .summary:
+            drain = entry?.appliedSummaryHashes.contains(hash) ?? false
+        }
+
+        if drain {
+            var audioAttached = false
+            if let note = existingNote, let audioURL = candidate.audioURL {
+                let result = await meetingFiler.attachAudio(audioURL, toNote: note, in: folder)
+                switch result.outcome {
+                case .success:
+                    audioAttached = true
+                case .unavailable:
+                    return
+                case .failure(let reason):
+                    // The .m4a stays in the relay; the orphan path retries it.
+                    Self.log.error("meeting audio attach failed for \(name, privacy: .public): \(reason, privacy: .public)")
+                }
+            }
+            var updated = entry ?? MeetingEntry(
+                meetingId: id, noteRelativePath: "", part: header.part,
+                relayFilenames: [], appliedSummaryHashes: [], updatedAt: clock())
+            if let note = existingNote {
+                updated.noteRelativePath = CaptureContract.relativePath(of: note, in: folder)
+            }
+            if !updated.relayFilenames.contains(name) { updated.relayFilenames.append(name) }
+            meetingLedger.upsert(updated)
+            ledger.record(relayFilename: name)
+            if audioAttached, let audioURL = candidate.audioURL {
+                ledger.record(relayFilename: audioURL.lastPathComponent)
+            }
+            await removeRelayFile(candidate.txtURL)
+            if audioAttached, let audioURL = candidate.audioURL {
+                await removeRelayFile(audioURL)
+            }
+            lastFailureAt[name] = nil
+            Self.log.info("drained meeting \(header.part.rawValue, privacy: .public) \(name, privacy: .public): already filed")
+            return
+        }
+
+        let capturedAt = RelayWatcher.parseRelayTimestamp(name) ?? clock()
+        let result = await meetingFiler.write(
+            meeting,
+            rawText: text,
+            relayBaseName: candidate.baseName,
+            capturedAt: capturedAt,
+            existingNote: existingNote,
+            audioURL: candidate.audioURL,
+            mode: mode,
+            to: folder
+        )
+        switch result.outcome {
+        case .success(let url):
+            Self.log.info("\(existingNote == nil ? "filed" : "replaced", privacy: .public) meeting note \(url.lastPathComponent, privacy: .public)")
+            let audioCopied = candidate.audioURL != nil && result.failedAttachments.isEmpty
+            var updated = entry ?? MeetingEntry(
+                meetingId: id, noteRelativePath: "", part: header.part,
+                relayFilenames: [], appliedSummaryHashes: [], updatedAt: clock())
+            updated.noteRelativePath = CaptureContract.relativePath(of: url, in: folder)
+            updated.part = header.part
+            if !updated.relayFilenames.contains(name) { updated.relayFilenames.append(name) }
+            if header.part == .summary {
+                updated.appliedSummaryHashes.removeAll { $0 == hash }
+                updated.appliedSummaryHashes.append(hash)
+            }
+            // Record before delete: same crash-window rule as ordinary notes.
+            meetingLedger.upsert(updated)
+            ledger.record(relayFilename: name)
+            if audioCopied, let audioURL = candidate.audioURL {
+                ledger.record(relayFilename: audioURL.lastPathComponent)
+            }
+            await removeRelayFile(candidate.txtURL)
+            if audioCopied, let audioURL = candidate.audioURL {
+                await removeRelayFile(audioURL)
+            }
+            // A replaced meeting is not a new note; only a first filing counts.
+            if existingNote == nil {
+                appState.state.recordSuccess(at: clock())
+            }
+            lastFailureAt[name] = nil
+            if !result.failedAttachments.isEmpty {
+                recordRelayError("Audio for \(name) could not be copied yet, it will be retried")
+            } else {
+                clearRelayError()
+            }
+        case .failure(let reason):
+            Self.log.error("meeting filing failed for \(name, privacy: .public): \(reason, privacy: .public)")
+            lastFailureAt[name] = clock()
+            recordRelayError(reason)
+        case .unavailable:
+            Self.log.debug("meeting filing deferred for \(name, privacy: .public): destination offline")
+        }
+    }
+
     // MARK: - Helpers
 
     /// Relay copies live in an iCloud container, so removal goes through
@@ -256,6 +452,10 @@ final class RelayProcessor {
         if case .failed(let reason) = outcome {
             Self.log.warning("couldn't remove relay copy \(url.lastPathComponent, privacy: .public): \(reason, privacy: .public)")
         }
+    }
+
+    private nonisolated static func modificationDate(of url: URL) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
     }
 
     private func fileSize(of url: URL) -> Int? {

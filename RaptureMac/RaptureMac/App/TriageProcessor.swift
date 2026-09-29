@@ -37,6 +37,10 @@ final class TriageProcessor {
     /// Link enrichment (M5), enqueued once per freshly-triaged link note
     /// (never on ledger-hit ghost drains). Direct call — no writer echo here.
     private let enrichment: (any LinkEnriching)?
+    /// A root `.txt` carrying the iOS meeting marker (a raw-mode meeting file,
+    /// met again after the user switched triage on) files as a meeting: no AI,
+    /// no handoffs, and recorded here so later summaries replace it.
+    private let meetingLedger: MeetingLedger?
     private let clock: @Sendable () -> Date
     /// Test override; nil means "read the CURRENT zone at each use", matching the
     /// writers (a system time-zone change mid-run must not date backlog notes with
@@ -53,6 +57,7 @@ final class TriageProcessor {
         handoff: (any HandoffProcessing)? = nil,
         ai: (any AITriageProviding)? = nil,
         enrichment: (any LinkEnriching)? = nil,
+        meetingLedger: MeetingLedger? = nil,
         clock: @escaping @Sendable () -> Date = { Date() },
         timeZone: TimeZone? = nil
     ) {
@@ -62,6 +67,7 @@ final class TriageProcessor {
         self.handoff = handoff
         self.ai = ai
         self.enrichment = enrichment
+        self.meetingLedger = meetingLedger
         self.clock = clock
         self.timeZoneOverride = timeZone
     }
@@ -173,7 +179,12 @@ final class TriageProcessor {
 
         let info = CaptureContract.parseSourceFilename(name)
         let capturedAt = info.capturedAt ?? modificationDate(of: sourceURL) ?? clock()
-        let classification = TriageClassifier.classify(bodyText)
+        // Meetings skip classification and AI entirely (the body stays
+        // verbatim, and a long transcript would only fail the AI tier).
+        let meeting = MeetingMarker.parse(bodyText)
+        let classification = meeting == nil
+            ? TriageClassifier.classify(bodyText)
+            : TriageClassifier.Classification(type: .meeting, rawMedia: nil)
 
         // AI refinement (M4): voice notes only; links stay deterministic. The
         // footer-stripped body is what the AI sees (attachment links aren't
@@ -185,11 +196,18 @@ final class TriageProcessor {
 
         let noteType = aiOut?.classification ?? classification.type
         // Title precedence: relay-derived title (iPhone provenance) > AI > deterministic.
-        let title = info.relayTitle
-            ?? aiOut?.title
-            ?? (classification.type == .voiceNote
-                ? TitleDeriver.voiceNoteTitle(from: bodyText)
-                : TitleDeriver.linkTitle(for: classification.rawMedia ?? "", type: classification.type))
+        let title: String
+        if let meeting {
+            title = info.relayTitle
+                ?? MeetingMarker.headingTitle(of: meeting.body)
+                ?? MeetingFiler.fallbackTitle
+        } else {
+            title = info.relayTitle
+                ?? aiOut?.title
+                ?? (classification.type == .voiceNote
+                    ? TitleDeriver.voiceNoteTitle(from: bodyText)
+                    : TitleDeriver.linkTitle(for: classification.rawMedia ?? "", type: classification.type))
+        }
 
         do {
             let subfolder = folder.appendingPathComponent(noteType.subfolder, isDirectory: true)
@@ -213,8 +231,9 @@ final class TriageProcessor {
                 source: info.source,
                 type: noteType,
                 rawMedia: classification.rawMedia,
-                body: aiOut?.formattedBody ?? bodyText,
-                rawBody: aiOut?.formattedBody != nil ? bodyText : nil
+                body: meeting?.body ?? aiOut?.formattedBody ?? bodyText,
+                rawBody: aiOut?.formattedBody != nil ? bodyText : nil,
+                meetingId: meeting?.header.meetingId
             )
             do {
                 try AtomicFile.write(Data(CaptureContract.compose(note, attachments: attachments).utf8), to: mdURL)
@@ -233,6 +252,15 @@ final class TriageProcessor {
                 contentHash: hash,
                 mdRelativePath: CaptureContract.relativePath(of: mdURL, in: folder)
             )
+            if let meeting, let meetingLedger {
+                let id = meeting.header.meetingId
+                var entry = meetingLedger.entry(meetingId: id) ?? MeetingEntry(
+                    meetingId: id, noteRelativePath: "", part: meeting.header.part,
+                    relayFilenames: [], appliedSummaryHashes: [], updatedAt: clock())
+                entry.noteRelativePath = CaptureContract.relativePath(of: mdURL, in: folder)
+                entry.part = meeting.header.part
+                meetingLedger.upsert(entry)
+            }
             await removeSource(sourceURL)
             lastFailureAt[name] = nil
             clearTriageError()
@@ -245,8 +273,9 @@ final class TriageProcessor {
                     noteURL: mdURL, in: folder,
                     echo: LinkNoteEcho(type: classification.type, rawMedia: rawMedia, capturedAt: capturedAt))
             }
-            if let handoff {
-                // Footer-stripped body (attachment links aren't prose); capturedAt
+            if let handoff, meeting == nil {
+                // Never for meetings: a transcript is other people talking,
+                // not the user's own "remember to". Footer-stripped body (attachment links aren't prose); capturedAt
                 // is the capture's own stamp — a backlog note saying "tomorrow"
                 // anchors to when it was dictated, not to this drain. The AI
                 // result rides along so its sharper candidates replace the

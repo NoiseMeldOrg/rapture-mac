@@ -54,7 +54,7 @@ enum TitleDeriver {
                 return "YouTube \(id)"
             }
             return "YouTube"
-        case .articleLink, .voiceNote, .task, .idea, .journal:
+        case .articleLink, .voiceNote, .task, .idea, .journal, .meeting:
             // Only link types reach here in practice; the AI classes fall
             // through to the host-name fallback for exhaustiveness.
             let bare = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host

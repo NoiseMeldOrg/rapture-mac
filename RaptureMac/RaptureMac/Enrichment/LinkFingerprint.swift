@@ -20,7 +20,7 @@ enum LinkFingerprint {
         case .articleLink:
             guard let normalized = normalizedArticleURL(url) else { return nil }
             return "url:\(normalized)"
-        case .voiceNote, .task, .idea, .journal:
+        case .voiceNote, .task, .idea, .journal, .meeting:
             return nil
         }
     }

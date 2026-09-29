@@ -4,6 +4,12 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.131] - 2026-09-29: Choose Claude Sonnet 5.5 for AI sorting
+
+Built from commit `22daa90`. SHA-256: `913093fedc00a67bf46d58f4b27387fa48e875ef0aa1eb058d31d62feb4876d4`.
+
+A choice of AI engine and model, Undo for reminders, and the follow-ups from 1.0.127. 899 tests.
+
 ### Added
 
 - **Choose Claude for AI sorting, and pick the model.** Settings → Triage → AI Triage now has a **Use** choice: Apple Intelligence on this Mac (private and free, still the default) or Claude with your Anthropic API key. A **Claude model** picker offers **Claude Sonnet 5.5** (the default) and **Claude Haiku 4.5**. Before, Claude ran only on Macs without Apple Intelligence, always as Haiku 4.5. Sonnet 5.5 runs at low effort, the right level for titling and sorting a short note, and gets 15 seconds instead of 10 before a note files without AI. If Anthropic's safety filter wrongly declines a note, the request is retried on the model Anthropic recommends. Updating changes nothing for anyone: note text goes to Anthropic only when you pick Claude, or when Apple Intelligence isn't available, as before.

@@ -14,6 +14,15 @@
     <language>en</language>
     <!-- appcast:items -->
     <item>
+      <title>1.0.125</title>
+      <pubDate>Tue, 29 Sep 2026 13:48:21 +0000</pubDate>
+      <sparkle:version>1000125</sparkle:version>
+      <sparkle:shortVersionString>1.0.125</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <link>https://github.com/NoiseMeldOrg/rapture-mac/releases/tag/v1.0.125</link>
+      <enclosure url="https://github.com/NoiseMeldOrg/rapture-mac/releases/download/v1.0.125/Rapture-1.0.125.dmg" type="application/octet-stream" sparkle:edSignature="ywcCEwDEOz7iAyIwV6YtB6OC5JLb0R+rzLf8u4OJpoiNilIU2PGZl5sZpjia6iyfmcDxeKB5LrlnhP9hO3A8Cg==" length="4506265" />
+    </item>
+    <item>
       <title>1.0.123</title>
       <pubDate>Tue, 15 Sep 2026 19:31:39 +0000</pubDate>
       <sparkle:version>1000123</sparkle:version>

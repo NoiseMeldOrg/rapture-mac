@@ -27,7 +27,9 @@ final class StateStore {
         } else {
             // A new user has no pre-triage habits to retire, so the one-time
             // "captures now file as Markdown" notice is for updaters only.
-            self.state = PersistedState(triageIntroShown: true)
+            // …and a new user is asked where notes should go (after Full
+            // Disk Access), instead of being filed silently into the default.
+            self.state = PersistedState(triageIntroShown: true, destinationChoicePending: true)
             self.isFreshInstall = true
         }
     }

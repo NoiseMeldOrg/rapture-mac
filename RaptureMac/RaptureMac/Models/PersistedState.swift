@@ -31,6 +31,18 @@ struct PersistedState: Codable, Sendable, Equatable {
     var launchAtLoginSeeded: Bool
     /// Notes still waiting for attachments to download (see `AttachmentRetrier`).
     var pendingAttachmentRetries: [PendingAttachmentRetry]
+    /// The user settled the default-folder question: they chose "Keep the
+    /// default" in the first-run choice, or dismissed the menu nudge. Never
+    /// nag again. (Destination onboarding M2 sets it; M3 reads it.)
+    var defaultDestinationNudgeDismissed: Bool
+    /// A brand-new install still owes the user the "where should notes go?"
+    /// question. Set only for a fresh install; cleared once the window has
+    /// been answered or closed. Persisted because granting Full Disk Access
+    /// forces a relaunch before the question can be asked.
+    var destinationChoicePending: Bool
+    /// The user dismissed the offer to gather Rapture's folders out of a
+    /// vault root (M3).
+    var vaultRootRescueDismissed: Bool
 
     init(
         chatDbWatermark: Int64 = 0,
@@ -53,7 +65,10 @@ struct PersistedState: Codable, Sendable, Equatable {
         meetingRecords: [MeetingEntry] = [],
         errorRecords: [ErrorRecord] = [],
         launchAtLoginSeeded: Bool = false,
-        pendingAttachmentRetries: [PendingAttachmentRetry] = []
+        pendingAttachmentRetries: [PendingAttachmentRetry] = [],
+        defaultDestinationNudgeDismissed: Bool = false,
+        destinationChoicePending: Bool = false,
+        vaultRootRescueDismissed: Bool = false
     ) {
         self.chatDbWatermark = chatDbWatermark
         self.selfHandlesCacheTs = selfHandlesCacheTs
@@ -76,6 +91,9 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.errorRecords = errorRecords
         self.launchAtLoginSeeded = launchAtLoginSeeded
         self.pendingAttachmentRetries = pendingAttachmentRetries
+        self.defaultDestinationNudgeDismissed = defaultDestinationNudgeDismissed
+        self.destinationChoicePending = destinationChoicePending
+        self.vaultRootRescueDismissed = vaultRootRescueDismissed
     }
 
     enum CodingKeys: String, CodingKey {
@@ -100,6 +118,9 @@ struct PersistedState: Codable, Sendable, Equatable {
         case errorRecords
         case launchAtLoginSeeded
         case pendingAttachmentRetries
+        case defaultDestinationNudgeDismissed
+        case destinationChoicePending
+        case vaultRootRescueDismissed
     }
 
     init(from decoder: Decoder) throws {
@@ -124,6 +145,11 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.meetingRecords = try c.decodeIfPresent([MeetingEntry].self, forKey: .meetingRecords) ?? []
         self.launchAtLoginSeeded = try c.decodeIfPresent(Bool.self, forKey: .launchAtLoginSeeded) ?? false
         self.pendingAttachmentRetries = try c.decodeIfPresent([PendingAttachmentRetry].self, forKey: .pendingAttachmentRetries) ?? []
+        // Lenient on purpose: a strict key would make StateStore.load fall
+        // back to a fresh state and wipe every existing user's ledgers.
+        self.defaultDestinationNudgeDismissed = try c.decodeIfPresent(Bool.self, forKey: .defaultDestinationNudgeDismissed) ?? false
+        self.destinationChoicePending = try c.decodeIfPresent(Bool.self, forKey: .destinationChoicePending) ?? false
+        self.vaultRootRescueDismissed = try c.decodeIfPresent(Bool.self, forKey: .vaultRootRescueDismissed) ?? false
         if let records = try c.decodeIfPresent([ErrorRecord].self, forKey: .errorRecords) {
             self.errorRecords = records
         } else if let legacy = self.lastError, !legacy.isEmpty {

@@ -41,6 +41,12 @@ struct RaptureMacApp: App {
         }
         .windowResizability(.contentSize)
 
+        Window("Rapture", id: "destination") {
+            DestinationChoiceView()
+                .environment(appState)
+        }
+        .windowResizability(.contentSize)
+
         Window("Activity", id: "activity") {
             ActivityView()
                 .environment(appState)
@@ -79,9 +85,11 @@ private struct MenuBarLabel: View {
                 didStart = true
                 await start()
                 presentPermissionsIfNeeded(appState.permissionState)
+                presentDestinationChoiceIfNeeded()
             }
             .onChange(of: appState.permissionState) { _, newValue in
                 presentPermissionsIfNeeded(newValue)
+                presentDestinationChoiceIfNeeded()
             }
     }
 
@@ -130,6 +138,14 @@ private struct MenuBarLabel: View {
 
     private var accessibilityStatus: String {
         "Rapture: " + status.primary.replacingOccurrences(of: "⚠ ", with: "").replacingOccurrences(of: "✓ ", with: "").replacingOccurrences(of: "⏸ ", with: "")
+    }
+
+    /// First-run step two: once Full Disk Access is in place, ask where notes
+    /// should go (fresh installs only; see `DestinationChoiceFlow`).
+    private func presentDestinationChoiceIfNeeded() {
+        guard DestinationChoiceFlow.shouldPresent(appState: appState) else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        openWindow(id: "destination")
     }
 
     private func presentPermissionsIfNeeded(_ state: AppState.PermissionState) {

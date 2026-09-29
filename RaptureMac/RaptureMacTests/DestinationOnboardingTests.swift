@@ -244,4 +244,88 @@ final class DestinationOnboardingTests: XCTestCase {
         XCTAssertTrue(sidecar.contains("Vault2/Rapture Inbox"), "consumers see the container, got \(sidecar)")
         XCTAssertTrue(fm.fileExists(atPath: vault.appendingPathComponent("Projects/plan.md").path), "the vault's own files are untouched")
     }
+
+    // MARK: - M2: first-run choice
+
+    func testOnlyAFreshInstallOwesTheQuestionAndOnlyAfterFullDiskAccess() {
+        let fresh = AppState(supportDirectory: temp.appendingPathComponent("fresh"))
+        XCTAssertTrue(fresh.state.state.destinationChoicePending)
+        XCTAssertFalse(DestinationChoiceFlow.shouldPresent(appState: fresh), "Full Disk Access comes first")
+        fresh.permissionState = .ok
+        XCTAssertTrue(DestinationChoiceFlow.shouldPresent(appState: fresh))
+
+        // The same install after the Full Disk Access relaunch still owes it.
+        let relaunched = AppState(supportDirectory: temp.appendingPathComponent("fresh"))
+        relaunched.permissionState = .ok
+        XCTAssertTrue(DestinationChoiceFlow.shouldPresent(appState: relaunched))
+
+        let existing = try? JSONDecoder().decode(PersistedState.self, from: Data(#"{"chatDbWatermark": 9}"#.utf8))
+        XCTAssertEqual(existing?.destinationChoicePending, false, "updaters are never shown the first-run window")
+        XCTAssertEqual(existing?.defaultDestinationNudgeDismissed, false)
+    }
+
+    func testKeepTheDefaultSettlesTheQuestionForGood() {
+        let appState = AppState(supportDirectory: temp.appendingPathComponent("keep"))
+        appState.permissionState = .ok
+        DestinationChoiceFlow.keepDefault(appState: appState)
+        XCTAssertFalse(DestinationChoiceFlow.shouldPresent(appState: appState))
+        XCTAssertTrue(appState.state.state.defaultDestinationNudgeDismissed, "no nudge ever")
+        let reloaded = AppState(supportDirectory: temp.appendingPathComponent("keep"))
+        XCTAssertTrue(reloaded.state.state.defaultDestinationNudgeDismissed)
+    }
+
+    func testClosingWithoutAnswerStopsAskingButLeavesTheNudge() {
+        let appState = AppState(supportDirectory: temp.appendingPathComponent("close"))
+        DestinationChoiceFlow.dismiss(appState: appState)
+        XCTAssertFalse(appState.state.state.destinationChoicePending)
+        XCTAssertFalse(appState.state.state.defaultDestinationNudgeDismissed)
+    }
+
+    func testANoteFiledBeforeTheAnswerMovesWithTheChoice() async throws {
+        // The default folder exists underneath from the start; a relay note
+        // files into it while the question is still open.
+        let defaultFolder = try dir("Rapture Notes")
+        let relay = try dir("relay")
+        let appState = AppState(supportDirectory: temp.appendingPathComponent("early"))
+        appState.settings.update {
+            $0.outputFolder = defaultFolder
+            $0.relayEnabled = true
+            $0.triageMode = .full
+        }
+        let processor = RelayProcessor(
+            appState: appState, filer: RelayFiler(),
+            ledger: RelayFiledLedger(stateStore: appState.state),
+            triageLedger: TriageLedger(stateStore: appState.state))
+        let base = "2026-09-29T20-00-00Z Early idea"
+        let txt = relay.appendingPathComponent(base + ".txt")
+        try "# Early idea\n\nbuy a label maker".write(to: txt, atomically: true, encoding: .utf8)
+        await processor.process(batch: RelayScanBatch(
+            candidates: [RelayCandidate(txtURL: txt, audioURL: nil, relayFilename: base + ".txt", baseName: base)],
+            orphanAudio: []))
+        XCTAssertTrue(appState.state.state.destinationChoicePending, "capture never waits on the answer")
+        let filed = try XCTUnwrap(appState.state.state.triagedRecords.first?.mdRelativePath)
+        XCTAssertTrue(fm.fileExists(atPath: defaultFolder.appendingPathComponent(filed).path))
+
+        // Now the user picks a vault; the early note moves into its container.
+        let vault = try dir("Vault3")
+        try dir("Vault3/.obsidian")
+        let moved = await DestinationChoiceFlow.choose(
+            vault, appState: appState,
+            prompt: { _, suggested, _ in .contain(name: suggested) },
+            consent: { _, _, _ in .move })
+        XCTAssertTrue(moved)
+        XCTAssertFalse(appState.state.state.destinationChoicePending)
+        XCTAssertTrue(fm.fileExists(atPath: vault.appendingPathComponent("Rapture Inbox").appendingPathComponent(filed).path),
+                      "the early note is in the chosen vault, and its ledger path still resolves")
+    }
+
+    func testCancellingInsideTheChoiceLeavesTheQuestionOpen() async throws {
+        let appState = AppState(supportDirectory: temp.appendingPathComponent("cancel2"))
+        appState.settings.update { $0.outputFolder = try? self.dir("Default2") }
+        let vault = try dir("Vault4")
+        try dir("Vault4/.obsidian")
+        let moved = await DestinationChoiceFlow.choose(vault, appState: appState, prompt: { _, _, _ in .cancel }, consent: { _, _, _ in .move })
+        XCTAssertFalse(moved)
+        XCTAssertTrue(appState.state.state.destinationChoicePending)
+    }
 }

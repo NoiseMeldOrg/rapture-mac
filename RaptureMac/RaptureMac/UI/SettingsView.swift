@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 
-/// Settings tabs. The selection lives on `AppState` so the menu can open a
-/// specific tab (its "Activity…" row).
-enum SettingsTab: Hashable { case general, triage, allowlist, activity, integrations, about }
+/// Settings tabs. The selection lives on `AppState` so the menu's
+/// "Settings…" row can always open on General.
+enum SettingsTab: Hashable { case general, triage, allowlist, integrations, about }
 
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
@@ -22,10 +22,6 @@ struct SettingsView: View {
             SettingsAllowlistView()
                 .tabItem { Label("Allowlist", systemImage: "person.crop.circle.badge.checkmark") }
                 .tag(SettingsTab.allowlist)
-
-            SettingsActivityView()
-                .tabItem { Label("Activity", systemImage: "clock.arrow.circlepath") }
-                .tag(SettingsTab.activity)
 
             SettingsIntegrationsView()
                 .tabItem { Label("Integrations", systemImage: "puzzlepiece.extension") }

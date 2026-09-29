@@ -183,14 +183,15 @@ struct MenuBarView: View {
             }
 
             Button {
-                openSettings(tab: .activity)
+                NSApp.activate(ignoringOtherApps: true)
+                openWindow(id: "activity")
             } label: {
                 rowLabel("Activity…", symbol: "clock.arrow.circlepath")
             }
             .buttonStyle(.plain)
 
             Button {
-                openSettings(tab: nil)
+                openSettings()
             } label: {
                 rowLabel("Settings…", symbol: "gearshape")
             }
@@ -237,8 +238,10 @@ struct MenuBarView: View {
         return others > 0 ? "\(when) · \(others) more in Activity" : when
     }
 
-    private func openSettings(tab: SettingsTab?) {
-        if let tab { appState.settingsTab = tab }
+    /// Settings always opens on General from the menu, rather than on
+    /// whichever tab was last left open.
+    private func openSettings() {
+        appState.settingsTab = .general
         NSApp.activate(ignoringOtherApps: true)
         openWindow(id: "settings")
     }

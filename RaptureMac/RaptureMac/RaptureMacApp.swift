@@ -41,6 +41,11 @@ struct RaptureMacApp: App {
         }
         .windowResizability(.contentSize)
 
+        Window("Activity", id: "activity") {
+            ActivityView()
+                .environment(appState)
+        }
+
         Window(Self.settingsWindowTitle, id: "settings") {
             SettingsView()
                 .environment(appState)

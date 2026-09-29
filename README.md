@@ -52,14 +52,14 @@ That's the whole product. Rapture starts itself when you log in, so capture keep
 
 | What you see | What to do |
 |---|---|
-| No note after you texted yourself | Open **Activity…** from the menu (or **Settings → Activity**) to see whether the note filed, queued, or failed. If the menu shows a warning, start there. Rapture files only messages in your own thread and messages from senders on the **Allowlist** (phone numbers work in any format), and ignores everything else. If Siri sent the text to someone else, set **My Information** on the iPhone to your own contact card (step 2). |
+| No note after you texted yourself | Open **Activity…** from the menu to see whether the note filed, queued, or failed. If the menu shows a warning, start there. Rapture files only messages in your own thread and messages from senders on the **Allowlist** (phone numbers work in any format), and ignores everything else. If Siri sent the text to someone else, set **My Information** on the iPhone to your own contact card (step 2). |
 | Capture stopped after you reinstalled the app by hand | Dragging a new copy into Applications makes macOS forget the Full Disk Access grant. Choose **Show permissions help…** from the menu, turn Rapture back on, and reopen the app. In-app updates keep the grant. |
 | No `✅ Saved` reply | The menu shows **Automation access needed**. Choose **Show permissions help…** and turn on Messages under Rapture, or click **Never Reply** if you don't want replies. Also check the iPhone's Focus mode, which can silence the reply. |
 | Notes from the iPhone app don't arrive | Both devices need the same Apple account with iCloud Drive on, and the Mac needs to be awake. **Settings → General → iPhone App** shows the relay status. If a note waits on iCloud for more than 10 minutes, the menu says so: open the Rapture app on your iPhone while it's on Wi-Fi. |
 | `✅ Saved · 1 attachment missing` | The photo hadn't reached the Mac yet. Rapture keeps trying for about 30 minutes and adds it to the note when it arrives. |
 | A `✗` reply, or an error in the menu | The note couldn't be saved (often a full disk or an unwritable folder). Rapture retries every minute and sends the `✗` reply only once. After 24 hours of failing it saves the note's text to `~/Library/Application Support/Rapture for Mac/Failed captures/`, and the error says so. |
 
-When something is wrong, the menu-bar icon turns into a warning triangle and the menu shows the newest error with its age and a **Dismiss** button. **Settings → Activity** lists every open error at the top, with a **Dismiss All** button.
+When something is wrong, the menu-bar icon turns into a warning triangle and the menu shows the newest error with its age and a **Dismiss** button. The **Activity** window (menu → **Activity…**) lists every open error at the top, with a **Dismiss All** button.
 
 ## Capture from the Rapture iPhone app
 

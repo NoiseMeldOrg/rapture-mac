@@ -1,9 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// Settings → Activity: what the app did, newest first, plus anything still
-/// wrong. Read from `ActivityLog` (local file, titles and paths only).
-struct SettingsActivityView: View {
+/// The Activity window: what the app did, newest first, plus anything still
+/// wrong. Read from `ActivityLog` (local file, titles and paths only). Its own
+/// window, not a Settings tab: it is a record, not a setting, and a sixth tab
+/// no longer fit the Settings tab bar.
+struct ActivityView: View {
     @Environment(AppState.self) private var appState
     @State private var confirmClear = false
 
@@ -55,6 +57,11 @@ struct SettingsActivityView: View {
             }
         }
         .formStyle(.grouped)
+        .frame(minWidth: 520, idealWidth: 620, minHeight: 420, idealHeight: 560)
+        .task {
+            // LSUIElement quirk: bring the window to front when opened from the menu bar.
+            NSApp.activate(ignoringOtherApps: true)
+        }
         .confirmationDialog("Clear the activity history?", isPresented: $confirmClear) {
             Button("Clear History", role: .destructive) { appState.activity.clear() }
         } message: {

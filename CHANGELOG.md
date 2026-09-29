@@ -4,6 +4,11 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Changed
+
+- **Activity has its own window.** In 1.0.127 it was a sixth Settings tab, which no longer fit: macOS hid the tabs behind a "»" menu. The menu's **Activity…** row now opens a separate Activity window, and Settings is back to five tabs.
+- **Settings… opens on General.** Opening Activity from the menu used to leave Settings on the Activity tab, so the next **Settings…** showed Activity again. **Settings…** now always opens on General.
+
 ## [1.0.127] - 2026-09-29: Nothing gets lost, and you can see what happened
 
 Built from commit `e60d1f5`. SHA-256: `f3faf4dac67b96eeeb93ac4c13e8895168eea856bdef1df7641a696ceabd75df`.

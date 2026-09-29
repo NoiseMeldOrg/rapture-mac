@@ -55,7 +55,7 @@ struct ActivityEvent: Codable, Sendable, Equatable, Identifiable {
 /// Append-only JSON Lines at `<app support>/activity.jsonl`, rotated to the
 /// newest `keepLines` once it passes `maxBytes`. Never leaves the Mac: no
 /// networking, no note bodies. The newest `memoryCap` events are held in
-/// memory for the Settings → Activity tab and the menu's "Show Last Note".
+/// memory for the Activity window and the menu's "Show Last Note".
 @Observable
 @MainActor
 final class ActivityLog {

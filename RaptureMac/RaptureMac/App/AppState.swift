@@ -176,6 +176,24 @@ final class AppState {
         persistErrors()
     }
 
+    /// The Activity window's Undo: deletes a reminder or calendar event the
+    /// handoff made and records that it was removed. Returns an error message
+    /// for the window when the delete fails.
+    @discardableResult
+    func undoHandoff(_ event: ActivityEvent) -> String? {
+        guard let undo = event.undo, !activity.undoneIDs.contains(event.id) else { return nil }
+        let kind: HandoffKind = undo.kind == .reminder ? .reminder : .event
+        do {
+            try eventKit.deleteItem(kind: kind, identifier: undo.identifier)
+        } catch {
+            return "Couldn't remove it: \(error.localizedDescription)"
+        }
+        let what = undo.kind == .reminder ? "reminder" : "calendar event"
+        let title = event.summary.split(separator: ":", maxSplits: 1).last.map { $0.trimmingCharacters(in: .whitespaces) } ?? event.summary
+        activity.record(.info, source: .app, "Removed the \(what): \(title)", undoOf: event.id)
+        return nil
+    }
+
     private func persistErrors() {
         let snapshot = errors
         state.update {

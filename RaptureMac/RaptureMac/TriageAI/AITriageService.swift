@@ -89,7 +89,12 @@ final class AITriageService: AITriageProviding {
         let (clipped, truncated) = AITriagePrompt.clip(text)
 
         do {
-            let draft = try await Self.withTimeout(timeout) {
+            // Sonnet 5.5 thinks briefly before answering: give it its own,
+            // longer limit. Injected test timeouts stay as they are.
+            let limit = engine.kind == .anthropic && timeout == Self.requestTimeout
+                ? appState.settings.settings.claudeModel.timeout
+                : timeout
+            let draft = try await Self.withTimeout(limit) {
                 try await engine.analyze(text: clipped, capturedAt: capturedAt, timeZone: zone)
             }
             noteSuccess(engine.kind)
@@ -137,6 +142,7 @@ final class AITriageService: AITriageProviding {
         consecutiveTransportFailures = 0
         cooldownUntil = nil
         appState.aiLastError = nil
+        appState.clearError(source: .ai)
         refreshStatus()
     }
 
@@ -165,7 +171,8 @@ final class AITriageService: AITriageProviding {
             appleAvailable: appleAvailable,
             appleUnavailableReason: appleReason,
             hasAPIKey: appState.credentials.anthropicAPIKey()?.isEmpty == false,
-            keyRejected: keyRejected
+            keyRejected: keyRejected,
+            preferClaude: appState.settings.settings.aiEnginePreference == .claude
         )
     }
 
@@ -179,6 +186,13 @@ final class AITriageService: AITriageProviding {
     private func noteFailure(_ error: AIEngineError, engine kind: AIEngineKind) {
         switch error {
         case .http(401):
+            // A rejected key turns AI sorting off until the user saves a new
+            // one. That is a standing problem, not a one-capture miss, so it
+            // also reaches the menu and the Activity window (notes still file).
+            if !keyRejected {
+                appState.recordError("Anthropic rejected your API key, so AI sorting is off. Notes still file without it. Update the key in Settings → Triage.", source: .ai)
+                appState.activity.record(.warning, source: .app, "Anthropic rejected your API key. AI sorting is off until you save a working key in Settings → Triage.")
+            }
             keyRejected = true
             report("Anthropic rejected the API key — check it in Settings › Triage")
             refreshStatus()
@@ -202,6 +216,9 @@ final class AITriageService: AITriageProviding {
     private func transportStrike(_ message: String) {
         consecutiveTransportFailures += 1
         if consecutiveTransportFailures >= Self.cooldownThreshold {
+            if cooldownUntil == nil {
+                appState.activity.record(.warning, source: .app, "AI sorting paused for a while after repeated failures: \(message). Notes still file without it.")
+            }
             cooldownUntil = clock().addingTimeInterval(Self.failureCooldown)
         }
         report(message)

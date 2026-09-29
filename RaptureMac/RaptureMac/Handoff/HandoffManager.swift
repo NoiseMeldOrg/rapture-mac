@@ -89,7 +89,7 @@ final class HandoffManager: HandoffProcessing {
                     continue
                 }
                 do {
-                    try client.createReminder(
+                    let identifier = try client.createReminder(
                         title: title,
                         due: dueComponents(for: due, zone: zone),
                         notes: notes(for: text, capturedAt: capturedAt),
@@ -98,7 +98,9 @@ final class HandoffManager: HandoffProcessing {
                     fingerprints.forEach { ledger.record(fingerprint: $0) }
                     outcome.reminderCreated = true
                     noteSuccess(.reminder)
-                    appState.activity.record(.reminderCreated, source: .app, "Reminder created: \(title)")
+                    appState.activity.record(
+                        .reminderCreated, source: .app, "Reminder created: \(title)",
+                        undo: ActivityEvent.Undo(kind: .reminder, identifier: identifier))
                     Self.log.info("reminder created: \(title, privacy: .private)")
                 } catch {
                     reportError("Couldn't create reminder: \(error.localizedDescription)")
@@ -120,7 +122,7 @@ final class HandoffManager: HandoffProcessing {
                     continue
                 }
                 do {
-                    try client.createEvent(
+                    let identifier = try client.createEvent(
                         title: title,
                         start: start,
                         end: start.addingTimeInterval(Self.eventDuration),
@@ -132,7 +134,8 @@ final class HandoffManager: HandoffProcessing {
                     noteSuccess(.event)
                     appState.activity.record(
                         .eventCreated, source: .app,
-                        "Calendar event created: \(title), \(start.formatted(date: .abbreviated, time: .shortened))")
+                        "Calendar event created: \(title), \(start.formatted(date: .abbreviated, time: .shortened))",
+                        undo: ActivityEvent.Undo(kind: .event, identifier: identifier))
                     Self.log.info("event created: \(title, privacy: .private)")
                 } catch {
                     reportError("Couldn't create event: \(error.localizedDescription)")

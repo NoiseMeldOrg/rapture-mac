@@ -8,6 +8,7 @@ import SwiftUI
 struct ActivityView: View {
     @Environment(AppState.self) private var appState
     @State private var confirmClear = false
+    @State private var undoError: String?
 
     var body: some View {
         Form {
@@ -39,8 +40,18 @@ struct ActivityView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 } else {
+                    if let undoError {
+                        Text(undoError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                    let undone = appState.activity.undoneIDs
                     ForEach(appState.activity.recent) { event in
-                        ActivityRow(event: event)
+                        ActivityRow(
+                            event: event,
+                            undone: undone.contains(event.id),
+                            onUndo: { undoError = appState.undoHandoff(event) }
+                        )
                     }
                 }
             } header: {
@@ -78,6 +89,8 @@ struct ActivityView: View {
 
 private struct ActivityRow: View {
     let event: ActivityEvent
+    let undone: Bool
+    let onUndo: () -> Void
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -94,6 +107,17 @@ private struct ActivityRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            if event.undo != nil {
+                if undone {
+                    Text("Removed")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Button("Undo", action: onUndo)
+                        .buttonStyle(.borderless)
+                        .help(event.undo?.kind == .reminder ? "Delete this reminder" : "Delete this calendar event")
+                }
+            }
             if let path = event.path, FileManager.default.fileExists(atPath: path) {
                 Button {
                     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])

@@ -84,7 +84,7 @@ final class SystemEventKitClient: EventKitClient {
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
 
-    func createReminder(title: String, due: DateComponents?, notes: String, listID: String?) throws {
+    func createReminder(title: String, due: DateComponents?, notes: String, listID: String?) throws -> String {
         guard !ProcessInfo.processInfo.isRunningXCTests else { throw ClientError.unavailableUnderTests }
         let store = eventStore()
         guard let calendar = resolveCalendar(id: listID, in: store, fallback: store.defaultCalendarForNewReminders()) else {
@@ -96,9 +96,10 @@ final class SystemEventKitClient: EventKitClient {
         reminder.notes = notes
         reminder.dueDateComponents = due
         try store.save(reminder, commit: true)
+        return reminder.calendarItemIdentifier
     }
 
-    func createEvent(title: String, start: Date, end: Date, notes: String, calendarID: String?) throws {
+    func createEvent(title: String, start: Date, end: Date, notes: String, calendarID: String?) throws -> String {
         guard !ProcessInfo.processInfo.isRunningXCTests else { throw ClientError.unavailableUnderTests }
         let store = eventStore()
         guard let calendar = resolveCalendar(id: calendarID, in: store, fallback: store.defaultCalendarForNewEvents) else {
@@ -111,6 +112,19 @@ final class SystemEventKitClient: EventKitClient {
         event.startDate = start
         event.endDate = end
         try store.save(event, span: .thisEvent, commit: true)
+        return event.calendarItemIdentifier
+    }
+
+    func deleteItem(kind: HandoffKind, identifier: String) throws {
+        guard !ProcessInfo.processInfo.isRunningXCTests else { throw ClientError.unavailableUnderTests }
+        let store = eventStore()
+        guard let item = store.calendarItem(withIdentifier: identifier) else { return }
+        switch kind {
+        case .reminder:
+            if let reminder = item as? EKReminder { try store.remove(reminder, commit: true) }
+        case .event:
+            if let event = item as? EKEvent { try store.remove(event, span: .thisEvent, commit: true) }
+        }
     }
 
     /// The stale/nil-target policy lives here, in one place: a stored ID that

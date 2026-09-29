@@ -13,9 +13,12 @@ final class AnthropicEngine: AITriageEngine {
     nonisolated let kind: AIEngineKind = .anthropic
 
     private let credentials: any CredentialStore
+    /// Read per call: the Settings picker can change the model mid-run.
+    private let modelProvider: @MainActor () -> ClaudeModel
 
-    init(credentials: any CredentialStore) {
+    init(credentials: any CredentialStore, modelProvider: @escaping @MainActor () -> ClaudeModel = { AnthropicWire.defaultModel }) {
         self.credentials = credentials
+        self.modelProvider = modelProvider
     }
 
     func availability() -> AIEngineAvailability {
@@ -36,7 +39,8 @@ final class AnthropicEngine: AITriageEngine {
             apiKey: key,
             text: text,
             capturedAt: capturedAt,
-            timeZone: timeZone
+            timeZone: timeZone,
+            model: modelProvider()
         )
         let data: Data
         let response: URLResponse

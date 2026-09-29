@@ -29,6 +29,8 @@ struct PersistedState: Codable, Sendable, Equatable {
     /// system login item. Before 1.0.126 the default was stored as "on" but
     /// never registered, so capture silently stopped after every reboot.
     var launchAtLoginSeeded: Bool
+    /// Notes still waiting for attachments to download (see `AttachmentRetrier`).
+    var pendingAttachmentRetries: [PendingAttachmentRetry]
 
     init(
         chatDbWatermark: Int64 = 0,
@@ -50,7 +52,8 @@ struct PersistedState: Codable, Sendable, Equatable {
         transcriptDispatchRecords: [TranscriptDispatchEntry] = [],
         meetingRecords: [MeetingEntry] = [],
         errorRecords: [ErrorRecord] = [],
-        launchAtLoginSeeded: Bool = false
+        launchAtLoginSeeded: Bool = false,
+        pendingAttachmentRetries: [PendingAttachmentRetry] = []
     ) {
         self.chatDbWatermark = chatDbWatermark
         self.selfHandlesCacheTs = selfHandlesCacheTs
@@ -72,6 +75,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.meetingRecords = meetingRecords
         self.errorRecords = errorRecords
         self.launchAtLoginSeeded = launchAtLoginSeeded
+        self.pendingAttachmentRetries = pendingAttachmentRetries
     }
 
     enum CodingKeys: String, CodingKey {
@@ -95,6 +99,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         case meetingRecords
         case errorRecords
         case launchAtLoginSeeded
+        case pendingAttachmentRetries
     }
 
     init(from decoder: Decoder) throws {
@@ -118,6 +123,7 @@ struct PersistedState: Codable, Sendable, Equatable {
         self.transcriptDispatchRecords = try c.decodeIfPresent([TranscriptDispatchEntry].self, forKey: .transcriptDispatchRecords) ?? []
         self.meetingRecords = try c.decodeIfPresent([MeetingEntry].self, forKey: .meetingRecords) ?? []
         self.launchAtLoginSeeded = try c.decodeIfPresent(Bool.self, forKey: .launchAtLoginSeeded) ?? false
+        self.pendingAttachmentRetries = try c.decodeIfPresent([PendingAttachmentRetry].self, forKey: .pendingAttachmentRetries) ?? []
         if let records = try c.decodeIfPresent([ErrorRecord].self, forKey: .errorRecords) {
             self.errorRecords = records
         } else if let legacy = self.lastError, !legacy.isEmpty {

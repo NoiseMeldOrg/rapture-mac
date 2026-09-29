@@ -29,6 +29,8 @@ struct AITriageSettingsSection: View {
                 Toggle("Classify and title captures with AI", isOn: toggleBinding)
                 statusLine
 
+                enginePicker
+
                 keyRow
 
                 Text("Off by default. With AI on, voice notes are sorted into Tasks, Ideas, or Journal with concise titles and lightly cleaned-up text — the verbatim dictation is always kept in the note under “Raw”. If AI is ever unavailable, captures keep filing instantly without it.")
@@ -70,7 +72,7 @@ struct AITriageSettingsSection: View {
             .foregroundStyle(.secondary)
         case .active(.anthropic):
             Label {
-                Text("Using the Anthropic API with your key. Each capture's text is sent to Anthropic over HTTPS to classify and title it.")
+                Text("Using \(appState.settings.settings.claudeModel.displayName) with your key. Each capture's text is sent to Anthropic over HTTPS to classify and title it.")
                     .font(.caption)
             } icon: {
                 Image(systemName: "network")
@@ -85,6 +87,37 @@ struct AITriageSettingsSection: View {
             }
             .foregroundStyle(.orange)
         }
+    }
+
+    // MARK: - Engine + model
+
+    @ViewBuilder
+    private var enginePicker: some View {
+        Picker("Use", selection: settingBinding(\.aiEnginePreference)) {
+            Text("Apple Intelligence on this Mac (private, free)").tag(AIEnginePreference.appleFirst)
+            Text("Claude, with your Anthropic API key").tag(AIEnginePreference.claude)
+        }
+        .pickerStyle(.radioGroup)
+        Picker("Claude model", selection: settingBinding(\.claudeModel)) {
+            ForEach(ClaudeModel.allCases, id: \.self) { model in
+                Text(model.displayName).tag(model)
+            }
+        }
+        Text(appState.settings.settings.claudeModel.note + " Used whenever Claude runs.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    /// Writes a setting and re-resolves the engine, so the status line above
+    /// updates at once.
+    private func settingBinding<T>(_ keyPath: WritableKeyPath<Settings, T>) -> Binding<T> {
+        Binding(
+            get: { appState.settings.settings[keyPath: keyPath] },
+            set: { newValue in
+                appState.settings.update { $0[keyPath: keyPath] = newValue }
+                aiTriage.refreshStatus()
+            }
+        )
     }
 
     // MARK: - Anthropic key row
@@ -104,7 +137,7 @@ struct AITriageSettingsSection: View {
                 Button("Remove") { removeKey() }
             }
         }
-        Text("Used only when Apple Intelligence isn't available. Stored in the macOS Keychain, never in a settings file. Get a key at console.anthropic.com — create a new key; existing ones are shown only once, at creation.")
+        Text("Used when you choose Claude above, or when Apple Intelligence isn't available. Stored in the macOS Keychain, never in a settings file. Get a key at console.anthropic.com — create a new key; existing ones are shown only once, at creation.")
             .font(.caption)
             .foregroundStyle(.secondary)
     }

@@ -54,6 +54,10 @@ struct Settings: Codable, Sendable, Equatable {
     /// pipeline (see `TranscriptDispatch/`). On by default because it is a
     /// strict no-op unless the pipeline repo exists on this machine AND link
     /// enrichment is on; the app itself adds no networking.
+    /// Apple Intelligence first (default) or Claude with the user's key.
+    var aiEnginePreference: AIEnginePreference
+    /// The Claude model used whenever the Claude engine runs.
+    var claudeModel: ClaudeModel
     var autoTranscribeYouTube: Bool
 
     init(
@@ -73,6 +77,8 @@ struct Settings: Codable, Sendable, Equatable {
         aiTriageEnabled: Bool = false,
         linkEnrichmentEnabled: Bool = false,
         vaultBackupWarningsEnabled: Bool = false,
+        aiEnginePreference: AIEnginePreference = .appleFirst,
+        claudeModel: ClaudeModel = .sonnet55,
         autoTranscribeYouTube: Bool = true
     ) {
         self.outputFolder = outputFolder
@@ -91,6 +97,8 @@ struct Settings: Codable, Sendable, Equatable {
         self.aiTriageEnabled = aiTriageEnabled
         self.linkEnrichmentEnabled = linkEnrichmentEnabled
         self.vaultBackupWarningsEnabled = vaultBackupWarningsEnabled
+        self.aiEnginePreference = aiEnginePreference
+        self.claudeModel = claudeModel
         self.autoTranscribeYouTube = autoTranscribeYouTube
     }
 
@@ -98,6 +106,7 @@ struct Settings: Codable, Sendable, Equatable {
         case outputFolder, allowedHandles, allowSMS, launchAtLogin, paused, replyMode, seedScaffold, relayEnabled, triageMode
         case remindersHandoffEnabled, calendarHandoffEnabled, remindersListID, calendarID, aiTriageEnabled
         case linkEnrichmentEnabled, vaultBackupWarningsEnabled, autoTranscribeYouTube
+        case aiEnginePreference, claudeModel
     }
 
     init(from decoder: Decoder) throws {
@@ -134,5 +143,12 @@ struct Settings: Codable, Sendable, Equatable {
         // Absent in pre-existing settings.json → default on (opt-out, like relayEnabled:
         // a no-op unless the agentic repo exists and enrichment is on).
         autoTranscribeYouTube = try c.decodeIfPresent(Bool.self, forKey: .autoTranscribeYouTube) ?? true
+        // Absent → Apple Intelligence first, the pre-1.0.131 behavior: no
+        // one's notes start going to the cloud unless they choose Claude.
+        // Raw-string decode so an unknown value degrades instead of throwing.
+        aiEnginePreference = (try c.decodeIfPresent(String.self, forKey: .aiEnginePreference))
+            .flatMap(AIEnginePreference.init(rawValue:)) ?? .appleFirst
+        claudeModel = (try c.decodeIfPresent(String.self, forKey: .claudeModel))
+            .flatMap(ClaudeModel.init(rawValue:)) ?? .sonnet55
     }
 }

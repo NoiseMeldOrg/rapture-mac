@@ -32,7 +32,9 @@ struct SettingsView: View {
                 .tag(SettingsTab.about)
         }
         .padding(20)
-        .frame(width: 620, height: 560)
+        // Wide enough that all five tabs show without macOS folding them into
+        // a "»" overflow menu, with room to spare for longer localized names.
+        .frame(width: 760, height: 600)
         .task {
             // LSUIElement quirk: ensure the window comes to front when opened from the menu bar.
             NSApp.activate(ignoringOtherApps: true)

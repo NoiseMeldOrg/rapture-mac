@@ -39,6 +39,12 @@ protocol EventKitClient: AnyObject {
     func targets(for kind: HandoffKind) -> [HandoffTarget]
     /// `due` nil = dateless reminder; date-only components = all-day due.
     /// `listID`/`calendarID` nil or stale = the system default target.
-    func createReminder(title: String, due: DateComponents?, notes: String, listID: String?) throws
-    func createEvent(title: String, start: Date, end: Date, notes: String, calendarID: String?) throws
+    /// Returns EventKit's identifier for the new item, so it can be undone.
+    @discardableResult
+    func createReminder(title: String, due: DateComponents?, notes: String, listID: String?) throws -> String
+    @discardableResult
+    func createEvent(title: String, start: Date, end: Date, notes: String, calendarID: String?) throws -> String
+    /// Deletes an item this app created (the Activity window's Undo). An item
+    /// that no longer exists (the user already deleted it) is not an error.
+    func deleteItem(kind: HandoffKind, identifier: String) throws
 }

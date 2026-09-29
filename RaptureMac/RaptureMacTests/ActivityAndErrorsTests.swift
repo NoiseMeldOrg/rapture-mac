@@ -167,4 +167,62 @@ final class ActivityAndErrorsTests: XCTestCase {
         XCTAssertEqual(text, "---\ntype: voice-note\n---\n\nphoto of the whiteboard\n\nAttachments:\n- [IMG_0001.HEIC](<2026-09-29 Whiteboard/IMG_0001.HEIC>)\n")
         XCTAssertTrue(fm.fileExists(atPath: notes.appendingPathComponent("2026-09-29 Whiteboard/IMG_0001.HEIC").path))
     }
+
+    // MARK: - Undo a handoff
+
+    func testUndoDeletesTheReminderOnceAndRecordsIt() async {
+        let fake = FakeEventKitClient()
+        let appState = AppState(supportDirectory: root.appendingPathComponent("undo"), eventKit: fake)
+        appState.settings.update { $0.remindersHandoffEnabled = true }
+        let manager = HandoffManager(appState: appState, client: fake, ledger: HandoffLedger(stateStore: appState.state))
+
+        let outcome = await manager.process(text: "remind me to call the bank tomorrow", capturedAt: Date())
+        XCTAssertTrue(outcome.reminderCreated)
+        let row = try? XCTUnwrap(appState.activity.recent.first { $0.kind == .reminderCreated })
+        XCTAssertEqual(row?.undo?.identifier, "reminder-1")
+
+        guard let row else { return XCTFail("no reminder row") }
+        XCTAssertNil(appState.undoHandoff(row))
+        XCTAssertEqual(fake.deletedItems.map(\.identifier), ["reminder-1"])
+        XCTAssertTrue(appState.activity.undoneIDs.contains(row.id))
+        XCTAssertTrue(appState.activity.recent.first?.summary.hasPrefix("Removed the reminder") == true)
+
+        XCTAssertNil(appState.undoHandoff(row))
+        XCTAssertEqual(fake.deletedItems.count, 1, "a second Undo does nothing")
+        XCTAssertTrue(ActivityLog(directory: root.appendingPathComponent("undo")).undoneIDs.contains(row.id),
+                      "the undone state survives a relaunch")
+    }
+
+    // MARK: - Retries survive a restart
+
+    func testSavedRetryResumesAndFinishesAfterRestart() async throws {
+        let support = root.appendingPathComponent("retry-support")
+        let notes = root.appendingPathComponent("RetryNotes")
+        try fm.createDirectory(at: notes, withIntermediateDirectories: true)
+        let note = notes.appendingPathComponent("2026-09-29 Receipt.txt")
+        try "receipt photo".write(to: note, atomically: true, encoding: .utf8)
+        let source = root.appendingPathComponent("IMG_0002.JPG")
+        let ref = AttachmentRef(sourcePath: source.path, mimeType: nil, transferName: nil)
+
+        // First run: the photo isn't there; the retry is saved, then the app "quits".
+        let first = AppState(supportDirectory: support)
+        let retrier = AttachmentRetrier(appState: first, sleep: { _ in try? await Task.sleep(for: .seconds(3600)) })
+        retrier.schedule(noteURL: note, attachments: [ref])
+        XCTAssertEqual(first.state.state.pendingAttachmentRetries.count, 1)
+        retrier.cancelAll()
+
+        // Relaunch after the photo downloaded, long after the schedule ended.
+        try Data([0x01]).write(to: source)
+        let later = Date().addingTimeInterval(AttachmentRetrier.schedule.last! + 60)
+        let second = AppState(supportDirectory: support)
+        XCTAssertEqual(second.state.state.pendingAttachmentRetries.count, 1, "the retry was saved to disk")
+        let resumed = AttachmentRetrier(appState: second, sleep: { _ in }, clock: { later })
+        resumed.resume()
+        for _ in 0..<50 where !second.state.state.pendingAttachmentRetries.isEmpty {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertTrue(second.state.state.pendingAttachmentRetries.isEmpty)
+        XCTAssertTrue(try String(contentsOf: note, encoding: .utf8).contains("IMG_0002.JPG"))
+        XCTAssertEqual(second.activity.recent.first?.kind, .attachmentRecovered)
+    }
 }

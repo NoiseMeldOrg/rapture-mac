@@ -19,7 +19,9 @@ final class Pipeline {
     private(set) lazy var aiTriage = AITriageService(
         appState: appState,
         appleEngine: AppleFoundationEngine(),
-        anthropicEngine: AnthropicEngine(credentials: appState.credentials)
+        anthropicEngine: AnthropicEngine(credentials: appState.credentials) { [weak appState] in
+            appState?.settings.settings.claudeModel ?? AnthropicWire.defaultModel
+        }
     )
     private lazy var writer = FileWriter(ai: aiTriage)
     private lazy var echoGuard = EchoGuard(stateStore: appState.state)
@@ -338,6 +340,8 @@ final class Pipeline {
             }
         )
         self.batchProcessor = batchProcessor
+        // Attachments still missing from before a quit: keep trying.
+        attachmentRetrier.resume()
 
         let watcher = ChatDBWatcher(dbPool: pool)
         self.watcher = watcher

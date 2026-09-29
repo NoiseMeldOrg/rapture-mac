@@ -15,17 +15,18 @@ xcodebuild -derivedDataPath /tmp/RaptureMacDerived \
   -configuration Debug build            # test runs also produce the app
 
 pkill -x Rapture                        # quit the installed app (watermark catch-up recovers anything missed)
-mv /Applications/Rapture.app /Applications/Rapture.app.aside   # LaunchServices resolves the shared bundle ID to the installed copy
-open /tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app
+open -n /tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app   # -n + the full path launches THIS bundle
 ps -ax -o pid,comm | grep "Rapture.app/Contents/MacOS"          # confirm the /tmp binary is the one running
 ```
+
+**Never move or rename `/Applications/Rapture.app`** to get the Debug build to launch. Moving the installed app aside and back made macOS drop its Full Disk Access grant (2026-09-29): the user had to re-grant it and Quit & Reopen. `open -n <full path>` launches the Debug bundle without touching the installed one.
 
 **Always restore when done** (and relaunch — the user's capture pipeline was running):
 
 ```sh
 pkill -x Rapture
-mv /Applications/Rapture.app.aside /Applications/Rapture.app
 open /Applications/Rapture.app
+ps -ax -o pid,comm | grep "Rapture.app/Contents/MacOS"          # confirm /Applications is running again
 ```
 
 ## Debug isolation (what to drive)

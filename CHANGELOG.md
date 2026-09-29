@@ -4,6 +4,18 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Added
+
+- **Choose Claude for AI sorting, and pick the model.** Settings → Triage → AI Triage now has a **Use** choice: Apple Intelligence on this Mac (private and free, still the default) or Claude with your Anthropic API key. A **Claude model** picker offers **Claude Sonnet 5.5** (the default) and **Claude Haiku 4.5**. Before, Claude ran only on Macs without Apple Intelligence, always as Haiku 4.5. Sonnet 5.5 runs at low effort, the right level for titling and sorting a short note, and gets 15 seconds instead of 10 before a note files without AI. If Anthropic's safety filter wrongly declines a note, the request is retried on the model Anthropic recommends. Updating changes nothing for anyone: note text goes to Anthropic only when you pick Claude, or when Apple Intelligence isn't available, as before.
+- **Undo for reminders and calendar events.** Each reminder or event the app makes has an **Undo** button in the Activity window. Undo deletes it and the row shows "Removed".
+
+### Changed
+
+- **Photo retries survive a restart.** A note still waiting for an attachment to download is saved to disk. After a quit or restart, the app keeps trying at the remaining retry times.
+- **A rejected Anthropic key is easy to see.** It now shows in the menu and in the Activity window, not only in Settings. Notes still file without AI meanwhile. When repeated network failures pause AI sorting, the Activity window says so.
+- **Replies never hold up capture.** The "✅ Saved" replies are now sent after the notes are written and the capture lock is released, so a slow Messages app cannot delay notes from the iPhone app or the notes folder.
+- **Wider Settings window,** so every tab fits.
+
 ## [1.0.129] - 2026-09-29: Activity gets its own window
 
 Built from commit `152ee12`. SHA-256: `5c0e46e6dd8e0d83abd1d4dcb9dc8ad713c5c6dca5d408fd87e533dec4a8ae09`.

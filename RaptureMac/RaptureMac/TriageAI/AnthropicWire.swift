@@ -6,10 +6,10 @@ import Foundation
 enum AnthropicWire {
     nonisolated static let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
     nonisolated static let apiVersion = "2023-06-01"
-    /// Short-note classification is a small-cheap-model task (locked decision).
-    nonisolated static let model = "claude-haiku-4-5"
-    nonisolated static let maxTokens = 2048
-    nonisolated static let requestTimeout: TimeInterval = 10
+    /// The model when a caller doesn't name one (Settings → Triage picks it).
+    nonisolated static let defaultModel = ClaudeModel.sonnet55
+    /// Server-side refusal fallback, `"default"` form (Sonnet 5.5, Claude API).
+    nonisolated static let fallbackBeta = "server-side-fallback-2026-07-01"
 
     // MARK: - Request
 
@@ -17,25 +17,48 @@ enum AnthropicWire {
         apiKey: String,
         text: String,
         capturedAt: Date,
-        timeZone: TimeZone
+        timeZone: TimeZone,
+        model: ClaudeModel = defaultModel
     ) -> URLRequest {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
-        request.timeoutInterval = requestTimeout
+        request.timeoutInterval = model.timeout
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue(apiVersion, forHTTPHeaderField: "anthropic-version")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if model.usesServerFallback {
+            request.setValue(fallbackBeta, forHTTPHeaderField: "anthropic-beta")
+        }
         request.httpBody = try? JSONSerialization.data(
-            withJSONObject: requestBody(text: text, capturedAt: capturedAt, timeZone: timeZone),
+            withJSONObject: requestBody(text: text, capturedAt: capturedAt, timeZone: timeZone, model: model),
             options: [.sortedKeys]
         )
         return request
     }
 
-    nonisolated static func requestBody(text: String, capturedAt: Date, timeZone: TimeZone) -> [String: Any] {
-        [
-            "model": model,
-            "max_tokens": maxTokens,
+    /// No `thinking` field: Sonnet 5.5 runs adaptive thinking by default and
+    /// `low` effort keeps it short (its `disabled` value is a 400). No
+    /// sampling parameters and no assistant prefill: Sonnet 5.5 rejects both.
+    /// The response is read by block type, so a leading `thinking` block (or a
+    /// `fallback` marker) is skipped.
+    nonisolated static func requestBody(
+        text: String,
+        capturedAt: Date,
+        timeZone: TimeZone,
+        model: ClaudeModel = defaultModel
+    ) -> [String: Any] {
+        var outputConfig: [String: Any] = [
+            "format": [
+                "type": "json_schema",
+                "schema": draftSchema
+            ]
+        ]
+        if let effort = model.effort {
+            outputConfig["effort"] = effort
+        }
+        var body: [String: Any] = [
+            "model": model.rawValue,
+            "max_tokens": model.maxTokens,
             "system": AITriagePrompt.instructions,
             "messages": [
                 [
@@ -43,13 +66,12 @@ enum AnthropicWire {
                     "content": AITriagePrompt.userMessage(text: text, capturedAt: capturedAt, timeZone: timeZone)
                 ]
             ],
-            "output_config": [
-                "format": [
-                    "type": "json_schema",
-                    "schema": draftSchema
-                ]
-            ]
+            "output_config": outputConfig
         ]
+        if model.usesServerFallback {
+            body["fallbacks"] = "default"
+        }
+        return body
     }
 
     /// JSON schema mirroring `AIEngineDraft` — structured outputs guarantee the

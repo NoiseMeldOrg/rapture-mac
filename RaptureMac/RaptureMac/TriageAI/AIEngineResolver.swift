@@ -2,7 +2,8 @@ import Foundation
 
 /// Pure engine resolution: Apple on-device first (private, free), else the
 /// BYO-key Anthropic engine, else none with an honest reason for the Settings
-/// status line. Truth-table tested.
+/// status line. When the user chose Claude (`preferClaude`), a usable key
+/// wins and Apple becomes the fallback. Truth-table tested.
 enum AIEngineResolver {
     enum Resolution: Equatable, Sendable {
         case apple
@@ -16,8 +17,10 @@ enum AIEngineResolver {
         appleAvailable: Bool,
         appleUnavailableReason: String?,
         hasAPIKey: Bool,
-        keyRejected: Bool
+        keyRejected: Bool,
+        preferClaude: Bool = false
     ) -> Resolution {
+        if preferClaude && hasAPIKey && !keyRejected { return .anthropic }
         if appleAvailable { return .apple }
         if hasAPIKey && !keyRejected { return .anthropic }
 

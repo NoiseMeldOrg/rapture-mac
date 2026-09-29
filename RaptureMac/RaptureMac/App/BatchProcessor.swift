@@ -190,9 +190,26 @@ final class BatchProcessor {
         // Hold the capture gate for the whole batch so an output-folder relocation can't
         // run while this batch is mid-write, and so the folder URL captured below can't go
         // stale mid-batch. The relocator acquires the same gate before moving files.
-        await appState.captureGate.withLock {
+        let outcome = await appState.captureGate.withLock {
             await processLocked(batch: batch)
         }
+        // Replies go out after the gate is released, in the order they were
+        // queued: a slow Messages.app (or the one-time permission prompt) must
+        // never hold up the relay, triage, or a relocation. Every note is
+        // already on disk by now.
+        let replies = pendingReplies
+        pendingReplies.removeAll()
+        for reply in replies {
+            await reply()
+        }
+        return outcome
+    }
+
+    /// Replies queued while the capture gate is held; sent by `process(batch:)`.
+    private var pendingReplies: [@MainActor () async -> Void] = []
+
+    private func queueReply(_ reply: @escaping @MainActor () async -> Void) {
+        pendingReplies.append(reply)
     }
 
     private func processLocked(batch: [MessageEvent]) async -> BatchOutcome {
@@ -392,9 +409,11 @@ final class BatchProcessor {
                             ai: result.ai
                         )
                     }
-                    await replier.replyForWrite(
-                        captured: captured, result: result, settings: settings, handoff: handoffOutcome
-                    )
+                    queueReply { [replier] in
+                        await replier.replyForWrite(
+                            captured: captured, result: result, settings: settings, handoff: handoffOutcome
+                        )
+                    }
                 case .failure(let reason):
                     if destinationGuard.check(folder) == .volumeAbsent {
                         // The unplug raced the write: the failure IS the absence.
@@ -427,12 +446,16 @@ final class BatchProcessor {
         }
 
         if isCatchup {
-            await replier.sendCatchupSummary(
-                successCount: outcome.successCount,
-                failureCount: outcome.failureCount,
-                selfChatGuid: selfChatGuidProvider(),
-                replyMode: settings.replyMode
-            )
+            let summary = outcome
+            let selfChatGuid = selfChatGuidProvider()
+            queueReply { [replier] in
+                await replier.sendCatchupSummary(
+                    successCount: summary.successCount,
+                    failureCount: summary.failureCount,
+                    selfChatGuid: selfChatGuid,
+                    replyMode: settings.replyMode
+                )
+            }
         }
 
         return outcome
@@ -466,10 +489,12 @@ final class BatchProcessor {
                 text: captured.decodedText,
                 attachmentCount: captured.event.attachments.count
             )
-            await replier.replyForSpooled(
-                captured: captured, settings: settings,
-                destinationOffline: destinationOffline
-            )
+            queueReply { [replier] in
+                await replier.replyForSpooled(
+                    captured: captured, settings: settings,
+                    destinationOffline: destinationOffline
+                )
+            }
             return true
         } catch {
             // Spool write failed (app-support container unwritable — should not
@@ -523,7 +548,9 @@ final class BatchProcessor {
                 "\(Self.titleHint(captured.decodedText)): \(reason). Retrying every minute."
             )
             if let result {
-                await replier.replyForWrite(captured: captured, result: result, settings: settings)
+                queueReply { [replier] in
+                    await replier.replyForWrite(captured: captured, result: result, settings: settings)
+                }
             }
         }
         return false

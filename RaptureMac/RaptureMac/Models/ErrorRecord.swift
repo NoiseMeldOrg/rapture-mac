@@ -13,6 +13,7 @@ enum ErrorSource: String, Codable, Sendable, CaseIterable {
     case reply
     case folder
     case messagesDatabase
+    case ai
 }
 
 /// One unresolved error, persisted in `state.json` so it survives a relaunch

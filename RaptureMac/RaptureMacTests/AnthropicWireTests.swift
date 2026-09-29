@@ -19,16 +19,14 @@ final class AnthropicWireTests: XCTestCase {
         XCTAssertEqual(request.value(forHTTPHeaderField: "x-api-key"), "sk-test-123")
         XCTAssertEqual(request.value(forHTTPHeaderField: "anthropic-version"), "2023-06-01")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
-        XCTAssertEqual(request.timeoutInterval, AnthropicWire.requestTimeout)
 
-        let body = try XCTUnwrap(request.httpBody)
-        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
-        XCTAssertEqual(json["model"] as? String, "claude-haiku-4-5")
-        XCTAssertEqual(json["max_tokens"] as? Int, AnthropicWire.maxTokens)
+        let json = try body(of: request)
         XCTAssertEqual(json["system"] as? String, AITriagePrompt.instructions)
+        XCTAssertNil(json["temperature"], "Sonnet 5.5 rejects non-default sampling")
+        XCTAssertNil(json["thinking"], "adaptive by default; 'disabled' is a 400 on Sonnet 5.5")
 
         let messages = try XCTUnwrap(json["messages"] as? [[String: Any]])
-        XCTAssertEqual(messages.count, 1)
+        XCTAssertEqual(messages.count, 1, "no assistant prefill")
         XCTAssertEqual(messages.first?["role"] as? String, "user")
         XCTAssertTrue((messages.first?["content"] as? String)?.contains("buy milk") == true)
 
@@ -37,6 +35,70 @@ final class AnthropicWireTests: XCTestCase {
         XCTAssertEqual(format["type"] as? String, "json_schema")
         let schema = try XCTUnwrap(format["schema"] as? [String: Any])
         XCTAssertEqual(schema["additionalProperties"] as? Bool, false)
+    }
+
+    func testSonnetIsTheDefaultAtLowEffortWithServerFallback() throws {
+        let request = AnthropicWire.makeRequest(
+            apiKey: "k", text: "note", capturedAt: capturedAt, timeZone: zone
+        )
+        let json = try body(of: request)
+        XCTAssertEqual(json["model"] as? String, "claude-sonnet-5-5")
+        XCTAssertEqual(json["max_tokens"] as? Int, ClaudeModel.sonnet55.maxTokens)
+        XCTAssertEqual((json["output_config"] as? [String: Any])?["effort"] as? String, "low")
+        XCTAssertEqual(json["fallbacks"] as? String, "default")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "anthropic-beta"), "server-side-fallback-2026-07-01")
+        XCTAssertEqual(request.timeoutInterval, ClaudeModel.sonnet55.timeout)
+    }
+
+    func testHaikuSendsNoEffortAndNoFallback() throws {
+        let request = AnthropicWire.makeRequest(
+            apiKey: "k", text: "note", capturedAt: capturedAt, timeZone: zone, model: .haiku45
+        )
+        let json = try body(of: request)
+        XCTAssertEqual(json["model"] as? String, "claude-haiku-4-5")
+        XCTAssertEqual(json["max_tokens"] as? Int, 2048)
+        XCTAssertNil((json["output_config"] as? [String: Any])?["effort"], "Haiku 4.5 rejects effort")
+        XCTAssertNil(json["fallbacks"])
+        XCTAssertNil(request.value(forHTTPHeaderField: "anthropic-beta"))
+        XCTAssertEqual(request.timeoutInterval, 10)
+    }
+
+    func testLeadingThinkingAndFallbackBlocksAreSkipped() throws {
+        let payload: [String: Any] = [
+            "content": [
+                ["type": "fallback"],
+                ["type": "thinking", "thinking": ""],
+                ["type": "text", "text": goodDraftJSON]
+            ],
+            "stop_reason": "end_turn"
+        ]
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        XCTAssertNoThrow(try AnthropicWire.parseResponse(data: data, statusCode: 200))
+    }
+
+    func testClaudePreferenceWinsOnlyWithAUsableKey() {
+        XCTAssertEqual(AIEngineResolver.resolve(appleAvailable: true, appleUnavailableReason: nil,
+                                                hasAPIKey: true, keyRejected: false, preferClaude: true), .anthropic)
+        XCTAssertEqual(AIEngineResolver.resolve(appleAvailable: true, appleUnavailableReason: nil,
+                                                hasAPIKey: true, keyRejected: false, preferClaude: false), .apple,
+                       "Apple Intelligence stays first unless the user picks Claude")
+        XCTAssertEqual(AIEngineResolver.resolve(appleAvailable: true, appleUnavailableReason: nil,
+                                                hasAPIKey: true, keyRejected: true, preferClaude: true), .apple,
+                       "a rejected key falls back to on-device")
+        XCTAssertEqual(AIEngineResolver.resolve(appleAvailable: true, appleUnavailableReason: nil,
+                                                hasAPIKey: false, keyRejected: false, preferClaude: true), .apple)
+    }
+
+    func testOlderSettingsKeepAppleFirstAndDefaultToSonnet() throws {
+        let settings = try JSONDecoder().decode(Settings.self, from: Data(#"{"aiTriageEnabled": true}"#.utf8))
+        XCTAssertEqual(settings.aiEnginePreference, .appleFirst, "no one's notes move to the cloud on update")
+        XCTAssertEqual(settings.claudeModel, .sonnet55)
+        let odd = try JSONDecoder().decode(Settings.self, from: Data(#"{"claudeModel": "claude-future-9"}"#.utf8))
+        XCTAssertEqual(odd.claudeModel, .sonnet55, "an unknown model id degrades, never resets all settings")
+    }
+
+    private func body(of request: URLRequest) throws -> [String: Any] {
+        try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
     }
 
     func testKeyOnlyInHeaderNeverInBody() throws {

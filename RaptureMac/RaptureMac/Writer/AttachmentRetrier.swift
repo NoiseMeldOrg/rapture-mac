@@ -7,8 +7,9 @@ import OSLog
 /// into the note's attachment folder and rebuilds the note's footer; the
 /// history records the outcome either way.
 ///
-/// In memory only: a quit cancels pending retries (the Activity history keeps
-/// the "missing" entry, so the user still knows).
+/// Pending work is saved in `state.json` (`pendingAttachmentRetries`), so a
+/// quit or restart resumes it: `resume()` picks up each note at the retry
+/// times that are still ahead, counted from when the note filed.
 @MainActor
 final class AttachmentRetrier {
     nonisolated static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "AttachmentRetrier")
@@ -18,30 +19,63 @@ final class AttachmentRetrier {
 
     private let appState: AppState
     private let sleep: @Sendable (TimeInterval) async -> Void
+    private let clock: @Sendable () -> Date
     private var tasks: [URL: Task<Void, Never>] = [:]
 
     init(
         appState: AppState,
-        sleep: @escaping @Sendable (TimeInterval) async -> Void = { try? await Task.sleep(for: .seconds($0)) }
+        sleep: @escaping @Sendable (TimeInterval) async -> Void = { try? await Task.sleep(for: .seconds($0)) },
+        clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.appState = appState
         self.sleep = sleep
+        self.clock = clock
     }
 
     func schedule(noteURL: URL, attachments: [AttachmentRef]) {
         guard !attachments.isEmpty else { return }
+        let entry = PendingAttachmentRetry(notePath: noteURL.path, attachments: attachments, firstAt: clock())
+        persist(entry)
+        start(entry)
+    }
+
+    /// Restarts every saved retry (call once capture has Full Disk Access,
+    /// since Messages attachments live under ~/Library/Messages).
+    func resume() {
+        for entry in appState.state.state.pendingAttachmentRetries {
+            start(entry)
+        }
+    }
+
+    private func start(_ entry: PendingAttachmentRetry) {
+        let noteURL = URL(fileURLWithPath: entry.notePath)
         tasks[noteURL]?.cancel()
         tasks[noteURL] = Task { [weak self] in
-            var remaining = attachments
-            var waited: TimeInterval = 0
-            for delay in Self.schedule {
-                await self?.sleep(delay - waited)
+            guard let self else { return }
+            var remaining = entry.attachments
+            // Only the retry times still ahead; a resume long after filing
+            // gets one last try right away.
+            let elapsed = self.clock().timeIntervalSince(entry.firstAt)
+            var ahead = Self.schedule.filter { $0 > elapsed }
+            if ahead.isEmpty { ahead = [elapsed] }
+            var waited = elapsed
+            for delay in ahead {
+                await self.sleep(max(0, delay - waited))
                 waited = delay
-                guard !Task.isCancelled, let self else { return }
+                guard !Task.isCancelled else { return }
                 remaining = await self.attempt(noteURL: noteURL, attachments: remaining)
                 if remaining.isEmpty { break }
+                self.persist(PendingAttachmentRetry(notePath: entry.notePath, attachments: remaining, firstAt: entry.firstAt))
             }
-            self?.finish(noteURL: noteURL, remaining: remaining, total: attachments.count)
+            guard !Task.isCancelled else { return }
+            self.finish(noteURL: noteURL, remaining: remaining, total: entry.attachments.count)
+        }
+    }
+
+    private func persist(_ entry: PendingAttachmentRetry) {
+        appState.state.update { state in
+            state.pendingAttachmentRetries.removeAll { $0.notePath == entry.notePath }
+            state.pendingAttachmentRetries.append(entry)
         }
     }
 
@@ -91,6 +125,9 @@ final class AttachmentRetrier {
 
     private func finish(noteURL: URL, remaining: [AttachmentRef], total: Int) {
         tasks[noteURL] = nil
+        appState.state.update { state in
+            state.pendingAttachmentRetries.removeAll { $0.notePath == noteURL.path }
+        }
         let name = noteURL.deletingPathExtension().lastPathComponent
         if remaining.isEmpty {
             appState.clearError(source: .attachments)

@@ -19,7 +19,7 @@ All of these are plain text. You can `cat` them and see exactly what's in there.
 **Settings → Triage → AI Triage** adds smart classification (Tasks/Ideas/Journal), concise titles, and light text cleanup. It is off by default and picks an engine automatically:
 
 - **Apple Intelligence (macOS 26+, when available):** the capture is processed by Apple's on-device model. Nothing leaves your Mac. No account, no key, no network.
-- **Your own Anthropic API key (only if Apple Intelligence isn't available and you pasted a key):** each voice-note capture's text is sent to Anthropic over HTTPS (`api.anthropic.com`) to classify and title it, under [Anthropic's API terms](https://www.anthropic.com/legal/commercial-terms). This is the only way capture text can ever leave your Mac, it happens only with the toggle on and your own key entered, and the Settings pane states which engine is active. Link captures are never sent — only voice notes, capped at the first 6,000 characters.
+- **Your own Anthropic API key (only if you pasted a key, and either chose Claude in Settings → Triage or Apple Intelligence isn't available):** Apple Intelligence stays the default. Choosing Claude, or a Mac without Apple Intelligence, sends each voice-note capture's text to Anthropic over HTTPS (`api.anthropic.com`) to classify and title it, under [Anthropic's API terms](https://www.anthropic.com/legal/commercial-terms). The model is Claude Sonnet 5.5 unless you pick Claude Haiku 4.5. This is the only way capture text can ever leave your Mac, it happens only with the toggle on and your own key entered, and the Settings pane states which engine and model are active. Link captures are never sent — only voice notes, capped at the first 6,000 characters.
 
 Either way: the AI never delays or blocks filing (if it's slow, offline, or erroring, the capture files deterministically and instantly), the verbatim transcription is always preserved in the note under `## Raw`, and no NoiseMeld server is ever involved. The API key is stored as a generic-password item in the macOS Keychain — never in a settings file, never synced.
 
@@ -45,7 +45,7 @@ In transit these captures are ordinary iCloud data moving between your devices, 
 The app can make exactly **three** kinds of outbound connection, and none of them collects anything about you:
 
 1. The optional **auto-update** check — it only *reads* public files from GitHub and sends no identifiers, no system profile, and no usage data. On by default, fully opt-out. Details in "Auto-update" below.
-2. The opt-in **BYO-key AI engine** — only if you turned on AI triage, Apple Intelligence isn't available, and you pasted your own Anthropic API key. It sends capture text to Anthropic to classify it (see "AI triage" above); NoiseMeld receives nothing.
+2. The opt-in **BYO-key AI engine** — only if you turned on AI triage, pasted your own Anthropic API key, and either chose Claude or Apple Intelligence isn't available. It sends capture text to Anthropic to classify it (see "AI triage" above); NoiseMeld receives nothing.
 3. The opt-in **link enrichment** fetches — only if you turned on link enrichment, and only to YouTube or the site a captured link points at (see "Link enrichment" above). URLs only, never note text; NoiseMeld receives nothing.
 
 Turn all three off (auto-update off; AI triage and link enrichment are already off by default) and the app makes no network connections at all.

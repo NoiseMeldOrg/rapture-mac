@@ -40,6 +40,13 @@ struct ActivityEvent: Codable, Sendable, Equatable, Identifiable {
         }
     }
 
+    /// Lets the Activity window delete a Reminders/Calendar item the app made.
+    struct Undo: Codable, Sendable, Equatable {
+        enum Kind: String, Codable, Sendable { case reminder, event }
+        var kind: Kind
+        var identifier: String
+    }
+
     var id: UUID
     var at: Date
     var kind: Kind
@@ -48,6 +55,11 @@ struct ActivityEvent: Codable, Sendable, Equatable, Identifiable {
     var summary: String
     /// Absolute path of the note (or rescued file) this event is about.
     var path: String?
+    /// Set on reminder/event rows: how to undo them.
+    var undo: Undo? = nil
+    /// Set on the row recording an undo: the id of the row it undid. The log
+    /// stays append-only; a row counts as undone when a later row points at it.
+    var undoOf: UUID? = nil
 }
 
 /// The app's local history, the answer to "what happened to my capture?".
@@ -87,10 +99,17 @@ final class ActivityLog {
         }
     }
 
-    func record(_ kind: ActivityEvent.Kind, source: ActivityEvent.Source, _ summary: String, path: URL? = nil) {
+    /// Ids of rows that a later row undid.
+    var undoneIDs: Set<UUID> { Set(recent.compactMap(\.undoOf)) }
+
+    func record(
+        _ kind: ActivityEvent.Kind, source: ActivityEvent.Source, _ summary: String,
+        path: URL? = nil, undo: ActivityEvent.Undo? = nil, undoOf: UUID? = nil
+    ) {
         let event = ActivityEvent(
             id: UUID(), at: clock(), kind: kind, source: source,
-            summary: summary, path: path?.path(percentEncoded: false)
+            summary: summary, path: path?.path(percentEncoded: false),
+            undo: undo, undoOf: undoOf
         )
         recent.insert(event, at: 0)
         if recent.count > Self.memoryCap {

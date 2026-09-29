@@ -54,13 +54,21 @@ final class FakeEventKitClient: EventKitClient {
         fakeTargets[kind] ?? []
     }
 
-    func createReminder(title: String, due: DateComponents?, notes: String, listID: String?) throws {
+    private(set) var deletedItems: [(kind: HandoffKind, identifier: String)] = []
+
+    func createReminder(title: String, due: DateComponents?, notes: String, listID: String?) throws -> String {
         if failCreates { throw CreateFailure() }
         createdReminders.append(CreatedReminder(title: title, due: due, notes: notes, listID: listID))
+        return "reminder-\(createdReminders.count)"
     }
 
-    func createEvent(title: String, start: Date, end: Date, notes: String, calendarID: String?) throws {
+    func createEvent(title: String, start: Date, end: Date, notes: String, calendarID: String?) throws -> String {
         if failCreates { throw CreateFailure() }
         createdEvents.append(CreatedEvent(title: title, start: start, end: end, notes: notes, calendarID: calendarID))
+        return "event-\(createdEvents.count)"
+    }
+
+    func deleteItem(kind: HandoffKind, identifier: String) throws {
+        deletedItems.append((kind, identifier))
     }
 }

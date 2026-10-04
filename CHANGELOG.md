@@ -4,6 +4,16 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.139] - 2026-10-04: A late iCloud replay no longer files a second note
+
+Built from commit `93ca5e2`. SHA-256: `d503b2f9289d9c5fe33f3aef5cd9b3ca692f708fb414e2b9aa8852fde6b8e472`.
+
+One fix to the duplicate guard for iMessage notes. 925 tests.
+
+### Fixed
+
+- **An old note could file again days later.** iCloud sometimes delivers a note to yourself a second time, long after the first. The app remembered each note for 7 days, so a copy that came 10 days late filed again with `-1` on its name and sent a second "✅ Saved". The app now remembers each note for 90 days, the same as notes from the iPhone app. The extra gray bubbles in the Messages thread are made by Apple, and this does not change them.
+
 ## [1.0.136] - 2026-09-29: Rapture asks where your notes should go
 
 Built from commit `eb6603b`. SHA-256: `f8ed1d827afd51506ec19c280fe85ac4e981fa773c3117d5e9b3d1279a496c13`.

@@ -130,11 +130,11 @@ final class ContentDedupCacheTests: XCTestCase {
         ))
     }
 
-    func testTTLIsSevenDays() {
-        // Sentinel — the observed iCloud-replay window was ~30 hours; bumping below
-        // 7 days re-opens the daily-15:16 cluster the user reported. Bumping above
-        // bloats state.json without catching more cases.
-        XCTAssertEqual(ContentDedupCache.ttl, 7 * 24 * 60 * 60)
+    func testTTLIsNinetyDays() {
+        // Sentinel — seven days was not enough: iCloud replayed a note 10.5 days
+        // after the original (2026-09-22 → 2026-10-02) and it filed twice. Bumping
+        // below 90 days re-opens that; entries are capped by `capacity` regardless.
+        XCTAssertEqual(ContentDedupCache.ttl, 90 * 24 * 60 * 60)
     }
 
     // MARK: - appendEntry behavior
@@ -203,9 +203,9 @@ final class ContentDedupCacheTests: XCTestCase {
     }
 
     func testCapacityValueIsFiveHundred() {
-        // Sentinel — at ~200 captures/week this is the steady-state size with
-        // 7-day TTL. Dropping it risks evicting still-valid entries during a
-        // burst; raising it bloats state.json.
+        // Sentinel — the cap, not the 90-day TTL, bounds state.json. Dropping it
+        // risks evicting still-valid entries during a burst; raising it bloats
+        // state.json.
         XCTAssertEqual(ContentDedupCache.capacity, 500)
     }
 

@@ -15,16 +15,17 @@ import OSLog
 /// Match key is `(normalized self-handle, normalized text, attachment count)`.
 /// We use the same `EchoGuard.normalize` so the matching rules stay aligned
 /// with what already battle-tested the smart-quote / ZWJ / whitespace edge
-/// cases. TTL is days, not seconds, because iCloud replays span the long-weekend
-/// window we observed.
+/// cases. TTL is months, not seconds, because iCloud replays have arrived more
+/// than ten days after the original.
 @MainActor
 final class ContentDedupCache {
     nonisolated static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "ContentDedupCache")
 
-    /// Seven days. Observed iCloud replays span ~30 hours; this gives margin
-    /// for a long-weekend sleep plus late reconciliation. Storage cost is trivial
-    /// even at the cap.
-    nonisolated static let ttl: TimeInterval = 7 * 24 * 60 * 60
+    /// Ninety days, matching `RelayFiledLedger.ttl`. The first replays we saw
+    /// spanned ~30 hours, so this was seven days — until iCloud re-delivered a
+    /// 2026-09-22 note on 2026-10-02 (10.5 days later, fresh GUIDs) and it filed
+    /// again as a `-1` duplicate. Storage cost is trivial even at the cap.
+    nonisolated static let ttl: TimeInterval = 90 * 24 * 60 * 60
 
     /// Hard ceiling on entries kept in state.json. At ~200 captures/week this
     /// is the natural steady-state size; the cap is a safety net against pathological

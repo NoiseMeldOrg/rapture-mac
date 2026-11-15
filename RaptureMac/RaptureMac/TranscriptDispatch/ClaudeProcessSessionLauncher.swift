@@ -2,7 +2,8 @@ import Foundation
 import OSLog
 
 /// Spawns one headless Claude Code session: `claude -p <prompt>` with the
-/// agentic repo as the working directory. `claude` resolves via the captured
+/// user's pipeline folder (`Settings.transcriptPipelineFolder`) as the working
+/// directory. `claude` resolves via the captured
 /// login-shell PATH (`/usr/bin/env` + `IntegrationRunner.mergeEnv`), because
 /// the .app process inherits a minimal PATH.
 ///

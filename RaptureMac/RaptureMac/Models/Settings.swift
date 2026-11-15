@@ -49,16 +49,22 @@ struct Settings: Codable, Sendable, Equatable {
     /// status line shows whenever the destination is a git repo, regardless. Reads
     /// local git state read-only; adds no networking (see `VaultBackup/`).
     var vaultBackupWarningsEnabled: Bool
-    /// When on, an enriched YouTube capture is additionally handed to the user's
-    /// own locally installed Claude Code CLI to run the external transcript
-    /// pipeline (see `TranscriptDispatch/`). On by default because it is a
-    /// strict no-op unless the pipeline repo exists on this machine AND link
-    /// enrichment is on; the app itself adds no networking.
     /// Apple Intelligence first (default) or Claude with the user's key.
     var aiEnginePreference: AIEnginePreference
     /// The Claude model used whenever the Claude engine runs.
     var claudeModel: ClaudeModel
+    /// When on, an enriched YouTube capture is additionally handed to the user's
+    /// own locally installed Claude Code CLI to run the external transcript
+    /// pipeline (see `TranscriptDispatch/`). On by default because it does
+    /// nothing until `transcriptPipelineFolder` is set AND link enrichment is
+    /// on; the app itself adds no networking.
     var autoTranscribeYouTube: Bool
+    /// The folder the transcript session runs in (the user's own pipeline
+    /// repo). A plain path; a leading `~` is expanded when it is read. Nil or
+    /// blank = not set, which means auto-transcribe is off — a new install has
+    /// no folder, and the app never guesses one. Resolve it only through
+    /// `TranscriptDispatch.pipelineFolderStatus(setting:)`.
+    var transcriptPipelineFolder: String?
 
     init(
         outputFolder: URL? = nil,
@@ -79,7 +85,8 @@ struct Settings: Codable, Sendable, Equatable {
         vaultBackupWarningsEnabled: Bool = false,
         aiEnginePreference: AIEnginePreference = .appleFirst,
         claudeModel: ClaudeModel = .sonnet55,
-        autoTranscribeYouTube: Bool = true
+        autoTranscribeYouTube: Bool = true,
+        transcriptPipelineFolder: String? = nil
     ) {
         self.outputFolder = outputFolder
         self.allowedHandles = allowedHandles
@@ -100,12 +107,14 @@ struct Settings: Codable, Sendable, Equatable {
         self.aiEnginePreference = aiEnginePreference
         self.claudeModel = claudeModel
         self.autoTranscribeYouTube = autoTranscribeYouTube
+        self.transcriptPipelineFolder = transcriptPipelineFolder
     }
 
     enum CodingKeys: String, CodingKey {
         case outputFolder, allowedHandles, allowSMS, launchAtLogin, paused, replyMode, seedScaffold, relayEnabled, triageMode
         case remindersHandoffEnabled, calendarHandoffEnabled, remindersListID, calendarID, aiTriageEnabled
         case linkEnrichmentEnabled, vaultBackupWarningsEnabled, autoTranscribeYouTube
+        case transcriptPipelineFolder
         case aiEnginePreference, claudeModel
     }
 
@@ -141,8 +150,11 @@ struct Settings: Codable, Sendable, Equatable {
         // Absent in pre-existing settings.json → backup warnings off (explicit opt-in).
         vaultBackupWarningsEnabled = try c.decodeIfPresent(Bool.self, forKey: .vaultBackupWarningsEnabled) ?? false
         // Absent in pre-existing settings.json → default on (opt-out, like relayEnabled:
-        // a no-op unless the agentic repo exists and enrichment is on).
+        // a no-op until a pipeline folder is set and enrichment is on).
         autoTranscribeYouTube = try c.decodeIfPresent(Bool.self, forKey: .autoTranscribeYouTube) ?? true
+        // Absent → not set → auto-transcribe stays off. There is deliberately
+        // no default path and no migration: the folder is the user's choice.
+        transcriptPipelineFolder = try c.decodeIfPresent(String.self, forKey: .transcriptPipelineFolder)
         // Absent → Apple Intelligence first, the pre-1.0.131 behavior: no
         // one's notes start going to the cloud unless they choose Claude.
         // Raw-string decode so an unknown value degrades instead of throwing.

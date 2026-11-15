@@ -4,6 +4,18 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Changed
+
+- **You choose the folder your transcript pipeline runs in.** "Auto-transcribe YouTube captures" used to start its Claude Code session in one folder written into the app, a path that existed only on the maintainer's Mac. **Settings → Triage → Link Enrichment** now has a **Pipeline Folder** row with a **Choose…** button. The app reads that folder each time it starts a session, so a change applies without a restart. With no folder chosen the feature is off, which is how every new install starts.
+
+### Fixed
+
+- **Auto-transcribe no longer stops without telling you.** If the pipeline folder moved, the app skipped every YouTube capture and said nothing. Settings now shows one status line under the folder: not set, folder not found, or ready. Each skipped capture also writes one line to the system log. A capture already in the queue waits, and runs when the folder is back.
+
+If you used auto-transcribe before this version, choose your pipeline folder once in **Settings → Triage → Link Enrichment**. The app does not carry the old path over.
+
+No new network use: the network check in PRIVACY.md still returns exactly the three documented files.
+
 ## [1.0.139] - 2026-10-04: A late iCloud replay no longer files a second note
 
 Built from commit `93ca5e2`. SHA-256: `d503b2f9289d9c5fe33f3aef5cd9b3ca692f708fb414e2b9aa8852fde6b8e472`.

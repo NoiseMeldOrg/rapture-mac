@@ -32,16 +32,51 @@ enum TranscriptSessionError: Error, Equatable, Sendable {
 }
 
 /// Pure, test-locked pieces of the dispatch contract. Rapture contains no
-/// pipeline logic — the transcript pipeline itself lives in the user's agentic
-/// repo (AGENTS.md, "YouTube URL → Drive Transcript"); the app only points a
-/// Claude Code session at it.
+/// pipeline logic — the transcript pipeline itself lives in the user's own
+/// pipeline folder (its AGENTS.md, "YouTube URL → Drive Transcript"); the app
+/// only points a Claude Code session at it.
 enum TranscriptDispatch {
-    /// Where the spawned session runs. The feature is a silent no-op when this
-    /// directory doesn't exist (the app ships publicly; only machines with the
-    /// pipeline repo can dispatch).
-    nonisolated static var defaultAgenticRepo: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Repos/NoiseMeldOrg/agentic-os-mirror", isDirectory: true)
+    /// Where the pipeline folder stands right now. The folder comes only from
+    /// `Settings.transcriptPipelineFolder` — the app ships publicly, so there
+    /// is no built-in path and no fallback. `.notSet` means the feature is off.
+    enum PipelineFolderStatus: Equatable, Sendable {
+        case notSet
+        /// A path is set but no directory is there (moved, renamed, or on an
+        /// unplugged drive).
+        case missing(URL)
+        case ready(URL)
+
+        /// Why a dispatch was skipped, for the log line. Nil when ready.
+        nonisolated var skipReason: String? {
+            switch self {
+            case .notSet: return "the pipeline folder is not set"
+            case .missing(let url): return "the pipeline folder was not found at \(url.path)"
+            case .ready: return nil
+            }
+        }
+    }
+
+    /// The setting as a folder URL: trimmed, leading `~` expanded. Nil when
+    /// the setting is absent or blank. Does not touch the disk.
+    nonisolated static func pipelineFolderURL(fromSetting path: String?) -> URL? {
+        guard let trimmed = path?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        return URL(fileURLWithPath: (trimmed as NSString).expandingTildeInPath, isDirectory: true)
+    }
+
+    /// Resolves the setting against the disk. A path that is a file, not a
+    /// folder, counts as missing — a session cannot run in it.
+    nonisolated static func pipelineFolderStatus(
+        setting path: String?,
+        fileManager: FileManager = .default
+    ) -> PipelineFolderStatus {
+        guard let url = pipelineFolderURL(fromSetting: path) else { return .notSet }
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            return .missing(url)
+        }
+        return .ready(url)
     }
 
     /// Where the polished transcript lands: the note's sibling `Media/` folder

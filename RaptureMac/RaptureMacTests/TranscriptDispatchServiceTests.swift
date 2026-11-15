@@ -18,7 +18,7 @@ final class TranscriptDispatchServiceTests: XCTestCase {
     private var root: URL!
     private var output: URL!
     private var support: URL!
-    private var agenticRepo: URL!
+    private var pipelineFolder: URL!
     private var clockBox: ClockBox!
 
     private let youtubeURL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
@@ -28,10 +28,10 @@ final class TranscriptDispatchServiceTests: XCTestCase {
         root = fm.temporaryDirectory.appendingPathComponent("dispatch-\(UUID().uuidString)", isDirectory: true)
         output = root.appendingPathComponent("Rapture Notes", isDirectory: true)
         support = root.appendingPathComponent("Support", isDirectory: true)
-        agenticRepo = root.appendingPathComponent("agentic-os-mirror", isDirectory: true)
+        pipelineFolder = root.appendingPathComponent("pipeline-repo", isDirectory: true)
         try fm.createDirectory(at: output.appendingPathComponent("Links", isDirectory: true), withIntermediateDirectories: true)
         try fm.createDirectory(at: support, withIntermediateDirectories: true)
-        try fm.createDirectory(at: agenticRepo, withIntermediateDirectories: true)
+        try fm.createDirectory(at: pipelineFolder, withIntermediateDirectories: true)
         clockBox = ClockBox(Date(timeIntervalSince1970: 1_800_000_000))
     }
 
@@ -45,7 +45,15 @@ final class TranscriptDispatchServiceTests: XCTestCase {
 
     private var now: Date { clockBox.now }
 
-    private func makeAppState(autoTranscribe: Bool = true) -> AppState {
+    /// How a test wants the pipeline-folder setting to start out.
+    private enum FolderSetting {
+        /// The temp pipeline folder made in `setUp` (the working default).
+        case ready
+        case notSet
+        case path(String)
+    }
+
+    private func makeAppState(autoTranscribe: Bool = true, folder: FolderSetting = .ready) -> AppState {
         let appState = AppState(supportDirectory: support)
         appState.settings.update {
             $0.outputFolder = output
@@ -53,14 +61,20 @@ final class TranscriptDispatchServiceTests: XCTestCase {
             $0.triageMode = .full
             $0.linkEnrichmentEnabled = true
             $0.autoTranscribeYouTube = autoTranscribe
+            switch folder {
+            case .ready: $0.transcriptPipelineFolder = pipelineFolder.path
+            case .notSet: $0.transcriptPipelineFolder = nil
+            case .path(let path): $0.transcriptPipelineFolder = path
+            }
         }
         return appState
     }
 
+    /// The service takes no folder: it reads `Settings.transcriptPipelineFolder`
+    /// at every enqueue and every spawn.
     private func makeService(
         appState: AppState,
-        launcher: FakeTranscriptSessionLauncher? = nil,
-        agenticRepo: URL? = nil
+        launcher: FakeTranscriptSessionLauncher? = nil
     ) -> (TranscriptDispatchService, TranscriptDispatchLedger, FakeTranscriptSessionLauncher) {
         let launcher = launcher ?? FakeTranscriptSessionLauncher()
         let ledger = TranscriptDispatchLedger(stateStore: appState.state, clock: { [clockBox] in clockBox?.now ?? Date() })
@@ -68,10 +82,13 @@ final class TranscriptDispatchServiceTests: XCTestCase {
             appState: appState,
             ledger: ledger,
             launcher: launcher,
-            agenticRepo: agenticRepo ?? self.agenticRepo,
             clock: { [clockBox] in clockBox?.now ?? Date() }
         )
         return (service, ledger, launcher)
+    }
+
+    private var missingFolder: URL {
+        root.appendingPathComponent("nowhere", isDirectory: true)
     }
 
     @discardableResult
@@ -112,12 +129,74 @@ final class TranscriptDispatchServiceTests: XCTestCase {
         XCTAssertTrue(ledger.records.isEmpty)
     }
 
-    func testCaptureEnrichedIgnoresWhenAgenticRepoMissing() {
-        let appState = makeAppState()
-        let missing = root.appendingPathComponent("nowhere", isDirectory: true)
-        let (service, ledger, _) = makeService(appState: appState, agenticRepo: missing)
+    func testCaptureEnrichedSkipsWhenPipelineFolderNotSet() {
+        // A new public install: toggle on (the default), no folder. The
+        // feature is off — nothing queued, nothing spawned, no alert — and
+        // each skipped capture writes exactly one log line.
+        let appState = makeAppState(folder: .notSet)
+        let (service, ledger, launcher) = makeService(appState: appState)
+        enqueue(service)
+        XCTAssertTrue(ledger.records.isEmpty, "not set → the feature is off; nothing is queued")
+        XCTAssertTrue(launcher.launches.isEmpty)
+        XCTAssertNil(appState.transcriptDispatchLastError, "no alert per capture — Settings shows the folder state")
+        XCTAssertEqual(service.skippedDispatchLogCount, 1)
+
+        service.captureEnriched(fingerprint: "yt:other", url: "https://youtu.be/other", noteRelativePath: "Links/B.md")
+        XCTAssertEqual(service.skippedDispatchLogCount, 2, "one log line for each skipped dispatch")
+    }
+
+    func testCaptureEnrichedTreatsBlankFolderAsNotSet() {
+        let appState = makeAppState(folder: .path("   "))
+        let (service, ledger, _) = makeService(appState: appState)
         enqueue(service)
         XCTAssertTrue(ledger.records.isEmpty)
+        XCTAssertEqual(service.skippedDispatchLogCount, 1)
+    }
+
+    func testCaptureEnrichedSkipsWhenPipelineFolderMissing() {
+        // The repo moved (or its drive is unplugged): never a silent stop.
+        let appState = makeAppState(folder: .path(missingFolder.path))
+        let (service, ledger, launcher) = makeService(appState: appState)
+        enqueue(service)
+        XCTAssertTrue(ledger.records.isEmpty)
+        XCTAssertTrue(launcher.launches.isEmpty)
+        XCTAssertNil(appState.transcriptDispatchLastError)
+        XCTAssertEqual(service.skippedDispatchLogCount, 1)
+    }
+
+    func testCaptureEnrichedSkipsWhenPipelineFolderIsAFile() throws {
+        let file = root.appendingPathComponent("not-a-folder.txt")
+        try "x".write(to: file, atomically: true, encoding: .utf8)
+        let appState = makeAppState(folder: .path(file.path))
+        let (service, ledger, _) = makeService(appState: appState)
+        enqueue(service)
+        XCTAssertTrue(ledger.records.isEmpty, "a session cannot run in a file")
+        XCTAssertEqual(service.skippedDispatchLogCount, 1)
+    }
+
+    func testCaptureEnrichedDoesNotLogSkipWhenToggleOff() {
+        let appState = makeAppState(autoTranscribe: false, folder: .notSet)
+        let (service, ledger, _) = makeService(appState: appState)
+        enqueue(service)
+        XCTAssertTrue(ledger.records.isEmpty)
+        XCTAssertEqual(service.skippedDispatchLogCount, 0, "toggle off is the user's choice, not a skipped dispatch")
+    }
+
+    func testFolderSetWhileRunningAppliesToNextCaptureWithoutRestart() async throws {
+        try fileNote()
+        let appState = makeAppState(folder: .notSet)
+        let (service, ledger, launcher) = makeService(appState: appState)
+        enqueue(service)
+        XCTAssertTrue(ledger.records.isEmpty, "skipped while not set")
+
+        // The user picks the folder in Settings — same service, no restart.
+        appState.settings.update { $0.transcriptPipelineFolder = pipelineFolder.path }
+        enqueue(service)
+        XCTAssertEqual(ledger.entry(fingerprint: fingerprint)?.status, .pending)
+
+        await service.tick()
+        XCTAssertEqual(launcher.launches.count, 1)
+        XCTAssertEqual(launcher.launches[0].workingDirectory.path, pipelineFolder.path)
     }
 
     func testCaptureEnrichedIsIdempotentForDonePendingDispatched() {
@@ -169,7 +248,8 @@ final class TranscriptDispatchServiceTests: XCTestCase {
         XCTAssertTrue(launcher.launches[0].prompt.contains("https://youtu.be/first"))
         XCTAssertTrue(launcher.launches[0].prompt.contains(
             output.appendingPathComponent("Links/2026-08-31 First.md").path))
-        XCTAssertEqual(launcher.launches[0].workingDirectory, agenticRepo)
+        XCTAssertEqual(launcher.launches[0].workingDirectory.path, pipelineFolder.path,
+                       "the session runs in the folder from Settings")
         let first = ledger.entry(fingerprint: "yt:first")
         XCTAssertEqual(first?.status, .dispatched)
         XCTAssertEqual(first?.dispatchedAt, now)
@@ -210,6 +290,69 @@ final class TranscriptDispatchServiceTests: XCTestCase {
         appState.settings.update { $0.autoTranscribeYouTube = true }
         await service.tick()
         XCTAssertEqual(launcher.launches.count, 1, "resumes when re-enabled")
+    }
+
+    func testTickUsesFolderChangedAfterEnqueue() async throws {
+        // Queued under one folder, the setting changes before the spawn: the
+        // session runs in the NEW folder — read at dispatch, not at init.
+        try fileNote()
+        let moved = root.appendingPathComponent("pipeline-repo-moved", isDirectory: true)
+        try fm.createDirectory(at: moved, withIntermediateDirectories: true)
+        let appState = makeAppState()
+        let (service, _, launcher) = makeService(appState: appState)
+        enqueue(service)
+
+        appState.settings.update { $0.transcriptPipelineFolder = moved.path }
+        await service.tick()
+
+        XCTAssertEqual(launcher.launches.count, 1)
+        XCTAssertEqual(launcher.launches[0].workingDirectory.path, moved.path)
+    }
+
+    func testTickParksQueuedEntryWhileFolderUnavailableAndResumes() async throws {
+        try fileNote()
+        let appState = makeAppState()
+        let (service, ledger, launcher) = makeService(appState: appState)
+        enqueue(service)
+        XCTAssertEqual(service.skippedDispatchLogCount, 0)
+
+        // The folder goes missing after the capture was queued.
+        appState.settings.update { $0.transcriptPipelineFolder = self.missingFolder.path }
+        await service.tick()
+        await service.tick()
+        XCTAssertTrue(launcher.launches.isEmpty)
+        XCTAssertEqual(ledger.entry(fingerprint: fingerprint)?.status, .pending, "parked, not failed")
+        XCTAssertNil(appState.transcriptDispatchLastError)
+        XCTAssertEqual(service.skippedDispatchLogCount, 1, "one log line, not one per tick")
+
+        // Then the setting is cleared: a new reason, so one more line.
+        appState.settings.update { $0.transcriptPipelineFolder = nil }
+        await service.tick()
+        await service.tick()
+        XCTAssertTrue(launcher.launches.isEmpty)
+        XCTAssertEqual(ledger.entry(fingerprint: fingerprint)?.status, .pending)
+        XCTAssertEqual(service.skippedDispatchLogCount, 2)
+
+        // The user chooses a folder: the parked entry runs, no restart.
+        appState.settings.update { $0.transcriptPipelineFolder = self.pipelineFolder.path }
+        await service.tick()
+        XCTAssertEqual(launcher.launches.count, 1)
+        XCTAssertEqual(launcher.launches[0].workingDirectory.path, pipelineFolder.path)
+        XCTAssertEqual(ledger.entry(fingerprint: fingerprint)?.status, .dispatched)
+    }
+
+    func testTickExpandsTildeInFolderSetting() async throws {
+        // A hand-edited settings.json may hold "~/…". "~" itself always
+        // exists, so this needs no folder made in the real home directory.
+        try fileNote()
+        let appState = makeAppState(folder: .path("~"))
+        let (service, _, launcher) = makeService(appState: appState)
+        enqueue(service)
+
+        await service.tick()
+
+        XCTAssertEqual(launcher.launches.count, 1)
+        XCTAssertEqual(launcher.launches[0].workingDirectory.path, NSHomeDirectory())
     }
 
     func testSpawnCompletesWithoutSessionWhenNoteAlreadyHasMarker() async throws {
@@ -392,6 +535,55 @@ final class TranscriptDispatchServiceTests: XCTestCase {
 
         Change nothing else in the note. If the pipeline fails, write no transcript file and leave the note untouched.
         """)
+    }
+
+    func testPipelineFolderURLFromSetting() {
+        XCTAssertNil(TranscriptDispatch.pipelineFolderURL(fromSetting: nil))
+        XCTAssertNil(TranscriptDispatch.pipelineFolderURL(fromSetting: ""))
+        XCTAssertNil(TranscriptDispatch.pipelineFolderURL(fromSetting: "  \n"))
+        XCTAssertEqual(
+            TranscriptDispatch.pipelineFolderURL(fromSetting: "/tmp/pipeline")?.path,
+            "/tmp/pipeline")
+        XCTAssertEqual(
+            TranscriptDispatch.pipelineFolderURL(fromSetting: "  /tmp/pipeline \n")?.path,
+            "/tmp/pipeline", "surrounding whitespace from a hand edit is trimmed")
+        XCTAssertEqual(
+            TranscriptDispatch.pipelineFolderURL(fromSetting: "~/some/pipeline")?.path,
+            NSHomeDirectory() + "/some/pipeline", "a leading ~ is expanded")
+        XCTAssertEqual(
+            TranscriptDispatch.pipelineFolderURL(fromSetting: "~")?.path,
+            NSHomeDirectory())
+    }
+
+    func testPipelineFolderStatus() throws {
+        XCTAssertEqual(TranscriptDispatch.pipelineFolderStatus(setting: nil), .notSet)
+        XCTAssertEqual(TranscriptDispatch.pipelineFolderStatus(setting: " "), .notSet)
+
+        guard case .ready(let ready) = TranscriptDispatch.pipelineFolderStatus(setting: pipelineFolder.path) else {
+            return XCTFail("an existing folder is ready")
+        }
+        XCTAssertEqual(ready.path, pipelineFolder.path)
+
+        guard case .missing(let missing) = TranscriptDispatch.pipelineFolderStatus(setting: missingFolder.path) else {
+            return XCTFail("a path with nothing there is missing")
+        }
+        XCTAssertEqual(missing.path, missingFolder.path)
+
+        let file = root.appendingPathComponent("a-file.txt")
+        try "x".write(to: file, atomically: true, encoding: .utf8)
+        guard case .missing = TranscriptDispatch.pipelineFolderStatus(setting: file.path) else {
+            return XCTFail("a file is not a folder a session can run in")
+        }
+    }
+
+    func testSkipReasonNamesTheProblem() {
+        XCTAssertNil(TranscriptDispatch.PipelineFolderStatus.ready(pipelineFolder).skipReason)
+        XCTAssertEqual(
+            TranscriptDispatch.PipelineFolderStatus.notSet.skipReason,
+            "the pipeline folder is not set")
+        XCTAssertEqual(
+            TranscriptDispatch.PipelineFolderStatus.missing(URL(fileURLWithPath: "/gone/repo")).skipReason,
+            "the pipeline folder was not found at /gone/repo")
     }
 
     func testTranscriptPathAndLineHelpers() {

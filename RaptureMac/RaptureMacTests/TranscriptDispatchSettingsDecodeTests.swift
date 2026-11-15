@@ -3,8 +3,10 @@ import XCTest
 
 /// Lenient decoding for the transcript-dispatch fields: pre-feature
 /// settings.json/state.json files load with the toggle ON (opt-out, like
-/// relayEnabled) and an empty dispatch ledger, and an unknown status raw value
-/// degrades instead of nuking state.json. Mirrors `EnrichmentSettingsDecodeTests`.
+/// relayEnabled), the pipeline folder NOT set (so the feature is off until
+/// the user chooses one), and an empty dispatch ledger; an unknown status raw
+/// value degrades instead of nuking state.json. Mirrors
+/// `EnrichmentSettingsDecodeTests`.
 final class TranscriptDispatchSettingsDecodeTests: XCTestCase {
 
     func testPreFeatureSettingsDecodeWithAutoTranscribeOn() throws {
@@ -27,6 +29,54 @@ final class TranscriptDispatchSettingsDecodeTests: XCTestCase {
 
     func testDefaultIsOn() {
         XCTAssertTrue(Settings().autoTranscribeYouTube)
+    }
+
+    // MARK: - Pipeline folder
+
+    func testPreFeatureSettingsDecodeWithPipelineFolderNotSet() throws {
+        // A settings.json from before the key existed: the folder is NOT set
+        // (no default path, no migration), and nothing else resets.
+        let json = """
+        {"allowedHandles":[],"allowSMS":false,"launchAtLogin":true,"paused":false,
+         "replyMode":"all","triageMode":"full","linkEnrichmentEnabled":true,
+         "autoTranscribeYouTube":true}
+        """
+        let settings = try JSONDecoder().decode(Settings.self, from: Data(json.utf8))
+        XCTAssertNil(settings.transcriptPipelineFolder, "absent key → not set → feature off")
+        XCTAssertTrue(settings.autoTranscribeYouTube, "existing fields survive")
+        XCTAssertTrue(settings.linkEnrichmentEnabled, "existing fields survive")
+    }
+
+    func testPipelineFolderDefaultIsNotSet() {
+        XCTAssertNil(Settings().transcriptPipelineFolder, "a new install has no folder")
+    }
+
+    func testPipelineFolderRoundTrips() throws {
+        var settings = Settings()
+        settings.transcriptPipelineFolder = "/Volumes/X/My Pipeline"
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(Settings.self, from: data)
+        XCTAssertEqual(decoded.transcriptPipelineFolder, "/Volumes/X/My Pipeline")
+    }
+
+    func testPipelineFolderNotSetRoundTripsAsNotSet() throws {
+        let data = try JSONEncoder().encode(Settings())
+        let decoded = try JSONDecoder().decode(Settings.self, from: data)
+        XCTAssertNil(decoded.transcriptPipelineFolder)
+    }
+
+    func testPipelineFolderExplicitNullAndHandEditedTildeDecode() throws {
+        let nullJSON = """
+        {"transcriptPipelineFolder":null}
+        """
+        XCTAssertNil(try JSONDecoder().decode(Settings.self, from: Data(nullJSON.utf8)).transcriptPipelineFolder)
+
+        // Stored verbatim; the "~" is expanded only when the folder is read.
+        let tildeJSON = """
+        {"transcriptPipelineFolder":"~/some/pipeline"}
+        """
+        let settings = try JSONDecoder().decode(Settings.self, from: Data(tildeJSON.utf8))
+        XCTAssertEqual(settings.transcriptPipelineFolder, "~/some/pipeline")
     }
 
     func testDispatchRecordsDefaultWhenKeyAbsent() throws {

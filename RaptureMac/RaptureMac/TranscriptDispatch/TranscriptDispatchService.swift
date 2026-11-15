@@ -2,9 +2,15 @@ import Foundation
 import OSLog
 
 /// Dispatches enriched YouTube captures to the user's own local Claude Code
-/// CLI, which runs the transcript pipeline defined in the agentic repo's
-/// AGENTS.md and appends the resulting Google Doc link to the source note.
+/// CLI, which runs the transcript pipeline defined in the pipeline folder's
+/// AGENTS.md and appends the resulting transcript link to the source note.
 /// Rapture contains no pipeline logic — it only hands off.
+///
+/// The pipeline folder is `Settings.transcriptPipelineFolder`, read fresh at
+/// every enqueue and every spawn, so a change in Settings applies with no
+/// restart. Not set means the feature is off. A folder that is not set or not
+/// found is never a silent stop: Settings shows the state, and each skipped
+/// dispatch writes one log line (no per-capture alert).
 ///
 /// Strictly best-effort and strictly serial: one session at a time, FIFO, and
 /// the capture/enrichment path never waits on it (`captureEnriched` is
@@ -30,24 +36,32 @@ final class TranscriptDispatchService: TranscriptDispatching {
     private let appState: AppState
     private let ledger: TranscriptDispatchLedger
     private let launcher: any TranscriptSessionLaunching
-    private let agenticRepo: URL
     private let clock: @Sendable () -> Date
 
     private var pollTask: Task<Void, Never>?
     private var cooldownUntil: Date?
+    /// The queued entry (and reason) the last "waiting" log line was written
+    /// for, so a parked queue logs once, not once per 15-second tick.
+    @ObservationIgnored private var lastParkedLogKey: String?
+    /// How many skip log lines were written. Internal so tests can lock
+    /// "one line per skipped dispatch".
+    @ObservationIgnored private(set) var skippedDispatchLogCount = 0
 
     init(
         appState: AppState,
         ledger: TranscriptDispatchLedger,
         launcher: any TranscriptSessionLaunching,
-        agenticRepo: URL = TranscriptDispatch.defaultAgenticRepo,
         clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.appState = appState
         self.ledger = ledger
         self.launcher = launcher
-        self.agenticRepo = agenticRepo
         self.clock = clock
+    }
+
+    /// The pipeline folder as it stands right now (setting + disk).
+    private func pipelineFolderStatus() -> TranscriptDispatch.PipelineFolderStatus {
+        TranscriptDispatch.pipelineFolderStatus(setting: appState.settings.settings.transcriptPipelineFolder)
     }
 
     func start() {
@@ -75,9 +89,15 @@ final class TranscriptDispatchService: TranscriptDispatching {
     func captureEnriched(fingerprint: String, url: String, noteRelativePath: String) {
         guard appState.settings.settings.autoTranscribeYouTube else { return }
         guard fingerprint.hasPrefix("yt:") else { return }
-        // No pipeline repo, no dispatch: the app ships publicly with this
-        // toggle on, so machines without the agentic repo must stay silent.
-        guard FileManager.default.fileExists(atPath: agenticRepo.path) else { return }
+        // No usable pipeline folder, no dispatch — and nothing is queued, so a
+        // folder chosen later never starts a burst of old sessions. The app
+        // ships publicly with this toggle on and no folder: say why in the
+        // log (Settings shows the same state), never in an alert.
+        if let reason = pipelineFolderStatus().skipReason {
+            skippedDispatchLogCount += 1
+            Self.log.notice("skipped transcript dispatch for \(fingerprint, privacy: .public): \(reason, privacy: .public)")
+            return
+        }
 
         if let existing = ledger.entry(fingerprint: fingerprint) {
             // A fresh capture of a previously failed video is an implicit
@@ -124,7 +144,22 @@ final class TranscriptDispatchService: TranscriptDispatching {
         }
         guard appState.settings.settings.autoTranscribeYouTube else { return }
         guard let next = oldestPending() else { return }
-        await spawn(next)
+        // Read the folder now, not at launch: a change in Settings applies to
+        // the very next spawn. If it went away after this entry was queued,
+        // the entry waits (parked, not failed — the toggle-off rule) and
+        // resumes when the folder is set or back.
+        let status = pipelineFolderStatus()
+        guard case .ready(let pipelineFolder) = status else {
+            let key = next.fingerprint + "|" + (status.skipReason ?? "")
+            if lastParkedLogKey != key {
+                lastParkedLogKey = key
+                skippedDispatchLogCount += 1
+                Self.log.notice("transcript dispatch for \(next.fingerprint, privacy: .public) is waiting: \(status.skipReason ?? "", privacy: .public)")
+            }
+            return
+        }
+        lastParkedLogKey = nil
+        await spawn(next, in: pipelineFolder)
     }
 
     /// Startup pass: at most zero `dispatched` entries may survive into the
@@ -171,7 +206,7 @@ final class TranscriptDispatchService: TranscriptDispatching {
         // Otherwise: still working. Wait for the next tick.
     }
 
-    private func spawn(_ entry: TranscriptDispatchEntry) async {
+    private func spawn(_ entry: TranscriptDispatchEntry, in pipelineFolder: URL) async {
         guard let folder = appState.settings.settings.outputFolder else { return }
         let noteURL = folder.appendingPathComponent(entry.noteRelativePath)
         guard let text = await noteText(at: noteURL) else {
@@ -203,7 +238,7 @@ final class TranscriptDispatchService: TranscriptDispatching {
                 transcriptFilename: (transcriptRelative as NSString).lastPathComponent)
         )
         do {
-            try await launcher.launch(prompt: prompt, workingDirectory: agenticRepo)
+            try await launcher.launch(prompt: prompt, workingDirectory: pipelineFolder)
             Self.log.info("dispatched \(entry.fingerprint, privacy: .public)")
         } catch {
             let message: String

@@ -7,6 +7,19 @@ description: Build, launch, and drive a Debug build of Rapture for Mac to verify
 
 The app's surfaces are filesystem side effects (the notes destination, the iCloud relay folder) plus the menu bar. Drive them by dropping files and observing what the running app produces.
 
+## Read this first: the launch can cost the installed app its Full Disk Access
+
+Seen 2026-11-15 on macOS 26.6.2. The Debug build has the same bundle id as the installed app (`noisemeld.RaptureMac`) and a different signature. When it starts, it tries to open `chat.db`. macOS (`tccd`) then logs `Failed to match existing code requirement for subject noisemeld.RaptureMac and service kTCCServiceSystemPolicyAllFiles` and `recording denied`, and the installed app's Full Disk Access grant is replaced by a denial. The installed app cannot read Messages again until the user turns Full Disk Access on in System Settings and reopens the app. A second dialog, "Rapture would like to access files in your Documents folder", also appears. Until the user answers it, reads of `~/Documents` from other programs can hang.
+
+So:
+
+- **Ask the user before you launch the Debug build.** Tell them they will have to turn Full Disk Access on again afterwards.
+- Most changes do not need the launch. Use these first:
+  - the unit tests;
+  - the real source files compiled as a command-line tool (`xcrun swiftc -O -parse-as-library -swift-version 5 <the source files> main.swift -o tool`). This runs code that is switched off under XCTest, such as the real `Process` launchers, with no app bundle and no privacy prompts;
+  - for a SwiftUI view, a temporary XCTest that hosts the view in an off-screen borderless `NSWindow` and writes PNG files with `bitmapImageRepForCachingDisplay` and `cacheDisplay(in:to:)`. Delete the test after you look at the pictures.
+- With the shell sandbox off, `log show --predicate 'subsystem == "noisemeld.RaptureMac"'` works, and `.notice` lines are kept.
+
 ## Build + launch
 
 ```sh

@@ -25,7 +25,7 @@ This project is part of the Rapture product line. When making decisions about br
 - **Auto-versioning:** Mirror iOS's git-commit-count scheme (see `../rapture-ios/Rapture/Scripts/set_git_version.sh`) once distribution lands (Phase 14).
 - **Signing team:** `P8PLTH44DF` (shared with rapture-ios).
 - **Notarization API key:** `GX6DYX9S2M` (shared; see `~/.appstoreconnect/private_keys/`).
-- **Bundle ID convention:** `noisemeld.RaptureMac` (mirrors iOS's `noisemeld.Rapture`).
+- **Bundle ID convention:** `noisemeld.RaptureMac` (mirrors iOS's `noisemeld.Rapture`). Debug builds use `noisemeld.RaptureMac.debug` so macOS keeps their privacy grants apart from the installed app's; never give the two builds the same identifier (see CONTRIBUTING.md → "Running a local build interactively").
 - **App icon:** Reuse the iOS app icon at `../rapture-ios/Rapture/Rapture/Assets.xcassets/AppIcon.appiconset`. M1 (Xcode scaffold) copies it into `RaptureMac/Resources/Assets.xcassets/AppIcon.appiconset` rather than designing a new one — keeps the product family visually consistent and removes a real M1 task. The macOS `.icns` is built from the same source set automatically by Xcode's asset compiler.
 
 ## Tech stack summary

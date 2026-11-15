@@ -158,7 +158,7 @@ xcodebuild \
   build test
 ```
 
-This builds a Debug build and runs the test suite; all tests should pass. The app lands at `/tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app`. A Debug build keeps its own settings in `~/Library/Application Support/Rapture for Mac (Debug)/` and files notes into `~/Documents/Rapture Notes (Debug)/`, so it never touches an installed copy's settings or notes. If you only want to use Rapture on an Apple silicon Mac, install the signed DMG from [Releases](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest) instead.
+This builds a Debug build and runs the test suite; all tests should pass. The app lands at `/tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app`. A Debug build keeps its own settings in `~/Library/Application Support/Rapture for Mac (Debug)/` and files notes into `~/Documents/Rapture Notes (Debug)/`, so it never touches an installed copy's settings or notes. It also has its own bundle identifier (`noisemeld.RaptureMac.debug`), so macOS keeps its privacy permissions apart from an installed copy's. If you only want to use Rapture on an Apple silicon Mac, install the signed DMG from [Releases](https://github.com/NoiseMeldOrg/rapture-mac/releases/latest) instead.
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for the longer walkthrough, the `_build_plan/` directory for the milestone-by-milestone build log, and `agent-os/specs/2026-05-16-1854-rapture-mac-v1-local-capture/` for the canonical technical spec.
 

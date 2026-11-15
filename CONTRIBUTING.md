@@ -23,17 +23,23 @@ Every PR and push to `main` runs the full XCTest suite on a macOS GitHub Actions
 
 ### Running a local build interactively
 
-To exercise a Debug build by hand (e.g. to test the output-folder relocation flow), **quit and move the installed app aside first**:
+To exercise a Debug build by hand (e.g. to test the output-folder relocation flow), quit the installed app and open the Debug build by its full path:
 
 ```sh
-pkill -x Rapture
-mv /Applications/Rapture.app /Applications/Rapture.app.aside   # reversible
-open /tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app
+pkill -x Rapture                                                   # quits every running copy
+open -n /tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app    # -n and the full path open this copy
+ps -ax -o pid,comm | grep "Rapture.app/Contents/MacOS"             # shows which copy is running
 # ... test, then restore:
-pkill -x Rapture && mv /Applications/Rapture.app.aside /Applications/Rapture.app
+pkill -x Rapture && open /Applications/Rapture.app
 ```
 
-**Why**: a Debug build shares the `noisemeld.RaptureMac` bundle identifier with an installed copy in `/Applications`. When both are registered, macOS LaunchServices resolves the bundle ID to the installed copy — so `open <debug>.app` (and even exec'ing the binary directly, because AppKit re-launches GUI apps through LaunchServices) can silently run the **installed** app instead of your build. Moving the installed app aside leaves your Debug build as the only registered copy. Confirm which binary is live with `ps -ax | grep Rapture.app/Contents/MacOS/Rapture`.
+**A Debug build is a different app to macOS.** Its bundle identifier is `noisemeld.RaptureMac.debug` and it names itself "Rapture (Debug)". The installed app keeps `noisemeld.RaptureMac`. macOS records privacy grants (Full Disk Access, Automation, Documents, Reminders, Calendar) under the bundle identifier, so a Debug build asks for its own and its requests are recorded under its own identifier. It is ad-hoc signed, so macOS can ask again after a rebuild. `DebugBuildIdentityTests` fails if the two builds ever share an identifier again.
+
+**Why the identifiers differ**: until 2026-11-15 both builds used `noisemeld.RaptureMac`. That caused two faults. LaunchServices could resolve the identifier to the installed copy and run it in place of your build. And when a Debug build tried to read `chat.db`, macOS found a different signature under the installed app's identifier and replaced the installed app's Full Disk Access grant with a denial.
+
+**Do not move or rename `/Applications/Rapture.app`** to make room for a Debug build. That also made macOS drop the installed app's Full Disk Access (2026-09-29), and it is no longer needed.
+
+**Why quit the installed app first**: both copies show the same menu-bar icon, and both read the same Messages database. If you give the Debug build Full Disk Access while the installed app runs, each copy would file the same message and send its own reply.
 
 **Data isolation (since v1.0.71)**: Debug builds use **separate data containers** — `~/Library/Application Support/Rapture for Mac (Debug)/` (its own `settings.json` / `state.json` / sidecar) and a `~/Documents/Rapture Notes (Debug)/` default — so a Debug build *never* reads, writes, or relocates the installed app's settings or notes. You no longer need to back anything up before a test that changes them, and a Debug build can run alongside the installed app safely. A "(Debug)" marker in the Settings window title and General tab confirms which build you're driving. (See `AppSupportDirectory`; this isolation is the root-cause fix from the 2026-06 data-safety hardening.)
 

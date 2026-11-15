@@ -407,7 +407,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Rapture";
+				INFOPLIST_KEY_CFBundleDisplayName = "Rapture (Debug)";
 				INFOPLIST_KEY_CFBundleName = "Rapture";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -419,7 +419,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = noisemeld.RaptureMac;
+				PRODUCT_BUNDLE_IDENTIFIER = noisemeld.RaptureMac.debug;
 				PRODUCT_NAME = "Rapture";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

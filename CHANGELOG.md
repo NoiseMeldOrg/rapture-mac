@@ -16,6 +16,10 @@ If you used auto-transcribe before this version, choose your pipeline folder onc
 
 No new network use: the network check in PRIVACY.md still returns exactly the three documented files.
 
+### Internal
+
+- **Debug builds have their own bundle identifier (developer-facing).** A Debug build is now `noisemeld.RaptureMac.debug` and names itself "Rapture (Debug)". It used to share `noisemeld.RaptureMac` with the installed app. macOS records privacy grants under that identifier, and on 2026-11-15 a Debug launch made macOS replace the installed app's Full Disk Access grant with a denial. Release builds are unchanged, so an update keeps its grants as before.
+
 ## [1.0.139] - 2026-10-04: A late iCloud replay no longer files a second note
 
 Built from commit `93ca5e2`. SHA-256: `d503b2f9289d9c5fe33f3aef5cd9b3ca692f708fb414e2b9aa8852fde6b8e472`.

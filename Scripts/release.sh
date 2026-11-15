@@ -17,9 +17,10 @@
 #          --key-id GX6DYX9S2M --issuer <your-issuer-uuid>
 #   3. `brew install create-dmg`
 #
-# Why /tmp/RaptureMacDerived: the source SSD is exFAT and generates AppleDouble
-# (._*) metadata files that get copied into the .app bundle and break codesign.
-# Derived data must live on the internal APFS volume.
+# Why /tmp/RaptureMacDerived: the source SSD was exFAT until 2026-06-29. exFAT
+# generates AppleDouble (._*) metadata files that get copied into the .app
+# bundle and break codesign. The SSD is APFS now, but derived data stays on
+# the internal APFS volume: the path is safe on any disk format.
 # =============================================================================
 
 set -euo pipefail

@@ -15,7 +15,7 @@ xcodebuild \
 
 All tests should pass.
 
-**Why `/tmp/RaptureMacDerived`**: this repo is often checked out on an exFAT-formatted SSD. Building in-place causes macOS to write AppleDouble (`._*`) metadata files into the derived-data tree, which then get copied into the `.app` bundle and break `codesign`. Routing derived data to the internal APFS volume sidesteps that. The same path is used everywhere derived data appears in our scripts and docs.
+**Why `/tmp/RaptureMacDerived`**: this repo was first developed on an exFAT-formatted SSD. There, building in-place makes macOS write AppleDouble (`._*`) metadata files into the derived-data tree, which then get copied into the `.app` bundle and break `codesign`. Routing derived data to the internal APFS volume sidesteps that. The maintainer's SSD is APFS since 2026-06-29, so the problem no longer happens there. The path stays because it is safe on any disk format, and the same path is used everywhere derived data appears in our scripts and docs.
 
 ### Continuous integration
 

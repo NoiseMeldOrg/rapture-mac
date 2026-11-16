@@ -13,15 +13,14 @@ The app's surfaces are filesystem side effects (the notes destination, the iClou
 
 **What changed.** The Debug build now has its own bundle id, `noisemeld.RaptureMac.debug`, and its own name, "Rapture (Debug)". macOS records privacy grants under the bundle id (the `subject` in that log line), so the Debug build's requests go under its own id. `DebugBuildIdentityTests` fails if the two builds share an id again.
 
-**What is confirmed.** During `xcodebuild test` on 2026-11-15 the Debug test host asked macOS for two permissions (`kTCCServiceListenEvent`, `kTCCServiceAddressBook`). `tccd` recorded both under `subject=noisemeld.RaptureMac.debug`. No `Failed to match` line appeared for `noisemeld.RaptureMac`.
+**Confirmed live on 2026-11-16 (macOS 26.6.2, with the user's go).** The Debug build ran next to the installed app for 65 seconds. It tried to open `chat.db` four times. Each time `tccd` answered with a denial for `noisemeld.RaptureMac.debug` (`recording denied`) and logged no `Failed to match` line. The installed app was then restarted, and macOS still allowed it Full Disk Access (`authValue=2`).
 
-**What is not confirmed.** The Full Disk Access path. The app does not open `chat.db` under tests, and nobody has launched the new Debug build live yet. Until someone does and writes the result here:
+So a Debug launch no longer puts the installed app's Full Disk Access at risk. Two rules remain:
 
-- **Ask the user before you launch the Debug build.**
-- Check the copy you are about to open: `defaults read /tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app/Contents/Info CFBundleIdentifier` must print `noisemeld.RaptureMac.debug`. A copy built before the change keeps the old id until it is rebuilt. Xcode's own DerivedData folder can hold one.
-- After the launch, read the privacy log with the shell sandbox off: `log show --last 10m --predicate 'subsystem == "com.apple.TCC" AND eventMessage CONTAINS "noisemeld.RaptureMac"'`. A line that says `Failed to match existing code requirement for subject noisemeld.RaptureMac and` means the installed app was hit again. Lines for `noisemeld.RaptureMac.debug` are expected.
+- **Check the copy before you open it:** `defaults read /tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app/Contents/Info CFBundleIdentifier` must print `noisemeld.RaptureMac.debug`. A copy built before the change keeps the old id until it is rebuilt, and that copy can still do the damage. Xcode's own DerivedData folder can hold one.
+- **Tell the user before you launch, and tell them not to click.** The Debug build shows a "Rapture needs Full Disk Access" window. It tells the user to turn Rapture on in System Settings, and that list now has two entries. During the 2026-11-16 test the switch for the installed app went off and on again in those seconds (a user-set change in the log, not the Debug build), and the installed app restarted twice. The Debug build also raises a dialog that asks for access to the Documents folder. On 2026-11-15, reads of `~/Documents` from the shell hung while that dialog was open. Both go away when the Debug process stops.
 
-The Debug build still asks for its own permissions. One dialog asks for access to files in the Documents folder. On 2026-11-15, reads of `~/Documents` from the shell hung while that dialog was open. Tell the user to expect it and to answer it.
+To check a launch afterwards, read the privacy log with the shell sandbox off: `log show --last 10m --predicate 'subsystem == "com.apple.TCC"'`. A line that says `Failed to match existing code requirement for subject noisemeld.RaptureMac and` means the installed app was hit. To see the answer an app got, find its `AUTHREQ_ATTRIBUTION` line (it names the bundle id and the pid), take the `msgID`, and read the `AUTHREQ_CTX` and `AUTHREQ_RESULT` lines with that `msgID`. Those two lines do not contain the bundle id, so a filter on the bundle id hides them. `authValue=2` is allowed and `authValue=0` is denied.
 
 Most changes do not need the launch. Use these first:
 
@@ -38,20 +37,22 @@ xcodebuild -derivedDataPath /tmp/RaptureMacDerived \
   -project RaptureMac/RaptureMac.xcodeproj -scheme RaptureMac \
   -configuration Debug build            # test runs also produce the app
 
-pkill -x Rapture                        # quit the installed app (watermark catch-up recovers anything missed)
 open -n /tmp/RaptureMacDerived/Build/Products/Debug/Rapture.app   # -n + the full path launches THIS bundle
-ps -ax -o pid,comm | grep "Rapture.app/Contents/MacOS"          # confirm the /tmp binary is the one running
+ps -ax -o pid,comm | grep "Rapture.app/Contents/MacOS"          # both copies: /Applications and /private/tmp
 ```
 
-**Never move or rename `/Applications/Rapture.app`** to get the Debug build to launch. Moving the installed app aside and back made macOS drop its Full Disk Access grant (2026-09-29): the user had to re-grant it and Quit & Reopen. `open -n <full path>` launches the Debug bundle without touching the installed one.
+**Leave the installed app open.** The two builds are different apps to macOS, and they ran side by side in the 2026-11-16 test. The Debug build has no Full Disk Access, its own relay folder and its own notes folder, so it does not take the installed app's captures. Do not give the Debug build Full Disk Access while the installed app runs: both would file and answer the same message.
 
-**Always restore when done** (and relaunch — the user's capture pipeline was running):
+**Never move or rename `/Applications/Rapture.app`** to get the Debug build to launch. Moving the installed app aside and back made macOS drop its Full Disk Access grant (2026-09-29): the user had to re-grant it and Quit & Reopen.
+
+**Stop the Debug build by its path, never by name.** `pkill -x Rapture` also stops the user's installed app, and a script that hangs after it leaves capture off (20 minutes on 2026-11-15).
 
 ```sh
-pkill -x Rapture
-open /Applications/Rapture.app
-ps -ax -o pid,comm | grep "Rapture.app/Contents/MacOS"          # confirm /Applications is running again
+pkill -f "RaptureMacDerived/Build/Products/Debug/Rapture.app/Contents/MacOS/Rapture"
+ps -ax -o pid,comm | grep "Rapture.app/Contents/MacOS"          # only /Applications is left
 ```
+
+In a script, put that `pkill -f` in a `trap … EXIT`, give every wait a time limit, and do not read `~/Documents` without one.
 
 ## Debug isolation (what to drive)
 
@@ -65,6 +66,7 @@ Drop `.txt` files at the destination root (or a `.txt`+`.m4a` pair in the relay 
 
 - **A freshly built debug binary re-triggers Full Disk Access onboarding, and granting it quits the app.** Each rebuild is a new bundle at a new/changed signature, so TCC treats it as a new app: the FDA sheet opens on launch, and after the user grants FDA the app must quit and relaunch to see it (a running process never picks up a new grant). To the verifying agent this looks like the app **silently vanished mid-test** — no crash report, drops stop being processed. What to do: (a) if the surfaces under test don't need FDA (relay, triage, enrichment — most of them), tell the user up front they can ignore/dismiss the FDA sheet for this run; (b) poll process liveness (`kill -0 <pid>`) between steps rather than assuming the pid survives; (c) if it exited, just `open` it again — settings/state are on disk and the test continues where it left off; (d) if the user *does* grant FDA mid-run, expect exactly one quit-and-relaunch cycle and re-`open` afterwards.
 
+- **The Debug build can restart itself under a new pid.** "Reopen Rapture" in its permissions window (and macOS's own "Quit & Reopen") starts a new process one second later. A script that saved the first pid then stops nothing (seen 2026-11-16). Look the pid up again with `pgrep -f` on the Debug path, or use the `pkill -f` line above.
 - **App Nap stalls the poll loops.** A debug build launched via `open` from a shell has no window and no user input, so macOS naps it — 5s polls stretched to ~18 minutes in one session. Wake it deterministically after each file drop: `sample <pid> 1 >/dev/null 2>&1` (attaching wakes the process), then wait ~10s (two poll ticks; the triage settle rule needs two same-size sightings ≥5s apart). The user-launched production app has not shown this in dogfooding, but keep it in mind if "nothing happens."
 - **The debug build has no Full Disk Access**, so iMessage capture won't run (FDA poll loops harmlessly; a permissions window may open). Relay + triage surfaces need no FDA and are fully drivable.
 - **`log show`/`log stream` return nothing from the sandboxed shell.** Use `state.json`, output files, and `sample <pid>` stacks as evidence instead.

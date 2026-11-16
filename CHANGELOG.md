@@ -4,6 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Fixed
+
+- **AI triage made reminders nobody asked for.** With AI triage and Reminders handoff both on, a note such as "Test" or "The blue paint is in the garage" could become a reminder, due at the minute the note was captured. The model proposed it, and the app checked only that the model's quoted words were in the note. The app now reads the note itself. A reminder needs an ask ("remind me to…", "remember to…", "don't forget…", "make sure to…", "set a reminder…") or a day or time in the note ("tomorrow", "Wednesday", "March 3", "at 2"). A calendar event needs both a day and a time in the note. A due date before the capture is dropped, and the reminder is kept without a date. A plain to-do with no ask and no date, such as "buy milk", still files as a task and makes no reminder.
+
 ## [1.0.144] - 2026-11-16: You choose the folder for YouTube transcripts
 
 Built from commit `26f45d9`. SHA-256: `ba4fa6140c3640e3e1ce88d93025ad3c881663c03e5664cc6d8d16bac2d39c6e`.

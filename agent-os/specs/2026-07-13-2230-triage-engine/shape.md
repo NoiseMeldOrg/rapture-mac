@@ -66,6 +66,16 @@ and immediately; everything on top fails open and quietly.**
   (clause-containment against the raw text, length bounds on formatted bodies, impossible
   dates rejected), and a fully-invalidated AI handoff block falls back to the deterministic
   detector so a hallucinating model can't disable behavior the user already trusts.
+- A handoff needs grounds in the note's own words (`AITriageValidator.NoteGrounds`, added
+  2026-11-16). Containment is not enough: the on-device model quoted real clauses and still
+  made reminders for notes like "Test", each due at the capture minute, and 55 of the 60
+  reminders in the ledger from 2026-09 to 2026-11 quoted words with no ask and no date. So
+  the app reads the note without the model. A reminder needs an ask ("remind me…",
+  "remember to…", "don't forget…", "make sure to…", "set a reminder…") or a day or time
+  that `HandoffDateParser` can read. An event needs both a day and a time. A reminder due
+  before its own capture loses the date and stays. The cost, accepted: a plain to-do with
+  no ask and no date makes no reminder, and neither does a dated errand whose date is
+  outside the parser's grammar ("tonight", "in two weeks").
 
 The sibling posture for captures themselves is **never drop, never lie about location**:
 when the destination's volume is unplugged, captures spool internally (FIFO-strict flush on

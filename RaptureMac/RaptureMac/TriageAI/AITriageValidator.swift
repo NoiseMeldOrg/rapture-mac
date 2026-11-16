@@ -25,7 +25,9 @@ enum AITriageValidator {
         output.title = validTitle(draft.title)
         output.formattedBody = validFormattedBody(draft.formattedBody, rawText: rawText, truncated: truncated)
 
-        let validated = validHandoffs(draft.handoffs, rawText: rawText, timeZone: timeZone)
+        let validated = validHandoffs(
+            draft.handoffs, rawText: rawText, capturedAt: capturedAt, timeZone: timeZone
+        )
         output.handoffs = validated
         output.handoffsInvalidated = !draft.handoffs.isEmpty && validated.isEmpty
 
@@ -92,17 +94,20 @@ enum AITriageValidator {
 
     /// Kind must parse; the clause must actually appear in the note (normalized
     /// containment — a fabricated clause is the tell of a hallucinated handoff);
+    /// the note itself must give grounds for the handoff (`NoteGrounds`);
     /// events need the full date+time; partial reminder dates degrade to
-    /// dateless. Caps at one reminder + one event, first of each wins (the
-    /// locked M3 bar).
+    /// dateless, and so does a due date that is before the capture. Caps at
+    /// one reminder + one event, first of each wins (the locked M3 bar).
     nonisolated static func validHandoffs(
         _ drafts: [AIEngineDraft.DraftHandoff],
         rawText: String,
+        capturedAt: Date,
         timeZone: TimeZone
     ) -> [HandoffDetector.Detected] {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         let normalizedRaw = normalizeForContainment(rawText)
+        let grounds = noteGrounds(in: rawText, capturedAt: capturedAt, timeZone: timeZone)
 
         var reminder: HandoffDetector.Detected?
         var event: HandoffDetector.Detected?
@@ -111,19 +116,23 @@ enum AITriageValidator {
             let clause = draft.clause.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !clause.isEmpty,
                   normalizedRaw.contains(normalizeForContainment(clause)),
-                  let title = HandoffDetector.cleanTitle(draft.title, strippingLeadingArticle: false)
+                  let title = HandoffDetector.cleanTitle(draft.title, strippingLeadingArticle: false),
+                  // The prompt's example title coming back means the model
+                  // had nothing to work from (same tell as `validTitle`).
+                  title.caseInsensitiveCompare(AITriagePrompt.exampleTaskTitle) != .orderedSame
             else { continue }
 
             switch draft.kind.lowercased() {
             case "reminder":
-                guard reminder == nil else { continue }
+                guard reminder == nil, grounds.allowsReminder else { continue }
                 let due = reminderDue(from: draft, calendar: calendar)
+                    .flatMap { notBeforeCapture($0, capturedAt: capturedAt, calendar: calendar) }
                 reminder = HandoffDetector.Detected(
                     candidate: .reminder(title: title, due: due),
                     clause: clause
                 )
             case "event":
-                guard event == nil else { continue }
+                guard event == nil, grounds.allowsEvent else { continue }
                 guard let start = eventStart(from: draft, calendar: calendar) else { continue }
                 event = HandoffDetector.Detected(
                     candidate: .event(title: title, start: start),
@@ -134,6 +143,70 @@ enum AITriageValidator {
             }
         }
         return [reminder, event].compactMap { $0 }
+    }
+
+    // MARK: - Grounds in the note
+
+    /// What the note's own words say, read without the model. A handoff the
+    /// model proposes stands only when the note gives grounds for it.
+    ///
+    /// Why this exists: the model returned a reminder for the note "Test" and
+    /// for "The blue paint is in the garage", each due at the capture minute
+    /// (2026-11-16; the ledger shows the same from 2026-09 on). Containment
+    /// cannot catch that: when the model quotes a real clause, the clause is in
+    /// the note. So the bar the prompt states ("the author explicitly asks to
+    /// be reminded, or states a clearly dated personal errand"; an event needs
+    /// "an explicit day AND time") is checked here against the text.
+    nonisolated struct NoteGrounds: Equatable, Sendable {
+        /// "remind me…", "remember to…", "don't forget…", "make sure to…",
+        /// "set a reminder…".
+        var asksForReminder = false
+        /// A day `HandoffDateParser` can read: today, tomorrow, a weekday, a month and day.
+        var statesDay = false
+        /// A time `HandoffDateParser` can read: "9am", "1:10", "at 2".
+        var statesTime = false
+
+        var allowsReminder: Bool { asksForReminder || statesDay || statesTime }
+        var allowsEvent: Bool { statesDay && statesTime }
+    }
+
+    /// The deterministic triggers (`HandoffDetector`) plus the forms the
+    /// prompt names that they miss ("remind me at 5 to…", "set a reminder…").
+    /// Curly and straight apostrophes both, because Siri emits curly.
+    private nonisolated static let reminderAsk = try! NSRegularExpression(
+        pattern: #"\b(?:remind me|remember to|don(?:'|’)t forget|make sure to|(?:set|add|create|make)\s+(?:me\s+)?a\s+reminder)\b"#,
+        options: [.caseInsensitive]
+    )
+
+    /// Scans the whole note, sentence by sentence. The day and the time may sit
+    /// in different sentences ("Call them tomorrow. They open at 8:30.").
+    nonisolated static func noteGrounds(in rawText: String, capturedAt: Date, timeZone: TimeZone) -> NoteGrounds {
+        var grounds = NoteGrounds()
+        let full = NSRange(location: 0, length: (rawText as NSString).length)
+        grounds.asksForReminder = reminderAsk.firstMatch(in: rawText, range: full) != nil
+        for sentence in HandoffDetector.clauses(of: rawText) {
+            guard let resolved = HandoffDateParser.parse(in: sentence, reference: capturedAt, timeZone: timeZone) else {
+                continue
+            }
+            if resolved.hasExplicitDay { grounds.statesDay = true }
+            if resolved.hasTime { grounds.statesTime = true }
+        }
+        return grounds
+    }
+
+    /// Nobody asks to be reminded in the past. A due time at or before the
+    /// capture, or a due day before the capture day, did not come from the
+    /// note: the model copied the "Captured:" stamp or made a date up. The
+    /// reminder is kept without a date.
+    nonisolated static func notBeforeCapture(
+        _ due: HandoffDateParser.Resolved,
+        capturedAt: Date,
+        calendar: Calendar
+    ) -> HandoffDateParser.Resolved? {
+        if due.hasTime {
+            return due.date > capturedAt ? due : nil
+        }
+        return due.date >= calendar.startOfDay(for: capturedAt) ? due : nil
     }
 
     // MARK: - Date materialization

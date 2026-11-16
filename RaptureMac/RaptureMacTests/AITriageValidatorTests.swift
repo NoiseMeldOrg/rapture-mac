@@ -219,6 +219,211 @@ final class AITriageValidatorTests: XCTestCase {
         XCTAssertTrue(output.handoffsInvalidated)
     }
 
+    // MARK: - Handoffs: grounds in the note
+
+    /// The capture instant's own date parts: what a model returns when it
+    /// copies the "Captured:" stamp and does not read a date from the note.
+    private var captureStamp: (year: Int, month: Int, day: Int, hour: Int, minute: Int) {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = zone
+        let c = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: capturedAt)
+        return (c.year!, c.month!, c.day!, c.hour!, c.minute!)
+    }
+
+    private func reminderDraft(
+        title: String, clause: String,
+        year: Int? = nil, month: Int? = nil, day: Int? = nil, hour: Int? = nil, minute: Int? = nil
+    ) -> AIEngineDraft {
+        AIEngineDraft(handoffs: [
+            .init(kind: "reminder", title: title, clause: clause,
+                  year: year, month: month, day: day, hour: hour, minute: minute)
+        ])
+    }
+
+    func testReminderForANoteThatAsksForNothingIsDiscarded() {
+        // The 2026-11-16 incident. The note was the one word "Test". The
+        // model returned a reminder "Test", quoted "Test" as its clause (so
+        // containment passed), and copied the capture stamp as the due time.
+        let s = captureStamp
+        let draft = reminderDraft(
+            title: "Test", clause: "Test",
+            year: s.year, month: s.month, day: s.day, hour: s.hour, minute: s.minute
+        )
+        let output = validate(draft, rawText: "Test")
+        XCTAssertTrue(output.handoffs.isEmpty)
+        XCTAssertTrue(output.handoffsInvalidated)
+        // End to end: the deterministic detector takes over and finds nothing.
+        let detected = HandoffManager.candidates(text: "Test", capturedAt: capturedAt, timeZone: zone, ai: output)
+        XCTAssertTrue(detected.isEmpty)
+    }
+
+    func testReminderForAPlainStatementIsDiscarded() {
+        // From the handoff ledger, 2026-09 to 2026-11: statements, video
+        // titles and plain to-dos that the model turned into reminders. A
+        // to-do with no ask and no date is a task. It files in Tasks/.
+        let cases: [(note: String, title: String)] = [
+            ("The blue paint is in the garage", "Fix the blue paint in the garage"),
+            ("I just saw a good movie about a Mercy Me thing, but it was good", "Movie watching"),
+            ("This AI business only needs one client (to make you $1M)", "Investigate AI business"),
+            ("I spoke with Deb about the messaging side", "Remind me to speak with Deb"),
+            ("https://youtube.com/watch?v=nxGuApt1zhI&is=tqEXbnhX97eY1mbe", "Watch the tutorial"),
+            ("Buy milk", "Buy milk"),
+        ]
+        let s = captureStamp
+        for item in cases {
+            let dated = reminderDraft(
+                title: item.title, clause: item.note,
+                year: s.year, month: s.month, day: s.day, hour: s.hour, minute: s.minute
+            )
+            XCTAssertTrue(validate(dated, rawText: item.note).handoffs.isEmpty, item.note)
+            let dateless = reminderDraft(title: item.title, clause: item.note)
+            let output = validate(dateless, rawText: item.note)
+            XCTAssertTrue(output.handoffs.isEmpty, item.note)
+            XCTAssertTrue(output.handoffsInvalidated, item.note)
+        }
+    }
+
+    func testAnAskToBeRemindedKeepsTheReminder() {
+        let notes = [
+            "remind me to call mom",
+            "Remind me at 5 to call mom",
+            "okay so remember to call mom",
+            "don't forget the milk",
+            "Don’t forget the milk",
+            "make sure to call mom",
+            "set a reminder to call mom",
+            "Add me a reminder for the dentist",
+        ]
+        for note in notes {
+            let output = validate(reminderDraft(title: "Call mom", clause: note), rawText: note)
+            XCTAssertEqual(output.handoffs.count, 1, note)
+            XCTAssertFalse(output.handoffsInvalidated, note)
+        }
+    }
+
+    func testADatedErrandWithNoAskKeepsTheReminder() {
+        let notes = [
+            "send Priya the updated screenshots by Wednesday",
+            "pay the electric bill tomorrow",
+            "return the drill March 3rd",
+            "call John at 2",
+            "go to Jason's at 4:30 today to get the prints",
+        ]
+        for note in notes {
+            let output = validate(reminderDraft(title: "Do the errand", clause: note), rawText: note)
+            XCTAssertEqual(output.handoffs.count, 1, note)
+        }
+    }
+
+    func testDueCopiedFromTheCaptureStampIsDropped() {
+        // The ask is real, the date is not: the note states no date.
+        let s = captureStamp
+        let draft = reminderDraft(
+            title: "Call mom", clause: "remind me to call mom",
+            year: s.year, month: s.month, day: s.day, hour: s.hour, minute: s.minute
+        )
+        let output = validate(draft, rawText: "remind me to call mom")
+        guard case .reminder(let title, let due)? = output.handoffs.first?.candidate else {
+            return XCTFail("expected reminder")
+        }
+        XCTAssertEqual(title, "Call mom")
+        XCTAssertNil(due)
+    }
+
+    func testDueBeforeTheCaptureIsDropped() {
+        // Captured 2027-01-15 03:00 in New York.
+        let s = captureStamp
+        let earlierThatDay = reminderDraft(
+            title: "Call mom", clause: "remind me to call mom",
+            year: s.year, month: s.month, day: s.day, hour: 0, minute: 0
+        )
+        let theDayBefore = reminderDraft(
+            title: "Call mom", clause: "remind me to call mom",
+            year: s.year, month: s.month, day: s.day - 1
+        )
+        for draft in [earlierThatDay, theDayBefore] {
+            guard case .reminder(_, let due)? = validate(draft, rawText: "remind me to call mom").handoffs.first?.candidate else {
+                return XCTFail("expected reminder")
+            }
+            XCTAssertNil(due)
+        }
+        // Later the same day is a real due time and stays.
+        let laterThatDay = reminderDraft(
+            title: "Call mom", clause: "remind me to call mom",
+            year: s.year, month: s.month, day: s.day, hour: 17, minute: 0
+        )
+        guard case .reminder(_, let due)? = validate(laterThatDay, rawText: "remind me to call mom").handoffs.first?.candidate else {
+            return XCTFail("expected reminder")
+        }
+        XCTAssertEqual(due?.hasTime, true)
+    }
+
+    func testEventNeedsADayAndATimeInTheNote() {
+        // From the ledger: "book the room for the Thursday review" became a
+        // calendar event at midnight. The note states a day and no time.
+        let cases: [(note: String, day: Int, hour: Int, minute: Int)] = [
+            ("book the room for the Thursday review", 21, 0, 0),
+            ("dentist tomorrow", 16, 9, 0),
+            ("lunch with Sam at 1:10", 15, 13, 10),
+            ("Test", 15, 3, 0),
+        ]
+        for item in cases {
+            let draft = AIEngineDraft(handoffs: [
+                .init(kind: "event", title: "Event", clause: item.note,
+                      year: 2027, month: 1, day: item.day, hour: item.hour, minute: item.minute)
+            ])
+            let output = validate(draft, rawText: item.note)
+            XCTAssertTrue(output.handoffs.isEmpty, item.note)
+            XCTAssertTrue(output.handoffsInvalidated, item.note)
+        }
+    }
+
+    func testEventDayAndTimeMayBeInDifferentSentences() {
+        let note = "Call them tomorrow. They open at 8:30."
+        let draft = AIEngineDraft(handoffs: [
+            .init(kind: "event", title: "Call the dentist", clause: "Call them tomorrow",
+                  year: 2027, month: 1, day: 16, hour: 8, minute: 30)
+        ])
+        let output = validate(draft, rawText: note)
+        guard case .event(let title, _)? = output.handoffs.first?.candidate else {
+            return XCTFail("expected event")
+        }
+        XCTAssertEqual(title, "Call the dentist")
+    }
+
+    func testHandoffTitledWithThePromptExampleIsDiscarded() {
+        // From the ledger: a reminder "Fix the garage door sensor" for a note
+        // that was a link. The model echoed the prompt's example title.
+        let note = "remind me to look at this tomorrow"
+        let draft = reminderDraft(title: AITriagePrompt.exampleTaskTitle.lowercased(), clause: note)
+        let output = validate(draft, rawText: note)
+        XCTAssertTrue(output.handoffs.isEmpty)
+        XCTAssertTrue(output.handoffsInvalidated)
+    }
+
+    func testNoteGrounds() {
+        let cases: [(note: String, asks: Bool, day: Bool, time: Bool)] = [
+            ("Test", false, false, false),
+            ("The blue paint is in the garage", false, false, false),
+            ("I reminded him about the invoice", false, false, false),
+            ("https://youtube.com/watch?v=nxGuApt1zhI&is=tqEXbnhX97eY1mbe", false, false, false),
+            ("remind me to call mom", true, false, false),
+            ("Don’t forget the milk", true, false, false),
+            ("call John tomorrow", false, true, false),
+            ("call John at 2", false, false, true),
+            ("remind me to call John tomorrow at 2", true, true, true),
+            ("Call them tomorrow. They open at 8:30.", false, true, true),
+        ]
+        for item in cases {
+            let grounds = AITriageValidator.noteGrounds(in: item.note, capturedAt: capturedAt, timeZone: zone)
+            XCTAssertEqual(grounds.asksForReminder, item.asks, item.note)
+            XCTAssertEqual(grounds.statesDay, item.day, item.note)
+            XCTAssertEqual(grounds.statesTime, item.time, item.note)
+            XCTAssertEqual(grounds.allowsReminder, item.asks || item.day || item.time, item.note)
+            XCTAssertEqual(grounds.allowsEvent, item.day && item.time, item.note)
+        }
+    }
+
     // MARK: - Handoffs: cap
 
     func testCapsAtOneReminderAndOneEventFirstWins() {

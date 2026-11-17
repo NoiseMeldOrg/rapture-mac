@@ -4,9 +4,23 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+## [1.0.147] - 2026-11-17: AI triage no longer makes reminders you did not ask for
+
+Built from commit `6864e89`. SHA-256: `4d0002f0ad3d0f899e66458d9af4a1808bae6d0619333e61d3ef2a1a7c129462`.
+
+One fix to AI triage. 953 tests.
+
 ### Fixed
 
 - **AI triage made reminders nobody asked for.** With AI triage and Reminders handoff both on, a note such as "Test" or "The blue paint is in the garage" could become a reminder, due at the minute the note was captured. The model proposed it, and the app checked only that the model's quoted words were in the note. The app now reads the note itself. A reminder needs an ask ("remind me to…", "remember to…", "don't forget…", "make sure to…", "set a reminder…") or a day or time in the note ("tomorrow", "Wednesday", "March 3", "at 2"). A calendar event needs both a day and a time in the note. A due date before the capture is dropped, and the reminder is kept without a date. A plain to-do with no ask and no date, such as "buy milk", still files as a task and makes no reminder.
+
+Reminders that the app made before this version stay in your Reminders app. The app does not remove them.
+
+No new network use: the network check in PRIVACY.md still returns exactly the three documented files.
+
+### Internal
+
+- **The verify skill records the live Debug launch test (developer-facing).** On 2026-11-16 a Debug build ran beside the installed app, and the installed app kept its Full Disk Access. The skill now says how to check the Debug copy's bundle identifier, how to stop only the Debug copy, and how to read the answers in the system privacy log.
 
 ## [1.0.144] - 2026-11-16: You choose the folder for YouTube transcripts
 

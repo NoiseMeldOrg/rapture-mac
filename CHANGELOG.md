@@ -4,6 +4,10 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+### Fixed
+
+- **A note with the same words as an older note was dropped.** The duplicate guard for iMessage notes remembered the words of each note for 90 days. A new note with the same words filed nothing and got no reply, for example "Test" one day after "Test". The guard now also compares the send time. iCloud delivers a copy with the send time of the first note, so a copy is still dropped. A note that you send again later has a new send time, so the app saves it and replies. The same words sent two times inside one minute still file one time. Each dropped copy now writes one line to the system log.
+
 ## [1.0.147] - 2026-11-17: AI triage no longer makes reminders you did not ask for
 
 Built from commit `6864e89`. SHA-256: `4d0002f0ad3d0f899e66458d9af4a1808bae6d0619333e61d3ef2a1a7c129462`.

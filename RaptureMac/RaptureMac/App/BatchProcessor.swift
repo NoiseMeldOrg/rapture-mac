@@ -335,9 +335,12 @@ final class BatchProcessor {
                 if contentDedupCache.contains(
                     handle: handleForDedup,
                     text: captured.decodedText,
-                    attachmentCount: captured.event.attachments.count
+                    attachmentCount: captured.event.attachments.count,
+                    sentAt: captured.event.dateUTC
                 ) {
-                    Self.log.debug("content-dedup suppressed rowid=\(event.rowid)")
+                    // Notice, not debug: a dropped row files nothing and sends no
+                    // reply, so this line is the only record of it.
+                    Self.log.notice("content-dedup suppressed rowid=\(event.rowid): same words and send time as an earlier capture")
                     resolve(event)
                     advance(event.rowid)
                     outcome.droppedCount += 1
@@ -389,7 +392,8 @@ final class BatchProcessor {
                     contentDedupCache.track(
                         handle: handleForDedup,
                         text: captured.decodedText,
-                        attachmentCount: captured.event.attachments.count
+                        attachmentCount: captured.event.attachments.count,
+                        sentAt: captured.event.dateUTC
                     )
                     if !result.failedAttachments.isEmpty {
                         attachmentMissing(url: url, captured: captured, failedSourcePaths: result.failedAttachments, source: .iMessage)
@@ -487,7 +491,8 @@ final class BatchProcessor {
             contentDedupCache.track(
                 handle: handleForDedup,
                 text: captured.decodedText,
-                attachmentCount: captured.event.attachments.count
+                attachmentCount: captured.event.attachments.count,
+                sentAt: captured.event.dateUTC
             )
             queueReply { [replier] in
                 await replier.replyForSpooled(

@@ -264,4 +264,61 @@ final class BatchProcessorRetryTests: XCTestCase {
         XCTAssertEqual(later.droppedCount, 1, "after the grace the allowlist alone decides")
         XCTAssertEqual(appState.state.state.chatDbWatermark, 2)
     }
+
+    // MARK: - Same words: a replay or a new note
+
+    private func event(_ rowid: Int64, _ text: String, sentAt: Date) -> MessageEvent {
+        let appleSeconds = sentAt.timeIntervalSince1970 - MessageEvent.appleEpochOffsetSeconds
+        return MessageEvent(
+            rowid: rowid, guid: "guid-\(rowid)", text: text, attributedBody: nil,
+            dateAppleNs: Int64(appleSeconds * 1_000_000_000), isFromMe: false, cacheHasAttachments: false,
+            service: "iMessage", handleId: "+15555550100", chatGuid: "iMessage;-;chat-self",
+            chatStyle: 45, attachments: []
+        )
+    }
+
+    /// 2026-11-17: "Test" sent one day after "Test" filed nothing and got no
+    /// reply. The same words with a new send time are a new note.
+    func testSameWordsSentTheNextDayFileAgain() async {
+        let appState = makeAppState()
+        let writer = ScriptedWriter(output: output)
+        writer.failing = false
+        let sender = FakeSender()
+        let processor = makeProcessor(appState: appState, writer: writer, sender: sender, clock: Clock())
+        let firstSend = Date(timeIntervalSince1970: 1_794_849_121)
+
+        let first = await processor.process(batch: [event(5, "Test", sentAt: firstSend)])
+        XCTAssertEqual(first.successCount, 1)
+
+        let nextDay = await processor.process(
+            batch: [event(6, "Test", sentAt: firstSend.addingTimeInterval(20 * 60 * 60))])
+        XCTAssertEqual(nextDay.successCount, 1, "a new note, not a replay")
+        XCTAssertEqual(nextDay.droppedCount, 0)
+        XCTAssertEqual(writer.writtenRowids, [5, 6])
+        XCTAssertEqual(sender.sent, ["✅ Saved", "✅ Saved"])
+        XCTAssertEqual(appState.state.state.chatDbWatermark, 6)
+        XCTAssertEqual(appState.state.state.recentCaptureHashes.count, 2, "one entry for each note")
+    }
+
+    /// The case the guard exists for: iCloud delivers the note again, with a
+    /// new guid and the send time of the original.
+    func testAReplayWithTheSendTimeOfTheOriginalIsDropped() async {
+        let appState = makeAppState()
+        let writer = ScriptedWriter(output: output)
+        writer.failing = false
+        let sender = FakeSender()
+        let processor = makeProcessor(appState: appState, writer: writer, sender: sender, clock: Clock())
+        let sentAt = Date(timeIntervalSince1970: 1_790_083_873)
+
+        _ = await processor.process(batch: [event(5, "FigJam online app", sentAt: sentAt)])
+        let replay = await processor.process(
+            batch: [event(9, "FigJam online app", sentAt: sentAt.addingTimeInterval(1))])
+
+        XCTAssertEqual(replay.droppedCount, 1)
+        XCTAssertEqual(replay.successCount, 0)
+        XCTAssertEqual(writer.writtenRowids, [5], "no second file")
+        XCTAssertEqual(sender.sent, ["✅ Saved"], "no second reply")
+        XCTAssertEqual(appState.state.state.chatDbWatermark, 9, "the dropped row does not hold the watermark")
+        XCTAssertEqual(appState.state.state.recentCaptureHashes.count, 1)
+    }
 }

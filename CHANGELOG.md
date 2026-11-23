@@ -4,7 +4,11 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
-Link enrichment now reads public Facebook, Instagram, Threads and X posts, and Facebook and X videos can be transcribed.
+## [1.0.153] - 2026-11-23: Facebook, Instagram, Threads and X posts are now read
+
+Built from commit `5a2c859`. SHA-256: `761389a509fd83bc821dc91c3b84ba855907af83dedc33585591271680bf8595`.
+
+Link enrichment now reads public Facebook, Instagram, Threads and X posts, and Facebook and X videos can be transcribed. 1091 tests.
 
 ### Added
 

@@ -22,10 +22,14 @@ struct LinkNoteEcho: Sendable, Equatable {
 
 /// What a successful fetch produced: the real title (for the rename; nil keeps
 /// the deterministic name) and the artifact body (plain-paragraph transcript /
-/// extracted article text).
-struct FetchedLinkContent: Sendable, Equatable {
+/// extracted article text / social post text).
+nonisolated struct FetchedLinkContent: Sendable, Equatable {
     var title: String?
     var bodyMarkdown: String
+    /// A social post that carries a video (see `SocialPost`). Always false for
+    /// YouTube and ordinary articles. Decides whether the transcript hand-off
+    /// is offered; it never changes the artifact.
+    var isVideo: Bool = false
 }
 
 /// Typed fetch failures. The transport/content split drives the retry policy:

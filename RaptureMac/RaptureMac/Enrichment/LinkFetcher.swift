@@ -9,4 +9,8 @@ protocol LinkFetching: AnyObject, Sendable {
     func fetchYouTube(videoID: String) async throws -> FetchedLinkContent
     /// Real title (og:title/<title>) + readability-style text extraction.
     func fetchArticle(url: URL) async throws -> FetchedLinkContent
+    /// A public Facebook, Instagram, Threads or X post: the post text (first
+    /// line as the title) and whether it carries a video. A login wall, a
+    /// private or removed post, or empty text throws `.unusableContent`.
+    func fetchSocialPost(url: URL, platform: SocialPost.Platform) async throws -> FetchedLinkContent
 }

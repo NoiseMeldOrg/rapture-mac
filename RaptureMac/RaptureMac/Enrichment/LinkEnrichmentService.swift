@@ -163,13 +163,13 @@ final class LinkEnrichmentService: LinkEnriching {
                 let fetchError = Self.asFetchError(error)
                 guard fetchError.isTransport else {
                     // Content-class: a retry can't fix it. Give up quietly.
-                    giveUp(job: job, transport: false, message: Self.giveUpMessage(for: job.echo.type))
+                    giveUp(job: job, transport: false, message: Self.giveUpMessage(for: job.echo))
                     return
                 }
                 let attempts = queue[0].attempts + 1
                 queue[0].attempts = attempts
                 if attempts >= Self.maxAttempts {
-                    giveUp(job: job, transport: true, message: Self.giveUpMessage(for: job.echo.type))
+                    giveUp(job: job, transport: true, message: Self.giveUpMessage(for: job.echo))
                     return
                 }
                 await sleeper(retrySpacing[min(attempts - 1, retrySpacing.count - 1)])
@@ -212,10 +212,32 @@ final class LinkEnrichmentService: LinkEnriching {
         if !queue.isEmpty { queue.removeFirst() }
     }
 
-    private nonisolated static func giveUpMessage(for type: CaptureType) -> String {
-        type == .youtubeLink
-            ? "Couldn't fetch the transcript for the last YouTube link — the note filed normally"
-            : "Couldn't fetch the last article link — the note filed normally"
+    private nonisolated static func giveUpMessage(for echo: LinkNoteEcho) -> String {
+        if echo.type == .youtubeLink {
+            return "Couldn't fetch the transcript for the last YouTube link — the note filed normally"
+        }
+        if socialPlatform(rawMedia: echo.rawMedia) != nil {
+            return "Couldn't read the last social post link (it may be private or removed). The note filed normally."
+        }
+        return "Couldn't fetch the last article link — the note filed normally"
+    }
+
+    /// The social platform a link points at, if any. Recognized by host in this
+    /// layer only: the capture type stays `.articleLink` for these links.
+    private nonisolated static func socialPlatform(rawMedia: String) -> SocialPost.Platform? {
+        URL(string: rawMedia).flatMap(SocialPost.platform(for:))
+    }
+
+    /// Whether the transcript hand-off is offered for a link that just finished
+    /// enriching. YouTube always is (the dispatcher filters by fingerprint). A
+    /// Facebook or X post only when it carries a video. Instagram and Threads
+    /// posts never: the pipeline cannot read their videos without a browser
+    /// login, so each hand-off would waste a session. Any other link still
+    /// reaches the seam, where the dispatcher ignores it.
+    nonisolated static func offersTranscript(rawMedia: String, type: CaptureType, isVideo: Bool) -> Bool {
+        if type == .youtubeLink { return true }
+        guard let platform = socialPlatform(rawMedia: rawMedia) else { return true }
+        return platform.canTranscribeVideo && isVideo
     }
 
     private nonisolated static func fetch(echo: LinkNoteEcho, fetcher: any LinkFetching) async throws -> FetchedLinkContent {
@@ -226,6 +248,9 @@ final class LinkEnrichmentService: LinkEnriching {
             return try await fetcher.fetchYouTube(videoID: videoID)
         default:
             guard let url = URL(string: echo.rawMedia) else { throw LinkFetchError.unusableContent }
+            if let platform = SocialPost.platform(for: url) {
+                return try await fetcher.fetchSocialPost(url: url, platform: platform)
+            }
             return try await fetcher.fetchArticle(url: url)
         }
     }
@@ -288,7 +313,8 @@ final class LinkEnrichmentService: LinkEnriching {
                         artifactFilename: artifactURL.lastPathComponent)
                     if firstFinalPath == nil { firstFinalPath = finalPath }
                 }
-                if let firstFinalPath {
+                if let firstFinalPath,
+                   Self.offersTranscript(rawMedia: job.echo.rawMedia, type: job.echo.type, isVideo: entry.isVideo == true) {
                     transcriptDispatch?.captureEnriched(
                         fingerprint: job.fingerprint, url: job.echo.rawMedia,
                         noteRelativePath: firstFinalPath)
@@ -345,13 +371,17 @@ final class LinkEnrichmentService: LinkEnriching {
                 ledger.record(
                     fingerprint: job.fingerprint,
                     artifactRelativePath: CaptureContract.relativePath(of: artifactURL, in: folder),
-                    title: title ?? ""
+                    title: title ?? "",
+                    isVideo: fetched.isVideo
                 )
                 if let first = appendTargets.first {
                     appState.activity.record(
                         .enriched, source: .app,
                         "Link details saved: \(title ?? artifactURL.deletingPathExtension().lastPathComponent)",
                         path: folder.appendingPathComponent(first.relativePath))
+                }
+                if let first = appendTargets.first,
+                   Self.offersTranscript(rawMedia: job.echo.rawMedia, type: job.echo.type, isVideo: fetched.isVideo) {
                     transcriptDispatch?.captureEnriched(
                         fingerprint: job.fingerprint, url: job.echo.rawMedia,
                         noteRelativePath: first.relativePath)
@@ -364,7 +394,14 @@ final class LinkEnrichmentService: LinkEnriching {
     /// `YYYY-MM-DD <Title>` like every note; date from the capture that
     /// triggered the fetch.
     private func artifactFilenameBase(title: String?, job: Job) -> String {
-        let fallback = job.echo.type == .youtubeLink ? "YouTube Transcript" : "Article"
+        let fallback: String
+        if job.echo.type == .youtubeLink {
+            fallback = "YouTube Transcript"
+        } else if Self.socialPlatform(rawMedia: job.echo.rawMedia) != nil {
+            fallback = "Social Post"
+        } else {
+            fallback = "Article"
+        }
         return CaptureContract.filenameBase(title: title ?? fallback, capturedAt: job.echo.capturedAt)
     }
 

@@ -18,13 +18,14 @@ final class FakeLinkFetcher: LinkFetching {
     var behavior: Behavior
     private(set) var youTubeCalls: [String] = []
     private(set) var articleCalls: [URL] = []
+    private(set) var socialCalls: [(url: URL, platform: SocialPost.Platform)] = []
     private var scriptIndex = 0
 
     init(behavior: Behavior = .content(FetchedLinkContent(title: "Fetched Title", bodyMarkdown: "Fetched body."))) {
         self.behavior = behavior
     }
 
-    var totalCalls: Int { youTubeCalls.count + articleCalls.count }
+    var totalCalls: Int { youTubeCalls.count + articleCalls.count + socialCalls.count }
 
     func fetchYouTube(videoID: String) async throws -> FetchedLinkContent {
         youTubeCalls.append(videoID)
@@ -33,6 +34,11 @@ final class FakeLinkFetcher: LinkFetching {
 
     func fetchArticle(url: URL) async throws -> FetchedLinkContent {
         articleCalls.append(url)
+        return try await run(next())
+    }
+
+    func fetchSocialPost(url: URL, platform: SocialPost.Platform) async throws -> FetchedLinkContent {
+        socialCalls.append((url, platform))
         return try await run(next())
     }
 

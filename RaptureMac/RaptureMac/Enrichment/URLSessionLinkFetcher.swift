@@ -7,6 +7,10 @@ import OSLog
 /// user turned link enrichment on and a link capture just filed. Front-guarded
 /// on XCTest so the hosted test suite can never reach the network. Only the
 /// captured URL (and, for YouTube, its video ID) is ever sent — never note text.
+/// Social posts add two X hosts (`cdn.syndication.twimg.com`,
+/// `publish.twitter.com`) and, for Facebook, Instagram and Threads, a request
+/// that uses Meta's link-preview crawler user agent. All of it lives in this
+/// file so PRIVACY.md's grep claim stays true.
 @MainActor
 final class URLSessionLinkFetcher: LinkFetching {
     nonisolated static let log = Logger(subsystem: "noisemeld.RaptureMac", category: "URLSessionLinkFetcher")
@@ -106,6 +110,91 @@ final class URLSessionLinkFetcher: LinkFetching {
         }.value
         guard let body = extracted.body else { throw LinkFetchError.unusableContent }
         return FetchedLinkContent(title: extracted.title, bodyMarkdown: body)
+    }
+
+    // MARK: - Social posts
+
+    func fetchSocialPost(url: URL, platform: SocialPost.Platform) async throws -> FetchedLinkContent {
+        guard !ProcessInfo.processInfo.isRunningXCTests else { throw LinkFetchError.unavailable }
+        guard LinkFetchPolicy.isFetchable(url) else { throw LinkFetchError.blockedURL }
+
+        switch platform {
+        case .x:
+            return try await fetchXPost(url: url)
+        case .facebook, .instagram, .threads:
+            return try await fetchMetaPost(url: url, platform: platform)
+        }
+    }
+
+    /// Facebook, Instagram and Threads show a logged-out browser an empty page
+    /// but show Meta's own link-preview crawler the full page, so this one
+    /// request identifies itself the way that crawler does (PRIVACY.md says so).
+    /// Only the captured URL is sent.
+    private func fetchMetaPost(url: URL, platform: SocialPost.Platform) async throws -> FetchedLinkContent {
+        var request = makeRequest(url)
+        request.setValue(SocialPost.crawlerUserAgent, forHTTPHeaderField: "User-Agent")
+        let (data, response) = try await send(request)
+        try Self.checkSize(data)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 200 else { throw Self.socialStatusError(status) }
+
+        let html = Self.decodeBody(data, textEncodingName: response.textEncodingName)
+        let finalURL = response.url
+        // A ~460 KB page; the tag scan must not run on the main actor.
+        let post = await Task.detached(priority: .utility) {
+            SocialPost.post(fromMetaHTML: html, platform: platform, requestURL: url, finalURL: finalURL)
+        }.value
+        guard let post else { throw LinkFetchError.unusableContent }
+        return post
+    }
+
+    /// X serves the post text from its public embed feed with no login; oEmbed
+    /// is the fallback. Two requests at most (both inside the service's
+    /// attempt ceiling). A transport failure on either is worth a retry; a
+    /// post both feeds refuse is private or removed, which no retry fixes.
+    private func fetchXPost(url: URL) async throws -> FetchedLinkContent {
+        guard let tweetID = SocialPost.tweetID(from: url) else { throw LinkFetchError.unusableContent }
+        var transportFailure: LinkFetchError?
+
+        if let syndication = SocialPost.syndicationURL(tweetID: tweetID), LinkFetchPolicy.isFetchable(syndication) {
+            do {
+                let (data, status) = try await get(syndication)
+                if status == 200 {
+                    let post = await Task.detached(priority: .utility) { SocialPost.post(fromSyndicationJSON: data) }.value
+                    if let post { return post }
+                } else if Self.isTransientStatus(status) {
+                    transportFailure = .http(status)
+                }
+            } catch {
+                if let fetchError = error as? LinkFetchError, fetchError.isTransport { transportFailure = fetchError }
+            }
+        }
+
+        if let oEmbed = SocialPost.oEmbedURL(forPostURL: url), LinkFetchPolicy.isFetchable(oEmbed) {
+            do {
+                let (data, status) = try await get(oEmbed)
+                if status == 200 {
+                    let post = await Task.detached(priority: .utility) { SocialPost.post(fromOEmbedJSON: data) }.value
+                    if let post { return post }
+                } else if Self.isTransientStatus(status) {
+                    transportFailure = .http(status)
+                }
+            } catch {
+                if let fetchError = error as? LinkFetchError, fetchError.isTransport { transportFailure = fetchError }
+            }
+        }
+
+        throw transportFailure ?? LinkFetchError.unusableContent
+    }
+
+    /// Server trouble and rate limits retry; any other non-200 on a post is
+    /// "private or removed", content-class.
+    private nonisolated static func isTransientStatus(_ status: Int) -> Bool {
+        status == 429 || (500...599).contains(status)
+    }
+
+    private nonisolated static func socialStatusError(_ status: Int) -> LinkFetchError {
+        isTransientStatus(status) ? .http(status) : .unusableContent
     }
 
     // MARK: - Transport

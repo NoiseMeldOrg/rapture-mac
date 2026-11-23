@@ -68,4 +68,42 @@ final class EnrichedLinkLedgerTests: XCTestCase {
         let reloaded = StateStore(directory: dir)
         XCTAssertEqual(EnrichedLinkLedger(stateStore: reloaded).entry(fingerprint: "yt:abc")?.title, "T")
     }
+
+    // MARK: - Video flag (social posts)
+
+    func testVideoFlagIsRecordedOnlyWhenTrue() {
+        let video = EnrichedLinkLedger.appendEntry(
+            into: [], fingerprint: "url:https://www.facebook.com/reel/1", artifactRelativePath: "Links/Media/V.md",
+            title: "V", isVideo: true, now: now)
+        XCTAssertEqual(video.first?.isVideo, true)
+
+        let plain = EnrichedLinkLedger.appendEntry(
+            into: [], fingerprint: "yt:abc", artifactRelativePath: "Links/Media/T.md", title: "T", now: now)
+        XCTAssertNil(plain.first?.isVideo, "YouTube and plain articles never carry the flag")
+
+        let notVideo = EnrichedLinkLedger.appendEntry(
+            into: [], fingerprint: "url:https://www.facebook.com/somepage/posts/1", artifactRelativePath: "Links/Media/P.md",
+            title: "P", isVideo: false, now: now)
+        XCTAssertNil(notVideo.first?.isVideo)
+    }
+
+    func testRefreshReplacesTheVideoFlag() {
+        let first = EnrichedLinkLedger.appendEntry(
+            into: [], fingerprint: "url:https://x.com/a/status/1", artifactRelativePath: "Links/Media/A.md",
+            title: "A", isVideo: true, now: now)
+        let second = EnrichedLinkLedger.appendEntry(
+            into: first, fingerprint: "url:https://x.com/a/status/1", artifactRelativePath: "Links/Media/A2.md",
+            title: "A", isVideo: false, now: now)
+        XCTAssertEqual(second.count, 1)
+        XCTAssertNil(second.first?.isVideo)
+    }
+
+    func testRemapKeepsTheVideoFlag() {
+        let video = EnrichedLinkEntry(
+            fingerprint: "url:https://www.facebook.com/reel/1", artifactRelativePath: "Links/Media/V.md",
+            title: "V", fetchedAt: now, isVideo: true)
+        let moved = EnrichedLinkLedger.remapped([video], renamedNotes: ["Links/Media/V.md": "Links/Media/V-1.md"])
+        XCTAssertEqual(moved.first?.artifactRelativePath, "Links/Media/V-1.md")
+        XCTAssertEqual(moved.first?.isVideo, true)
+    }
 }

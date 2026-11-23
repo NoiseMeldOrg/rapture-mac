@@ -14,4 +14,9 @@ struct EnrichedLinkEntry: Codable, Sendable, Equatable {
     /// without a second fetch.
     let title: String
     let fetchedAt: Date
+    /// True when the link was a social post that carries a video (Facebook or
+    /// X), so a re-captured link can still offer the transcript hand-off
+    /// without a second fetch. Absent (nil) on every entry written before this
+    /// field existed and on everything that is not a video post.
+    var isVideo: Bool? = nil
 }

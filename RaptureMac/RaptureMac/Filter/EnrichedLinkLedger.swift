@@ -25,7 +25,7 @@ final class EnrichedLinkLedger {
         self.clock = clock
     }
 
-    func record(fingerprint: String, artifactRelativePath: String, title: String) {
+    func record(fingerprint: String, artifactRelativePath: String, title: String, isVideo: Bool = false) {
         let now = clock()
         stateStore.update { state in
             state.enrichedLinkRecords = Self.appendEntry(
@@ -33,6 +33,7 @@ final class EnrichedLinkLedger {
                 fingerprint: fingerprint,
                 artifactRelativePath: artifactRelativePath,
                 title: title,
+                isVideo: isVideo,
                 now: now
             )
         }
@@ -59,6 +60,7 @@ final class EnrichedLinkLedger {
         fingerprint: String,
         artifactRelativePath: String,
         title: String,
+        isVideo: Bool = false,
         now: Date
     ) -> [EnrichedLinkEntry] {
         var kept = entries.filter { $0.fetchedAt.addingTimeInterval(ttl) > now }
@@ -69,7 +71,8 @@ final class EnrichedLinkLedger {
             fingerprint: fingerprint,
             artifactRelativePath: artifactRelativePath,
             title: title,
-            fetchedAt: now
+            fetchedAt: now,
+            isVideo: isVideo ? true : nil
         ))
         if kept.count > capacity {
             kept.removeFirst(kept.count - capacity)
@@ -98,7 +101,8 @@ final class EnrichedLinkLedger {
                 fingerprint: entry.fingerprint,
                 artifactRelativePath: newPath,
                 title: entry.title,
-                fetchedAt: entry.fetchedAt
+                fetchedAt: entry.fetchedAt,
+                isVideo: entry.isVideo
             )
         }
     }

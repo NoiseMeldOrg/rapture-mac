@@ -59,6 +59,12 @@ struct Settings: Codable, Sendable, Equatable {
     /// nothing until `transcriptPipelineFolder` is set AND link enrichment is
     /// on; the app itself adds no networking.
     var autoTranscribeYouTube: Bool
+    /// Same meaning for Facebook and X video posts: after one enriches, hand it
+    /// to the same locally installed Claude Code CLI to run the social post
+    /// transcript pipeline. On by default for the same reason: it does nothing
+    /// until `transcriptPipelineFolder` is set AND link enrichment is on.
+    /// Instagram and Threads videos are never handed off.
+    var autoTranscribeSocialVideos: Bool
     /// The folder the transcript session runs in (the user's own pipeline
     /// repo). A plain path; a leading `~` is expanded when it is read. Nil or
     /// blank = not set, which means auto-transcribe is off — a new install has
@@ -86,6 +92,7 @@ struct Settings: Codable, Sendable, Equatable {
         aiEnginePreference: AIEnginePreference = .appleFirst,
         claudeModel: ClaudeModel = .sonnet55,
         autoTranscribeYouTube: Bool = true,
+        autoTranscribeSocialVideos: Bool = true,
         transcriptPipelineFolder: String? = nil
     ) {
         self.outputFolder = outputFolder
@@ -107,13 +114,14 @@ struct Settings: Codable, Sendable, Equatable {
         self.aiEnginePreference = aiEnginePreference
         self.claudeModel = claudeModel
         self.autoTranscribeYouTube = autoTranscribeYouTube
+        self.autoTranscribeSocialVideos = autoTranscribeSocialVideos
         self.transcriptPipelineFolder = transcriptPipelineFolder
     }
 
     enum CodingKeys: String, CodingKey {
         case outputFolder, allowedHandles, allowSMS, launchAtLogin, paused, replyMode, seedScaffold, relayEnabled, triageMode
         case remindersHandoffEnabled, calendarHandoffEnabled, remindersListID, calendarID, aiTriageEnabled
-        case linkEnrichmentEnabled, vaultBackupWarningsEnabled, autoTranscribeYouTube
+        case linkEnrichmentEnabled, vaultBackupWarningsEnabled, autoTranscribeYouTube, autoTranscribeSocialVideos
         case transcriptPipelineFolder
         case aiEnginePreference, claudeModel
     }
@@ -152,6 +160,9 @@ struct Settings: Codable, Sendable, Equatable {
         // Absent in pre-existing settings.json → default on (opt-out, like relayEnabled:
         // a no-op until a pipeline folder is set and enrichment is on).
         autoTranscribeYouTube = try c.decodeIfPresent(Bool.self, forKey: .autoTranscribeYouTube) ?? true
+        // Absent → default on, for the same reason (a no-op until a pipeline folder is
+        // set and enrichment is on).
+        autoTranscribeSocialVideos = try c.decodeIfPresent(Bool.self, forKey: .autoTranscribeSocialVideos) ?? true
         // Absent → not set → auto-transcribe stays off. There is deliberately
         // no default path and no migration: the folder is the user's choice.
         transcriptPipelineFolder = try c.decodeIfPresent(String.self, forKey: .transcriptPipelineFolder)

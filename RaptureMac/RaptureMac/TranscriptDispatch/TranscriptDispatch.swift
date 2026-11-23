@@ -1,9 +1,10 @@
 import Foundation
 
 /// The post-enrichment dispatch seam. `LinkEnrichmentService` calls this the
-/// moment a YouTube capture finishes enriching; the implementation only
-/// enqueues (a ledger append — the `noteFiled` discipline) and never blocks,
-/// because the call happens inside the capture gate.
+/// moment a YouTube capture, or a Facebook or X video post, finishes
+/// enriching; the implementation only enqueues (a ledger append, the
+/// `noteFiled` discipline) and never blocks, because the call happens inside
+/// the capture gate.
 @MainActor
 protocol TranscriptDispatching: AnyObject {
     func captureEnriched(fingerprint: String, url: String, noteRelativePath: String)
@@ -33,8 +34,9 @@ enum TranscriptSessionError: Error, Equatable, Sendable {
 
 /// Pure, test-locked pieces of the dispatch contract. Rapture contains no
 /// pipeline logic — the transcript pipeline itself lives in the user's own
-/// pipeline folder (its AGENTS.md, "YouTube URL → Drive Transcript"); the app
-/// only points a Claude Code session at it.
+/// pipeline folder (its AGENTS.md, "YouTube URL → Drive Transcript" and
+/// "Social Post URL → Drive Transcript"); the app only points a Claude Code
+/// session at it.
 enum TranscriptDispatch {
     /// Where the pipeline folder stands right now. The folder comes only from
     /// `Settings.transcriptPipelineFolder` — the app ships publicly, so there
@@ -99,6 +101,33 @@ enum TranscriptDispatch {
         return "Transcript: [\(base)](<Media/\(transcriptFilename)>)"
     }
 
+    /// What a queued capture is: a YouTube video, or a Facebook or X video post.
+    /// Each has its own toggle (`autoTranscribeYouTube`, `autoTranscribeSocialVideos`).
+    enum Kind: Equatable, Sendable {
+        case youtube
+        case socialVideo
+    }
+
+    /// The kind of capture a fingerprint and URL describe, or nil when the
+    /// dispatcher must ignore it. YouTube is `yt:`. A social video is a `url:`
+    /// fingerprint on a Facebook or X host (Instagram and Threads videos are
+    /// never transcribed: the pipeline cannot read them without a browser
+    /// login). Whether a Facebook or X post really is a video is decided
+    /// upstream, by `LinkEnrichmentService`, before it calls the dispatcher.
+    nonisolated static func kind(fingerprint: String, url: String) -> Kind? {
+        if fingerprint.hasPrefix("yt:") { return .youtube }
+        guard fingerprint.hasPrefix("url:"),
+              let parsed = URL(string: url),
+              let platform = SocialPost.platform(for: parsed),
+              platform.canTranscribeVideo else { return nil }
+        return .socialVideo
+    }
+
+    /// The pipeline name in the first line of each prompt. These two names are
+    /// a contract with the pipeline folder's AGENTS.md; do not change them.
+    nonisolated static let youTubePipelineName = "YouTube URL → Drive Transcript"
+    nonisolated static let socialPostPipelineName = "Social Post URL → Drive Transcript"
+
     /// The fixed prompt handed to `claude -p`. Stability is the contract with
     /// the agent side — locked by an exact-string unit test. Both absolute
     /// paths are resolved at spawn time against the current output folder.
@@ -110,8 +139,56 @@ enum TranscriptDispatch {
         transcriptAbsolutePath: String,
         transcriptLine: String
     ) -> String {
+        composePrompt(
+            pipelineName: youTubePipelineName, url: url, noteAbsolutePath: noteAbsolutePath,
+            transcriptAbsolutePath: transcriptAbsolutePath, transcriptLine: transcriptLine)
+    }
+
+    /// The same prompt for a Facebook or X video post. Identical to `prompt`
+    /// except the first line, which names the social post pipeline. Also locked
+    /// by an exact-string unit test.
+    nonisolated static func socialPostPrompt(
+        url: String,
+        noteAbsolutePath: String,
+        transcriptAbsolutePath: String,
+        transcriptLine: String
+    ) -> String {
+        composePrompt(
+            pipelineName: socialPostPipelineName, url: url, noteAbsolutePath: noteAbsolutePath,
+            transcriptAbsolutePath: transcriptAbsolutePath, transcriptLine: transcriptLine)
+    }
+
+    /// The prompt to spawn a session with, chosen from the URL's host when the
+    /// session starts (so the ledger and `state.json` carry no extra field): the
+    /// social post prompt for a Facebook, Instagram, Threads or X link, the
+    /// YouTube prompt for everything else (including entries queued before the
+    /// social pipeline existed).
+    nonisolated static func pipelinePrompt(
+        forURL url: String,
+        noteAbsolutePath: String,
+        transcriptAbsolutePath: String,
+        transcriptLine: String
+    ) -> String {
+        let isSocial = URL(string: url).flatMap(SocialPost.platform(for:)) != nil
+        if isSocial {
+            return socialPostPrompt(
+                url: url, noteAbsolutePath: noteAbsolutePath,
+                transcriptAbsolutePath: transcriptAbsolutePath, transcriptLine: transcriptLine)
+        }
+        return prompt(
+            url: url, noteAbsolutePath: noteAbsolutePath,
+            transcriptAbsolutePath: transcriptAbsolutePath, transcriptLine: transcriptLine)
+    }
+
+    private nonisolated static func composePrompt(
+        pipelineName: String,
+        url: String,
+        noteAbsolutePath: String,
+        transcriptAbsolutePath: String,
+        transcriptLine: String
+    ) -> String {
         """
-        Run the "YouTube URL → Drive Transcript" pipeline defined in AGENTS.md on this URL: \(url)
+        Run the "\(pipelineName)" pipeline defined in AGENTS.md on this URL: \(url)
 
         Two overrides for this run: skip the ack reply and do not reply anywhere else, and do NOT create a Google Doc — write the full cleaned-up transcript as a Markdown file at \(transcriptAbsolutePath) instead.
 

@@ -1,10 +1,11 @@
 import Foundation
 import OSLog
 
-/// Dispatches enriched YouTube captures to the user's own local Claude Code
-/// CLI, which runs the transcript pipeline defined in the pipeline folder's
-/// AGENTS.md and appends the resulting transcript link to the source note.
-/// Rapture contains no pipeline logic — it only hands off.
+/// Dispatches enriched YouTube captures, and Facebook and X video posts, to
+/// the user's own local Claude Code CLI, which runs the transcript pipeline
+/// defined in the pipeline folder's AGENTS.md and appends the resulting
+/// transcript link to the source note. Rapture contains no pipeline logic; it
+/// only hands off.
 ///
 /// The pipeline folder is `Settings.transcriptPipelineFolder`, read fresh at
 /// every enqueue and every spawn, so a change in Settings applies with no
@@ -87,8 +88,8 @@ final class TranscriptDispatchService: TranscriptDispatching {
     // MARK: - TranscriptDispatching (called inside the capture gate; never blocks)
 
     func captureEnriched(fingerprint: String, url: String, noteRelativePath: String) {
-        guard appState.settings.settings.autoTranscribeYouTube else { return }
-        guard fingerprint.hasPrefix("yt:") else { return }
+        guard let kind = TranscriptDispatch.kind(fingerprint: fingerprint, url: url) else { return }
+        guard isEnabled(kind) else { return }
         // No usable pipeline folder, no dispatch — and nothing is queued, so a
         // folder chosen later never starts a burst of old sessions. The app
         // ships publicly with this toggle on and no folder: say why in the
@@ -121,6 +122,15 @@ final class TranscriptDispatchService: TranscriptDispatching {
         ))
     }
 
+    /// Each kind has its own toggle; a pipeline folder serves both.
+    private func isEnabled(_ kind: TranscriptDispatch.Kind) -> Bool {
+        let settings = appState.settings.settings
+        switch kind {
+        case .youtube: return settings.autoTranscribeYouTube
+        case .socialVideo: return settings.autoTranscribeSocialVideos
+        }
+    }
+
     /// The Settings "Retry failed" button.
     func retryFailed() {
         ledger.retryFailed()
@@ -142,7 +152,6 @@ final class TranscriptDispatchService: TranscriptDispatching {
             guard clock() >= until else { return }
             cooldownUntil = nil
         }
-        guard appState.settings.settings.autoTranscribeYouTube else { return }
         guard let next = oldestPending() else { return }
         // Read the folder now, not at launch: a change in Settings applies to
         // the very next spawn. If it went away after this entry was queued,
@@ -230,8 +239,8 @@ final class TranscriptDispatchService: TranscriptDispatching {
             $0.attempts += 1
         }
         let transcriptRelative = TranscriptDispatch.transcriptRelativePath(forNoteRelativePath: entry.noteRelativePath)
-        let prompt = TranscriptDispatch.prompt(
-            url: entry.url,
+        let prompt = TranscriptDispatch.pipelinePrompt(
+            forURL: entry.url,
             noteAbsolutePath: noteURL.path,
             transcriptAbsolutePath: folder.appendingPathComponent(transcriptRelative).path,
             transcriptLine: TranscriptDispatch.transcriptLine(
@@ -261,9 +270,19 @@ final class TranscriptDispatchService: TranscriptDispatching {
         Self.log.warning("dispatch failed for \(entry.fingerprint, privacy: .public): \(message, privacy: .public)")
     }
 
+    /// The oldest pending entry whose toggle is on. An entry whose toggle was
+    /// turned off waits (parked, not failed) and never blocks one that is on.
     private func oldestPending() -> TranscriptDispatchEntry? {
         ledger.records
-            .filter { $0.status == .pending }
+            .filter { entry in
+                guard entry.status == .pending else { return false }
+                guard let kind = TranscriptDispatch.kind(fingerprint: entry.fingerprint, url: entry.url) else {
+                    // Not a kind this build knows (a hand edit, a newer build):
+                    // fall back to the YouTube toggle, the pre-social behavior.
+                    return isEnabled(.youtube)
+                }
+                return isEnabled(kind)
+            }
             .min { $0.createdAt < $1.createdAt }
     }
 

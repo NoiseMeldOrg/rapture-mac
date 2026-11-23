@@ -4,11 +4,12 @@ import SwiftUI
 /// The link-enrichment section of the Triage tab: one toggle, an honest
 /// network line, and the quiet-failure status. Independent of AI triage — a
 /// plain settings bind (no enable flow: no TCC, no key, nothing to verify).
-/// The nested auto-transcribe toggle drives the transcript dispatcher (see
-/// `TranscriptDispatch/`); it only means anything while enrichment is on.
-/// Under it sit the pipeline folder, a chooser, and one status line — the
-/// folder is the user's choice, so "not set" and "not found" are said here
-/// plainly instead of the feature going quiet.
+/// The two nested auto-transcribe toggles (YouTube; Facebook and X videos)
+/// drive the transcript dispatcher (see `TranscriptDispatch/`); they only mean
+/// anything while enrichment is on. Under them sit the pipeline folder both
+/// share, a chooser, and one status line. The folder is the user's choice, so
+/// "not set" and "not found" are said here plainly instead of the feature
+/// going quiet.
 struct LinkEnrichmentSettingsSection: View {
     @Environment(AppState.self) private var appState
     @Environment(TranscriptDispatchService.self) private var transcriptDispatch
@@ -34,7 +35,11 @@ struct LinkEnrichmentSettingsSection: View {
                 Text(transcribeCaption)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if appState.settings.settings.autoTranscribeYouTube {
+                Toggle("Auto-transcribe Facebook and X videos", isOn: appState.settings.binding(for: \.autoTranscribeSocialVideos))
+                Text(socialTranscribeCaption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if autoTranscribeAnything {
                     pipelineFolderRow
                     pipelineFolderStatusLine
                     if let error = appState.transcriptDispatchLastError {
@@ -112,7 +117,7 @@ struct LinkEnrichmentSettingsSection: View {
         switch pipelineFolderStatus {
         case .notSet:
             Label {
-                Text("Not set. YouTube captures are not transcribed until you choose the folder your transcript pipeline runs in.")
+                Text("Not set. Nothing is transcribed until you choose the folder your transcript pipeline runs in.")
                     .font(.caption)
             } icon: {
                 Image(systemName: "folder.badge.questionmark")
@@ -121,7 +126,7 @@ struct LinkEnrichmentSettingsSection: View {
         case .missing:
             // The path is on the row above; it is not repeated here.
             Label {
-                Text("Folder not found. YouTube captures are not transcribed until it is back or you choose another folder.")
+                Text("Folder not found. Nothing is transcribed until it is back or you choose another folder.")
                     .font(.caption)
             } icon: {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -159,6 +164,12 @@ struct LinkEnrichmentSettingsSection: View {
         }
     }
 
+    /// The folder row and status show while either toggle is on.
+    private var autoTranscribeAnything: Bool {
+        let settings = appState.settings.settings
+        return settings.autoTranscribeYouTube || settings.autoTranscribeSocialVideos
+    }
+
     private var failedDispatchCount: Int {
         appState.state.state.transcriptDispatchRecords.filter { $0.status == .failed }.count
     }
@@ -175,5 +186,12 @@ struct LinkEnrichmentSettingsSection: View {
             return "When a YouTube capture finishes enriching, the app launches your own locally installed Claude Code agent (one session at a time) in the pipeline folder below to run your transcript pipeline, save the polished transcript into Links/Media/, and link it in the note. Does nothing until you choose that folder; the app itself opens no connection."
         }
         return "Off: enriched YouTube captures are not handed to your local transcript pipeline."
+    }
+
+    private var socialTranscribeCaption: String {
+        if appState.settings.settings.autoTranscribeSocialVideos {
+            return "When a Facebook or X post that holds a video finishes enriching, the app launches your own locally installed Claude Code agent (one session at a time, shared with the YouTube setting) in the pipeline folder to run your social post transcript pipeline, save the transcript into Links/Media/, and link it in the note. Each video is one session under your own Claude Code account, so it uses your own usage. Instagram and Threads videos are never sent. Does nothing until you choose the pipeline folder; the app itself opens no connection."
+        }
+        return "Off: enriched Facebook and X video posts are not handed to your local transcript pipeline."
     }
 }

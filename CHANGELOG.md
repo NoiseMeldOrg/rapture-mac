@@ -4,6 +4,15 @@ All notable changes to Rapture for Mac are recorded here. The format follows [Ke
 
 ## [Unreleased]
 
+Link enrichment now reads public Facebook, Instagram, Threads and X posts, and Facebook and X videos can be transcribed.
+
+### Added
+
+- **Facebook, Instagram, Threads and X links get their post text.** With link enrichment on, a captured link to one of these posts used to stay titled "facebook.com" with nothing saved. Facebook, Instagram and Threads send a normal browser an empty page, so there was nothing to read. The app now reads the post text, saves it in `Links/Media/` the way it saves an article, adds the `Media:` line to the note, and renames the note to the first line of the post (up to 100 characters). For X, a quoted post is included under the text. A private post, a removed post or a login page gives nothing, and the note stays as filed.
+- **Facebook and X videos can be transcribed.** The new setting **Auto-transcribe Facebook and X videos** (Settings → Triage → Link Enrichment, on by default) works like the YouTube one. After a Facebook or X post that holds a video is enriched, the app starts one session of your own Claude Code in your pipeline folder, runs your "Social Post URL → Drive Transcript" pipeline, and links the transcript in the note. Each video is one session under your own account. It does nothing until you choose the pipeline folder, and one folder now serves both auto-transcribe settings. Instagram and Threads videos are never sent, because the pipeline cannot read them without a browser login.
+
+New network use, only with link enrichment on: for X links, `cdn.syndication.twimg.com` (X's public embed feed) and, if that gives no text, `publish.twitter.com`. For Facebook, Instagram and Threads links the app introduces itself the way Meta's own link-preview crawler does, because those sites show a normal browser nothing. It never logs in and reads only public posts. PRIVACY.md says all of this. The network check in PRIVACY.md still returns exactly the same three files.
+
 ## [1.0.149] - 2026-11-17: A note with the same words as an older note is no longer dropped
 
 Built from commit `69b3deb`. SHA-256: `8179208dd5cf4e7ea58a22ea96649ef758dcd4ddbaaa7940e2529a8ab31bc206`.

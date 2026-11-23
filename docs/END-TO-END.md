@@ -185,7 +185,8 @@ The fields:
   `idea`, `journal`, `meeting`. `task`, `idea` and `journal` appear only with
   the AI tier on; `meeting` comes only from the iOS app's meeting mode.
 - `raw_media`: on link notes only, the URL as captured, stable even after
-  enrichment renames the note. Absent on everything else.
+  enrichment renames the note. Absent on everything else. Facebook, Instagram,
+  Threads and X links are `article-link` notes like any other page.
 - `meeting_id`: on meeting notes only, the iOS app's id for the recording. A
   meeting is filed first as a transcript. When you make a summary on the
   phone, the summary replaces the note's text and renames the note, so key
@@ -240,8 +241,10 @@ level. Not "what is this note" but "what should happen because of it."
   of it.
 - **The relay needs the Mac awake.** Notes queue in iCloud and arrive when it
   next syncs. Nothing is lost, but it is not instant if the Mac is asleep.
-- **Link enrichment is best-effort.** Fetching YouTube transcripts and article
-  text can fail. The note is complete without it.
+- **Link enrichment is best-effort.** Fetching YouTube transcripts, article
+  text and the text of public Facebook, Instagram, Threads and X posts can
+  fail. A private or removed post, or a login page, gives nothing. The note is
+  complete without it.
 
 ---
 
